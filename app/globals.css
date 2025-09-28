@@ -38,6 +38,64 @@
   --sidebar-accent-foreground: oklch(0.35 0 0);
   --sidebar-border: oklch(0.88 0 0);
   --sidebar-ring: oklch(0.45 0.08 285);
+
+  /* Modal Design System - 8pt grid */
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Radios */
+  --radius-6: 6px;
+  --radius-8: 8px;
+  --radius-12: 12px;
+
+  /* Modal surfaces (light) */
+  --surface-1: #FFFFFF;
+  --surface-2: #FAFAFA;
+  --surface-3: #F5F5F5;
+  --overlay: #000000;
+  --overlay-alpha: 0.5;
+  --muted-text: #6B7280;
+
+  /* Modal colors */
+  --modal-accent: #7867FF;
+  --modal-danger: #ED5E68;
+  --modal-warning: #E7A23A;
+  --modal-success: #3CCB7F;
+
+  /* Modal elevation */
+  --elev-1: 0 8px 28px rgba(0, 0, 0, 0.15);
+
+  /* Linear-like Design System Tokens */
+  --bg-app: #F5F6F8;
+  --surface-sheet: #FFFFFF;
+  --surface-panel: #FBFBFC;
+  --stroke: #E7E8EC;
+  --stroke-layout: #E7E8EC;
+
+  --text-1: #111418;
+  --text-2: #6B7280;
+  --text-3: #9CA3AF;
+
+  --accent: #6366F1;
+
+  --radius-sheet: 18px;
+  --shadow-sheet: 0 8px 24px rgba(15,23,42,.08);
+
+  --header-h: 44px;
+  --toolbar-h: 44px;
+  --header-padding-y: 6px;   /* (44px - 32px) / 2 = 6px para botones h-8 */
+  --chipbar-h: 36px;
+  --sidebar-w: 320px;   /* para Triage lista */
+  --gap: 16px;
+  
+  /* Legacy compatibility */
+  --sheet-halo-x: 8px;
+  --sheet-halo-y: 8px;
+  --sheet-halo-x-sm: 6px;
+  --sheet-halo-y-sm: 4px;
 }
 
 .dark {
@@ -74,6 +132,24 @@
   --sidebar-accent-foreground: oklch(0.9 0 0);
   --sidebar-border: oklch(0.18 0 0);
   --sidebar-ring: oklch(0.6 0.1 285);
+
+  /* Modal surfaces (dark) */
+  --surface-1: #0E0E0F;
+  --surface-2: #121214;
+  --surface-3: #171718;
+  --overlay: #0B0B0C;
+  --overlay-alpha: 0.5;
+  --stroke: #2A2A2D;
+  --muted-text: #9A9AA0;
+
+  /* Modal colors (slightly brighter in dark) */
+  --modal-accent: #7867FF;
+  --modal-danger: #ED5E68;
+  --modal-warning: #E7A23A;
+  --modal-success: #3CCB7F;
+
+  /* Modal elevation (stronger shadow) */
+  --elev-1: 0 8px 28px rgba(0, 0, 0, 0.45);
 }
 
 @theme inline {
@@ -116,6 +192,28 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Modal Design System */
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-6: var(--space-6);
+  --spacing-8: var(--space-8);
+  --radius-6: var(--radius-6);
+  --radius-8: var(--radius-8);
+  --radius-12: var(--radius-12);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-overlay: var(--overlay);
+  --color-stroke: var(--stroke);
+  --color-muted-text: var(--muted-text);
+  --color-modal-accent: var(--modal-accent);
+  --color-modal-danger: var(--modal-danger);
+  --color-modal-warning: var(--modal-warning);
+  --color-modal-success: var(--modal-success);
+  --shadow-elevation-1: var(--elev-1);
+  --color-color-destructive-foreground: var(----color-destructive-foreground);
 }
 
 @layer base {
@@ -124,6 +222,7 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    overflow: hidden; /* Prevent global scroll */
   }
 
   /* Custom scrollbar for webkit browsers */
@@ -151,5 +250,60 @@
 
   .dark ::-webkit-scrollbar-thumb:hover {
     background: oklch(0.4 0 0);
+  }
+
+  /* Custom animations for role switching */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+  }
+
+  /* Role switching highlight */
+  @keyframes role-highlight {
+    0% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
+    70% { box-shadow: 0 0 0 4px rgba(139, 92, 246, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+  }
+
+  .animate-role-highlight {
+    animation: role-highlight 0.6s ease-out;
+  }
+
+  /* Initiatives table optimizations */
+  .initiatives-table .table-row-hover:hover {
+    background-color: oklch(0.98 0 0);
+  }
+
+  .dark .initiatives-table .table-row-hover:hover {
+    background-color: oklch(0.12 0 0);
+  }
+
+  /* Data grid enhancements */
+  .data-grid-filter-badge {
+    transition: all 0.2s ease;
+  }
+
+  .data-grid-filter-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }

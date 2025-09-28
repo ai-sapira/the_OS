@@ -1,379 +1,723 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Sidebar } from "@/components/sidebar"
-import { Header } from "@/components/header"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Users, Target, CheckCircle2, Plus, Filter, MoreHorizontal, Activity } from "lucide-react"
+import * as React from "react";
+import { useState, useMemo, useEffect } from "react";
+import {
+  SearchIcon,
+  MoreHorizontalIcon,
+  PlusIcon,
+  SettingsIcon,
+  Target,
+  Hexagon,
+  ListFilter,
+  User,
+  CheckCircle,
+} from "lucide-react";
+import { 
+  ResizableAppShell, 
+  ResizablePageSheet
+} from "@/components/layout";
 
-interface Project {
-  id: string
-  name: string
-  description: string
-  color: string
-  manager: string
-  team: string[]
-  activeIssues: number
-  completedIssues: number
-  totalIssues: number
-  progress: number
-  throughput: number
-  cycleTime: string
-  slaCompliance: number
-  initiatives: string[]
-  status: "active" | "planning" | "on-hold"
+// UI Components
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { ManagerButton } from "@/components/ui/manager-button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
+// API and Types
+import { ProjectsAPI, ProjectWithRelations } from "@/lib/api/projects";
+import { cn } from "@/lib/utils";
+
+// Editable Components
+import { EditableProjectStatusDropdown } from "@/components/ui/editable-project-status-dropdown";
+import { EditableProjectBUDropdown } from "@/components/ui/editable-project-bu-dropdown";
+import { EditableProjectOwnerDropdown } from "@/components/ui/editable-project-owner-dropdown";
+
+// Projects Filters Bar Component
+function ProjectsFiltersBar({
+  onFiltersChange
+}: {
+  onFiltersChange?: (filters: any[], globalFilter: string) => void
+}) {
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [open, setOpen] = useState(false);
+  const [selectedView, setSelectedView] = useState<string | null>(null);
+  const [commandInput, setCommandInput] = useState("");
+  const commandInputRef = React.useRef<HTMLInputElement>(null);
+  const [filters, setFilters] = useState<any[]>([]);
+  const [availableOwners, setAvailableOwners] = useState<any[]>([]);
+  const [availableBusinessUnits, setAvailableBusinessUnits] = useState<any[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
+
+  // Notify parent when filters change
+  React.useEffect(() => {
+    if (onFiltersChange) {
+      onFiltersChange(filters, globalFilter);
+    }
+  }, [filters, globalFilter, onFiltersChange]);
+
+
+  // Handle global filter changes
+  const handleGlobalFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setGlobalFilter(value);
+  };
+
+  // Load data from database when dropdown opens
+  React.useEffect(() => {
+    if (open && (availableOwners.length === 0 || availableBusinessUnits.length === 0)) {
+      loadFilterData();
+    }
+  }, [open]);
+
+  // Refresh filter data when component mounts (to get fresh data)
+  React.useEffect(() => {
+    loadFilterData();
+  }, []);
+
+  const loadFilterData = async () => {
+    try {
+      setLoadingData(true);
+      const [ownersData, businessUnitsData] = await Promise.all([
+        ProjectsAPI.getAvailableUsers(),
+        ProjectsAPI.getBusinessUnits()
+      ]);
+      setAvailableOwners(ownersData);
+      setAvailableBusinessUnits(businessUnitsData);
+    } catch (error) {
+      console.error('Error loading filter data:', error);
+      // Fallback to empty arrays if API fails
+      setAvailableOwners([]);
+      setAvailableBusinessUnits([]);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  // Generate filter options dynamically from database data
+  const getFilterOptions = () => {
+    const statusOptions = [
+      { name: "Active", icon: <CheckCircle className="w-2.5 h-2.5 text-green-600" /> },
+      { name: "Planned", icon: <CheckCircle className="w-2.5 h-2.5 text-blue-600" /> },
+      { name: "Paused", icon: <CheckCircle className="w-2.5 h-2.5 text-yellow-600" /> },
+      { name: "Done", icon: <CheckCircle className="w-2.5 h-2.5 text-gray-600" /> },
+    ];
+
+    const businessUnitOptions = [
+      ...availableBusinessUnits.map(bu => ({
+        name: bu.name,
+        icon: <Target className="w-2.5 h-2.5 text-gray-600" />
+      })),
+      { name: "Unassigned", icon: <Target className="w-2.5 h-2.5 text-gray-400" /> },
+    ];
+
+    const ownerOptions = [
+      ...availableOwners.map(owner => ({
+        name: owner.name,
+        icon: <User className="w-2.5 h-2.5 text-gray-600" />
+      })),
+      { name: "Unassigned", icon: <User className="w-2.5 h-2.5 text-gray-400" /> },
+    ];
+
+    return [
+      {
+        name: "Status",
+        icon: <CheckCircle className="w-2.5 h-2.5 text-gray-600" />,
+        options: statusOptions
+      },
+      {
+        name: "Business Unit",
+        icon: <Target className="w-2.5 h-2.5 text-gray-600" />,
+        options: businessUnitOptions
+      },
+      {
+        name: "Owner",
+        icon: <User className="w-2.5 h-2.5 text-gray-600" />,
+        options: ownerOptions
+      }
+    ];
+  };
+
+  const filterOptions = getFilterOptions();
+
+  return (
+    <div className="flex items-center justify-between w-full">
+      <div className="flex items-center space-x-2">
+        {/* Search Bar */}
+        <div className="relative">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Search projects..."
+            value={globalFilter ?? ""}
+            onChange={handleGlobalFilterChange}
+            className="pl-9 h-7 max-w-sm bg-gray-50 border-gray-200 rounded-lg border-dashed focus:border-gray-200 focus:ring-0 focus:ring-offset-0 focus:shadow-none focus:outline-none text-gray-900 placeholder-gray-500 shadow-none hover:bg-gray-100 transition-colors text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
+          />
+        </div>
+
+        {/* Active Filters */}
+        <div className="flex gap-2">
+          {filters
+            .filter((filter) => filter.value?.length > 0)
+            .map((filter, index) => {
+              const filterType = filterOptions.find(opt => opt.name === filter.type);
+              const filterValue = filter.value[0];
+              const matchingOption = filterType?.options.find(option => option.name === filterValue);
+
+              return (
+                <div key={index} className="flex items-center text-xs h-7 rounded-lg overflow-hidden border-dashed border border-gray-200 bg-gray-50">
+                  <div className="flex gap-1.5 shrink-0 hover:bg-gray-100 px-3 h-full items-center transition-colors">
+                    {filterType?.icon}
+                    <span className="text-gray-600 font-medium text-xs">{filter.type}</span>
+                  </div>
+                  <div className="hover:bg-gray-100 px-2 h-full flex items-center text-gray-600 transition-colors shrink-0 text-xs border-l border-gray-200">
+                    is
+                  </div>
+                  <div className="hover:bg-gray-100 px-3 h-full flex items-center text-gray-600 transition-colors shrink-0 border-l border-gray-200">
+                    <div className="flex gap-1.5 items-center">
+                      {matchingOption?.icon}
+                      <span className="text-gray-600 text-xs">{filterValue}</span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setFilters((prev) => prev.filter((_, i) => i !== index));
+                    }}
+                    className="hover:bg-gray-100 h-full w-8 text-gray-500 hover:text-gray-700 transition-colors shrink-0 border-l border-gray-200"
+                  >
+                    <span className="text-xs">×</span>
+                  </Button>
+                </div>
+              );
+            })}
+        </div>
+
+        {/* Clear Filters Button */}
+        {filters.filter((filter) => filter.value?.length > 0).length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 border-dashed bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-600 hover:text-gray-700 transition flex gap-1.5 items-center rounded-lg px-3 text-xs"
+            onClick={() => setFilters([])}
+          >
+            Clear
+          </Button>
+        )}
+
+        {/* Filter Dropdown */}
+        <Popover
+          open={open}
+          onOpenChange={(open) => {
+            setOpen(open);
+            if (!open) {
+              setTimeout(() => {
+                setSelectedView(null);
+                setCommandInput("");
+              }, 200);
+            }
+          }}
+        >
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={open}
+              size="sm"
+              className="h-7 border-dashed bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-600 hover:text-gray-700 gap-1.5 px-3 text-xs rounded-lg"
+            >
+              <ListFilter className="h-3 w-3 shrink-0 transition-all text-gray-500" />
+              <span className="text-xs">Filter</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-[200px] p-1 rounded-2xl border-gray-200 shadow-lg"
+            style={{
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)',
+              border: '1px solid rgb(229 229 229)',
+              backgroundColor: '#ffffff',
+            }}
+          >
+            <Command className="[&_[cmdk-item][data-selected='true']]:!bg-gray-100 [&_[cmdk-item][data-selected='true']]:!text-black [&_[cmdk-item]:hover]:!bg-gray-100 [&_[cmdk-item]:hover]:!text-black [&_[cmdk-input-wrapper]]:border-0 [&_[cmdk-input-wrapper]]:px-2 [&_[cmdk-input-wrapper]]:py-1.5 [&_[cmdk-input-wrapper]_svg]:!text-black [&_[cmdk-input-wrapper]_svg]:!opacity-100 [&_[cmdk-input-wrapper]_svg]:!w-4 [&_[cmdk-input-wrapper]_svg]:!h-4 [&_[cmdk-input-wrapper]_svg]:!mr-2 [&_[cmdk-input-wrapper]]:!flex [&_[cmdk-input-wrapper]]:!items-center [&_[cmdk-input-wrapper]_svg]:!stroke-2">
+              <CommandInput
+                placeholder={selectedView ? selectedView : "Search..."}
+                className="h-7 border-0 focus:ring-0 text-[14px] placeholder:text-gray-400 pl-0"
+                value={commandInput}
+                onInputCapture={(e) => {
+                  setCommandInput(e.currentTarget.value);
+                }}
+                ref={commandInputRef}
+              />
+              <CommandList>
+                <CommandEmpty className="text-gray-400 py-3 text-center text-xs">
+                  {loadingData ? "Loading..." : "No filters found."}
+                </CommandEmpty>
+                {selectedView ? (
+                  <CommandGroup>
+                    {filterOptions.find(opt => opt.name === selectedView)?.options.map((option) => (
+                      <CommandItem
+                        className="group text-gray-600 hover:!text-black hover:!bg-gray-100 data-[selected=true]:!bg-gray-100 data-[selected=true]:!text-black flex items-center px-2 py-1.5 cursor-pointer rounded-lg transition-all duration-150 mx-0"
+                        key={option.name}
+                        value={option.name}
+                        onSelect={() => {
+                          setFilters(prev => [...prev, { type: selectedView, value: [option.name] }]);
+                          setTimeout(() => {
+                            setSelectedView(null);
+                            setCommandInput("");
+                          }, 200);
+                          setOpen(false);
+                        }}
+                      >
+                        <div className="flex items-center gap-2 w-full">
+                          <div className="h-4 w-4 rounded bg-gray-100 flex items-center justify-center text-black flex-shrink-0">
+                            {option.icon}
+                          </div>
+                          <span className="text-black font-normal text-[14px] flex-1">
+                            {option.name}
+                          </span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                ) : (
+                  <CommandGroup>
+                    {filterOptions.map((option) => (
+                      <CommandItem
+                        className="group text-gray-600 hover:!text-black hover:!bg-gray-100 data-[selected=true]:!bg-gray-100 data-[selected=true]:!text-black flex items-center px-2 py-1.5 cursor-pointer rounded-lg transition-all duration-150 mx-0"
+                        key={option.name}
+                        value={option.name}
+                        onSelect={() => {
+                          setSelectedView(option.name);
+                          setCommandInput("");
+                          commandInputRef.current?.focus();
+                        }}
+                      >
+                        <div className="flex items-center gap-2 w-full">
+                          <div className="h-4 w-4 rounded bg-gray-100 flex items-center justify-center text-black flex-shrink-0">
+                            {option.icon}
+                          </div>
+                          <span className="text-black font-normal text-[14px] flex-1">
+                            {option.name}
+                          </span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      {/* Display Settings */}
+      <div className="flex items-center space-x-2">
+        <Button variant="outline" size="sm" className="h-7 bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-600 hover:text-gray-700 border-dashed px-3 text-xs rounded-lg">
+          <SettingsIcon className="mr-1.5 h-3.5 w-3.5 text-gray-500" />
+          Display
+        </Button>
+      </div>
+    </div>
+  );
 }
 
-export default function ProjectsPage() {
-  const [selectedView, setSelectedView] = useState<"grid" | "list">("grid")
+// Sample data with projects-specific structure
+const sampleProjects: ProjectWithRelations[] = [
+  {
+    id: "proj-001",
+    name: "Customer Portal Redesign",
+    description: "Complete overhaul of the customer-facing portal with modern UI/UX",
+      status: "active",
+    owner_user_id: "user-001",
+    organization_id: "org-001",
+    progress: 75,
+    planned_start_at: "2024-01-15T00:00:00Z",
+    planned_end_at: "2024-06-30T00:00:00Z",
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-20T00:00:00Z",
+    slug: "customer-portal-redesign",
+    owner: {
+      id: "user-001",
+      name: "Sarah Johnson",
+      email: "sarah@company.com",
+      avatar_url: null,
+      role: "SAP",
+      organization_id: "org-001",
+      active: true,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+    },
+    _count: {
+      issues: 24,
+      active_issues: 8,
+      completed_issues: 16,
+    },
+    _progress: {
+      calculated: 67,
+      manual: 75,
+    },
+  },
+  {
+    id: "proj-002",
+    name: "Mobile App v2.0",
+    description: "Next generation mobile application with enhanced features",
+      status: "active",
+    owner_user_id: "user-002",
+    organization_id: "org-001",
+    progress: 45,
+    planned_start_at: "2024-02-01T00:00:00Z",
+    planned_end_at: "2024-08-31T00:00:00Z",
+    created_at: "2024-01-15T00:00:00Z",
+    updated_at: "2024-01-25T00:00:00Z",
+    slug: "mobile-app-v2",
+    owner: {
+      id: "user-002",
+      name: "Michael Chen",
+      email: "michael@company.com",
+      avatar_url: null,
+      role: "CEO",
+      organization_id: "org-001",
+      active: true,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+    },
+    _count: {
+      issues: 31,
+      active_issues: 18,
+      completed_issues: 13,
+    },
+    _progress: {
+      calculated: 42,
+      manual: 45,
+    },
+  },
+  {
+    id: "proj-003",
+    name: "Security Audit & Compliance",
+    description: "Comprehensive security review and compliance implementation",
+    status: "planned",
+    owner_user_id: "user-003",
+    organization_id: "org-001",
+    progress: 0,
+    planned_start_at: "2024-04-01T00:00:00Z",
+    planned_end_at: "2024-09-30T00:00:00Z",
+    created_at: "2024-01-10T00:00:00Z",
+    updated_at: "2024-01-20T00:00:00Z",
+    slug: "security-audit-compliance",
+    owner: {
+      id: "user-003",
+      name: "Emma Rodriguez",
+      email: "emma@company.com",
+      avatar_url: null,
+      role: "BU",
+      organization_id: "org-001",
+      active: true,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+    },
+    _count: {
+      issues: 12,
+      active_issues: 0,
+      completed_issues: 0,
+    },
+    _progress: {
+      calculated: 0,
+      manual: 0,
+    },
+  },
+];
 
-  const projects: Project[] = [
-    {
-      id: "tech",
-      name: "Tecnología",
-      description: "Desarrollo de productos, infraestructura y sistemas internos",
-      color: "bg-blue-500",
-      manager: "Carlos Rodríguez",
-      team: ["Frontend Team", "Backend Team", "DevOps Team", "QA Team"],
-      activeIssues: 15,
-      completedIssues: 89,
-      totalIssues: 104,
-      progress: 85,
-      throughput: 12,
-      cycleTime: "3.2 días",
-      slaCompliance: 94,
-      initiatives: ["Transformación Digital", "Optimización Procesos"],
-      status: "active",
-    },
-    {
-      id: "marketing",
-      name: "Marketing",
-      description: "Estrategia de marca, contenido y adquisición de clientes",
-      color: "bg-green-500",
-      manager: "Ana Martínez",
-      team: ["Content Team", "Design Team", "Growth Team"],
-      activeIssues: 8,
-      completedIssues: 45,
-      totalIssues: 53,
-      progress: 85,
-      throughput: 8,
-      cycleTime: "2.1 días",
-      slaCompliance: 98,
-      initiatives: ["Expansión Internacional", "Customer Success"],
-      status: "active",
-    },
-    {
-      id: "sales",
-      name: "Ventas",
-      description: "Gestión comercial, relaciones con clientes y revenue",
-      color: "bg-purple-500",
-      manager: "Miguel López",
-      team: ["Sales Team", "Account Management", "Business Development"],
-      activeIssues: 12,
-      completedIssues: 67,
-      totalIssues: 79,
-      progress: 85,
-      throughput: 10,
-      cycleTime: "1.8 días",
-      slaCompliance: 92,
-      initiatives: ["Expansión Internacional"],
-      status: "active",
-    },
-    {
-      id: "hr",
-      name: "Recursos Humanos",
-      description: "Gestión de talento, cultura organizacional y desarrollo",
-      color: "bg-orange-500",
-      manager: "Laura García",
-      team: ["Talent Acquisition", "People Operations", "Learning & Development"],
-      activeIssues: 6,
-      completedIssues: 34,
-      totalIssues: 40,
-      progress: 85,
-      throughput: 5,
-      cycleTime: "4.1 días",
-      slaCompliance: 89,
-      initiatives: ["Expansión Internacional", "Optimización Procesos"],
-      status: "active",
-    },
-    {
-      id: "finance",
-      name: "Finanzas",
-      description: "Control financiero, presupuestos y análisis económico",
-      color: "bg-red-500",
-      manager: "Roberto Sánchez",
-      team: ["Finance Team", "Accounting", "Financial Planning"],
-      activeIssues: 4,
-      completedIssues: 28,
-      totalIssues: 32,
-      progress: 88,
-      throughput: 4,
-      cycleTime: "2.5 días",
-      slaCompliance: 96,
-      initiatives: ["Optimización Procesos"],
-      status: "active",
-    },
-  ]
+// Projects Card List Component  
+function ProjectsCardList({ 
+  filters, 
+  globalFilter,
+  onDataChange
+}: { 
+  filters?: any[], 
+  globalFilter?: string,
+  onDataChange?: () => void
+}) {
+  const [data, setData] = useState<ProjectWithRelations[]>([]);
+  const [filteredData, setFilteredData] = useState<ProjectWithRelations[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const getStatusColor = (status: Project["status"]) => {
-    switch (status) {
-      case "active":
-        return "bg-green-500/10 text-green-500 border-green-500/20"
-      case "planning":
-        return "bg-orange-500/10 text-orange-500 border-orange-500/20"
-      case "on-hold":
-        return "bg-red-500/10 text-red-500 border-red-500/20"
-      default:
-        return "bg-muted text-muted-foreground border-border"
+  // Load projects data
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        setLoading(true);
+        const projects = await ProjectsAPI.getProjects();
+        setData(projects);
+      } catch (error) {
+        console.error('Error loading projects:', error);
+        // Use sample data as fallback
+        setData(sampleProjects);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProjects();
+  }, []);
+
+  // Apply filters when data, filters, or globalFilter changes
+  useEffect(() => {
+    let filtered = [...data];
+
+    // Apply global filter (search)
+    if (globalFilter) {
+      filtered = filtered.filter(project => 
+        project.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        project.description?.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        project.owner?.name.toLowerCase().includes(globalFilter.toLowerCase())
+      );
     }
-  }
 
-  const getStatusLabel = (status: Project["status"]) => {
-    switch (status) {
-      case "active":
-        return "Activo"
-      case "planning":
-        return "Planificación"
-      case "on-hold":
-        return "En pausa"
-      default:
-        return status
+    // Apply specific filters
+    if (filters && filters.length > 0) {
+      filters.forEach(filter => {
+        if (filter.value && filter.value.length > 0) {
+          const filterValue = filter.value[0];
+          
+          switch (filter.type) {
+            case "Status":
+              filtered = filtered.filter(project => {
+                return project.status === filterValue.toLowerCase();
+              });
+              break;
+            case "Business Unit":
+              filtered = filtered.filter(project => {
+                if (filterValue === "Unassigned") {
+                  return !project._initiative;
+                } else {
+                  return project._initiative?.name === filterValue;
+                }
+              });
+              break;
+            case "Owner":
+              filtered = filtered.filter(project => {
+                if (filterValue === "Unassigned") {
+                  return !project.owner;
+                } else {
+                  return project.owner?.name === filterValue;
+                }
+              });
+              break;
+          }
+        }
+      });
     }
-  }
 
-  const getSLAColor = (sla: number) => {
-    if (sla >= 95) return "text-green-500"
-    if (sla >= 90) return "text-orange-500"
-    return "text-red-500"
+    setFilteredData(filtered);
+  }, [data, filters, globalFilter]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-muted-foreground">Loading projects...</div>
+      </div>
+    );
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      <Sidebar />
-
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header
-          title="Departamentos"
-          subtitle="Vista de Business Units y equipos de trabajo"
-          actions={
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
-                <Button
-                  variant={selectedView === "grid" ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-8"
-                  onClick={() => setSelectedView("grid")}
-                >
-                  Grid
-                </Button>
-                <Button
-                  variant={selectedView === "list" ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-8"
-                  onClick={() => setSelectedView("list")}
-                >
-                  Lista
-                </Button>
+    <div>
+      {filteredData.length > 0 ? (
+        filteredData.map((project, index) => (
+          <div
+            key={project.id}
+            className="py-3 hover:bg-gray-50/50 transition-colors cursor-pointer"
+          >
+            <div className="grid grid-cols-[1fr_120px_160px_180px_140px] gap-4 items-center">
+              {/* Project Column */}
+              <div className="flex items-center space-x-3 min-w-0">
+                <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  <Hexagon className="h-4 w-4 text-gray-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-gray-900 truncate">{project.name}</div>
+                </div>
               </div>
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                Filtros
-              </Button>
-              <Button size="sm" className="gap-2">
-                <Plus className="h-4 w-4" />
-                Nuevo departamento
-              </Button>
+
+              {/* Status Column */}
+              <div className="flex justify-start">
+                <EditableProjectStatusDropdown
+                  currentStatus={project.status || "planned"}
+                  projectId={project.id}
+                  onStatusChange={(newStatus) => {
+                    // Update local state immediately for optimistic UI
+                    const updatedData = data.map(item => 
+                      item.id === project.id 
+                        ? { ...item, status: newStatus }
+                        : item
+                    );
+                    setData(updatedData);
+                    
+                    // Call parent refresh if needed
+                    onDataChange?.();
+                  }}
+                />
+              </div>
+
+              {/* Business Unit Column */}
+              <div className="flex justify-start min-w-0">
+                <EditableProjectBUDropdown
+                  currentBU={project._initiative}
+                  projectId={project.id}
+                  onBUChange={(newBU) => {
+                    // Update local state immediately for optimistic UI
+                    const updatedData = data.map(item => 
+                      item.id === project.id 
+                        ? { ...item, _initiative: newBU as any }
+                        : item
+                    );
+                    setData(updatedData);
+                    
+                    // Call parent refresh if needed
+                    onDataChange?.();
+                  }}
+                />
+              </div>
+
+              {/* Owner Column */}
+              <div className="flex justify-start">
+                <EditableProjectOwnerDropdown
+                  currentOwner={project.owner}
+                  projectId={project.id}
+                  onOwnerChange={(newOwner) => {
+                    // Update local state immediately for optimistic UI
+                    const updatedData = data.map(item => 
+                      item.id === project.id 
+                        ? { ...item, owner: newOwner as any }
+                        : item
+                    );
+                    setData(updatedData);
+                    
+                    // Call parent refresh if needed
+                    onDataChange?.();
+                  }}
+                />
+              </div>
+
+              {/* Progress & Issues Column */}
+              <div className="text-sm min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <div className="w-18 bg-gray-200 rounded-full h-1 flex-shrink-0">
+                    <div
+                      className="bg-gray-900 h-1 rounded-full transition-all"
+                      style={{ width: `${Math.min(project.progress || 0, 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-gray-900 flex-shrink-0">
+                    {project.progress || 0}%
+                  </span>
+                </div>
+                {project._count && project._count.issues > 0 ? (
+                  <div className="flex items-center space-x-2 text-xs">
+                    <span className="font-medium text-gray-900">{project._count.issues}</span>
+                    <span className="text-gray-500">•</span>
+                    <span className="font-medium text-gray-600">{project._count.active_issues} active</span>
+                  </div>
+                ) : (
+                  <span className="text-gray-500 text-xs">No issues</span>
+                )}
+              </div>
             </div>
-          }
-        />
+          </div>
+        ))
+      ) : (
+        <div className="py-12 text-center text-gray-500">
+          <Hexagon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+          <p>No projects found</p>
+          <p className="text-sm">Get started by creating your first project</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
-        <main className="flex-1 overflow-auto p-6">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-4 gap-4 mb-8">
-            <Card className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500/10 rounded-lg">
-                  <Users className="h-5 w-5 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Departamentos Activos</p>
-                  <p className="text-2xl font-semibold">{projects.filter((p) => p.status === "active").length}</p>
-                </div>
-              </div>
-            </Card>
+export default function ProjectsPage() {
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [filters, setFilters] = useState<any[]>([])
+  const [globalFilter, setGlobalFilter] = useState("")
 
-            <Card className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-500/10 rounded-lg">
-                  <Target className="h-5 w-5 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Tickets Activos</p>
-                  <p className="text-2xl font-semibold">{projects.reduce((sum, p) => sum + p.activeIssues, 0)}</p>
-                </div>
-              </div>
-            </Card>
+  const handleFiltersChange = (newFilters: any[], newGlobalFilter: string) => {
+    setFilters(newFilters)
+    setGlobalFilter(newGlobalFilter)
+  }
 
-            <Card className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-500/10 rounded-lg">
-                  <Activity className="h-5 w-5 text-orange-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Throughput Promedio</p>
-                  <p className="text-2xl font-semibold">
-                    {Math.round(projects.reduce((sum, p) => sum + p.throughput, 0) / projects.length)}
-                  </p>
-                </div>
+  return (
+    <ResizableAppShell
+      onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+      onOpenCreateIssue={() => setShowCreateModal(true)}
+    >
+      <ResizablePageSheet
+        header={
+          <div>
+            <div className="flex items-center justify-between w-full h-full" style={{ paddingLeft: '28px', paddingRight: '20px', paddingTop: 'var(--header-padding-y)', paddingBottom: 'var(--header-padding-y)' }}>
+              {/* Breadcrumb */}
+              <div className="flex items-center gap-2">
+                <span className="text-[14px] text-gray-500">Workspace</span>
+                <span className="text-[14px] text-gray-400">›</span>
+                <span className="text-[14px] font-medium">Projects</span>
               </div>
-            </Card>
-
-            <Card className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-500/10 rounded-lg">
-                  <CheckCircle2 className="h-5 w-5 text-purple-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">SLA Promedio</p>
-                  <p className="text-2xl font-semibold">
-                    {Math.round(projects.reduce((sum, p) => sum + p.slaCompliance, 0) / projects.length)}%
-                  </p>
-                </div>
+              
+              {/* Actions */}
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <PlusIcon className="h-4 w-4" />
+                </Button>
               </div>
-            </Card>
+            </div>
+          </div>
+        }
+        toolbar={
+          <div className="bg-white border-b border-stroke" style={{ height: 'var(--header-h)' }}>
+            <div className="flex items-center justify-between h-full" style={{ paddingLeft: '18px', paddingRight: '20px', paddingTop: 'var(--header-padding-y)', paddingBottom: 'var(--header-padding-y)' }}>
+              <ProjectsFiltersBar onFiltersChange={handleFiltersChange} />
+            </div>
+          </div>
+        }
+      >
+        {/* Container that goes to edges - compensate sheet padding exactly */}
+        <div className="-mx-5 -mt-4">
+          {/* Level 1: Column Names - border goes edge to edge */}
+          <div className="py-2 border-b border-stroke bg-gray-50/30" style={{ paddingLeft: '28px', paddingRight: '20px' }}>
+            <div className="grid grid-cols-[1fr_120px_160px_180px_140px] gap-4">
+              <div className="text-[13px] font-medium text-gray-500">Project</div>
+              <div className="text-[13px] font-medium text-gray-500">Status</div>
+              <div className="text-[13px] font-medium text-gray-500">Business Unit</div>
+              <div className="text-[13px] font-medium text-gray-500">Owner</div>
+              <div className="text-[13px] font-medium text-gray-500">Progress</div>
+            </div>
           </div>
 
-          {/* Projects Grid/List */}
-          {selectedView === "grid" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.map((project) => (
-                <Card key={project.id} className="p-6 hover:bg-accent/50 transition-colors cursor-pointer">
-                  <div className="space-y-4">
-                    {/* Header */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`h-3 w-3 rounded-full ${project.color}`} />
-                        <div>
-                          <h3 className="font-semibold text-foreground">{project.name}</h3>
-                          <Badge className={`${getStatusColor(project.status)} border mt-1`}>
-                            {getStatusLabel(project.status)}
-                          </Badge>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <p className="text-sm text-muted-foreground text-pretty">{project.description}</p>
-
-                    {/* Manager */}
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-xs">
-                          {project.manager
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm text-muted-foreground">{project.manager}</span>
-                    </div>
-
-                    {/* Progress */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Progreso</span>
-                        <span className="font-medium">{project.progress}%</span>
-                      </div>
-                      <Progress value={project.progress} className="h-2" />
-                    </div>
-
-                    {/* Stats */}
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Tickets activos</p>
-                        <p className="font-semibold">{project.activeIssues}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Throughput</p>
-                        <p className="font-semibold">{project.throughput}/semana</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Cycle time</p>
-                        <p className="font-semibold">{project.cycleTime}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">SLA</p>
-                        <p className={`font-semibold ${getSLAColor(project.slaCompliance)}`}>
-                          {project.slaCompliance}%
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Initiatives */}
-                    <div className="space-y-2">
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Iniciativas</p>
-                      <div className="flex flex-wrap gap-1">
-                        {project.initiatives.map((initiative) => (
-                          <Badge key={initiative} variant="outline" className="text-xs">
-                            {initiative}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {projects.map((project) => (
-                <Card key={project.id} className="p-4 hover:bg-accent/50 transition-colors cursor-pointer">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className={`h-3 w-3 rounded-full ${project.color}`} />
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-1">
-                          <h3 className="font-semibold text-foreground">{project.name}</h3>
-                          <Badge className={`${getStatusColor(project.status)} border`}>
-                            {getStatusLabel(project.status)}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2">{project.description}</p>
-                        <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                          <span>Manager: {project.manager}</span>
-                          <span>•</span>
-                          <span>{project.activeIssues} tickets activos</span>
-                          <span>•</span>
-                          <span>Throughput: {project.throughput}/semana</span>
-                          <span>•</span>
-                          <span className={getSLAColor(project.slaCompliance)}>SLA: {project.slaCompliance}%</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <p className="text-sm font-medium">{project.progress}%</p>
-                        <Progress value={project.progress} className="h-1 w-20" />
-                      </div>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </main>
-      </div>
-    </div>
-  )
+          {/* Content: Projects List */}
+          <div className="bg-white" style={{ paddingLeft: '28px', paddingRight: '20px' }}>
+            <ProjectsCardList 
+              filters={filters} 
+              globalFilter={globalFilter}
+              onDataChange={() => {
+                // Refresh data if needed
+                console.log('Project data updated, could refresh here');
+              }}
+            />
+          </div>
+        </div>
+      </ResizablePageSheet>
+    </ResizableAppShell>
+  );
 }

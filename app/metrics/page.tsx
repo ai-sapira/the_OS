@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { Sidebar } from "@/components/sidebar"
-import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -58,11 +57,11 @@ export default function MetricsPage() {
   ]
 
   const departmentROI = [
-    { name: "Tecnología", roi: 28, color: "#3b82f6" },
-    { name: "Marketing", roi: 35, color: "#10b981" },
-    { name: "Ventas", roi: 42, color: "#8b5cf6" },
-    { name: "RRHH", roi: 18, color: "#f59e0b" },
-    { name: "Finanzas", roi: 22, color: "#ef4444" },
+    { name: "Tecnología", roi: 28, color: "#2563eb" },
+    { name: "Marketing", roi: 35, color: "#2563eb" },
+    { name: "Ventas", roi: 42, color: "#2563eb" },
+    { name: "RRHH", roi: 18, color: "#2563eb" },
+    { name: "Finanzas", roi: 22, color: "#2563eb" },
   ]
 
   const slaComplianceData = [
@@ -88,61 +87,61 @@ export default function MetricsPage() {
       value: "3.6 días",
       change: -8.2,
       icon: Clock,
-      color: "text-blue-500",
-      bgColor: "bg-blue-500/10",
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
     },
     {
       title: "Cycle Time Promedio",
       value: "1.9 días",
       change: -12.5,
       icon: Activity,
-      color: "text-green-500",
-      bgColor: "bg-green-500/10",
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
     },
     {
       title: "ROI Promedio",
       value: "+29%",
       change: 5.3,
       icon: TrendingUp,
-      color: "text-purple-500",
-      bgColor: "bg-purple-500/10",
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
     },
     {
       title: "SLA Compliance",
       value: "94.2%",
       change: 2.1,
       icon: Target,
-      color: "text-orange-500",
-      bgColor: "bg-orange-500/10",
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
     },
     {
       title: "Throughput Semanal",
       value: "19.8",
       change: 15.7,
       icon: CheckCircle2,
-      color: "text-emerald-500",
-      bgColor: "bg-emerald-500/10",
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
     },
     {
       title: "Rework Rate",
       value: "5.7%",
       change: -18.3,
       icon: RefreshCw,
-      color: "text-red-500",
-      bgColor: "bg-red-500/10",
+      color: "text-blue-600",
+      bgColor: "bg-blue-50",
     },
   ]
 
   const getChangeIcon = (change: number) => {
-    if (change > 0) return <ArrowUp className="h-3 w-3 text-green-500" />
-    if (change < 0) return <ArrowDown className="h-3 w-3 text-red-500" />
-    return <Minus className="h-3 w-3 text-muted-foreground" />
+    if (change > 0) return <ArrowUp className="h-3 w-3 text-gray-600" />
+    if (change < 0) return <ArrowDown className="h-3 w-3 text-gray-600" />
+    return <Minus className="h-3 w-3 text-gray-400" />
   }
 
   const getChangeColor = (change: number) => {
-    if (change > 0) return "text-green-500"
-    if (change < 0) return "text-red-500"
-    return "text-muted-foreground"
+    if (change > 0) return "text-gray-600"
+    if (change < 0) return "text-gray-600"
+    return "text-gray-400"
   }
 
   const departments = [
@@ -162,14 +161,26 @@ export default function MetricsPage() {
   ]
 
   return (
-    <div className="flex h-screen bg-background">
-      <Sidebar />
+    <div className="h-screen w-screen bg-background grid overflow-hidden transition-all duration-200 grid-cols-[256px_1px_1fr]">
+      {/* Sidebar */}
+      <div className="bg-white border-r border-gray-200 h-full overflow-hidden">
+        <Sidebar />
+      </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header
-          title="Metrics & Performance"
-          subtitle="Panel consolidado de KPIs y métricas de rendimiento"
-          actions={
+      {/* Separator */}
+      <div className="bg-gray-200 w-px" />
+
+      {/* Main Content */}
+      <div className="bg-white h-full flex flex-col overflow-hidden">
+        {/* Page Header */}
+        <div className="px-6 py-6 flex-shrink-0 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900">Metrics</h1>
+              <p className="text-gray-600 text-sm mt-1">
+                Panel consolidado de KPIs y métricas de rendimiento
+              </p>
+            </div>
             <div className="flex items-center gap-3">
               <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
                 <SelectTrigger className="w-48">
@@ -207,10 +218,11 @@ export default function MetricsPage() {
                 Exportar
               </Button>
             </div>
-          }
-        />
+          </div>
+        </div>
 
-        <main className="flex-1 overflow-auto p-6 space-y-6">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             {kpiCards.map((kpi, index) => (
@@ -254,8 +266,8 @@ export default function MetricsPage() {
                       borderRadius: "8px",
                     }}
                   />
-                  <Line type="monotone" dataKey="leadTime" stroke="#3b82f6" strokeWidth={2} name="Lead Time" />
-                  <Line type="monotone" dataKey="cycleTime" stroke="#10b981" strokeWidth={2} name="Cycle Time" />
+                  <Line type="monotone" dataKey="leadTime" stroke="#2563eb" strokeWidth={2} name="Lead Time" />
+                  <Line type="monotone" dataKey="cycleTime" stroke="#64748b" strokeWidth={2} name="Cycle Time" />
                 </LineChart>
               </ResponsiveContainer>
             </Card>
@@ -278,7 +290,7 @@ export default function MetricsPage() {
                       borderRadius: "8px",
                     }}
                   />
-                  <Bar dataKey="completed" fill="#3b82f6" name="Completados" />
+                  <Bar dataKey="completed" fill="#2563eb" name="Completados" />
                   <Bar dataKey="created" fill="#e5e7eb" name="Creados" />
                 </BarChart>
               </ResponsiveContainer>
@@ -302,7 +314,7 @@ export default function MetricsPage() {
                       borderRadius: "8px",
                     }}
                   />
-                  <Bar dataKey="roi" fill="#8b5cf6" name="ROI %" />
+                  <Bar dataKey="roi" fill="#2563eb" name="ROI %" />
                 </BarChart>
               </ResponsiveContainer>
             </Card>
@@ -325,7 +337,7 @@ export default function MetricsPage() {
                       borderRadius: "8px",
                     }}
                   />
-                  <Area type="monotone" dataKey="sla" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.2} name="SLA %" />
+                  <Area type="monotone" dataKey="sla" stroke="#2563eb" fill="#2563eb" fillOpacity={0.1} name="SLA %" />
                 </AreaChart>
               </ResponsiveContainer>
             </Card>
@@ -344,9 +356,9 @@ export default function MetricsPage() {
                   <div key={index} className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">{item.name}</span>
                     <div className="flex items-center gap-2">
-                      <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+                      <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-red-500 rounded-full"
+                          className="h-full bg-gray-600 rounded-full"
                           style={{ width: `${(item.rework / 10) * 100}%` }}
                         />
                       </div>
@@ -361,26 +373,26 @@ export default function MetricsPage() {
             <Card className="p-6">
               <h3 className="text-lg font-semibold mb-4">Top Performers</h3>
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium">Marketing</p>
                     <p className="text-sm text-muted-foreground">Mejor SLA compliance</p>
                   </div>
-                  <Badge className="bg-green-500/10 text-green-500 border-green-500/20">98%</Badge>
+                  <Badge className="bg-blue-50 text-blue-600 border-blue-200">98%</Badge>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium">Ventas</p>
                     <p className="text-sm text-muted-foreground">Mayor ROI</p>
                   </div>
-                  <Badge className="bg-purple-500/10 text-purple-500 border-purple-500/20">+42%</Badge>
+                  <Badge className="bg-blue-50 text-blue-600 border-blue-200">+42%</Badge>
                 </div>
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium">Finanzas</p>
                     <p className="text-sm text-muted-foreground">Menor rework rate</p>
                   </div>
-                  <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">3.9%</Badge>
+                  <Badge className="bg-blue-50 text-blue-600 border-blue-200">3.9%</Badge>
                 </div>
               </div>
             </Card>
@@ -389,22 +401,22 @@ export default function MetricsPage() {
             <Card className="p-6">
               <h3 className="text-lg font-semibold mb-4">Insights Recientes</h3>
               <div className="space-y-3">
-                <div className="p-3 border-l-4 border-green-500 bg-green-500/5">
+                <div className="p-3 border-l-4 border-blue-600 bg-blue-50">
                   <p className="text-sm font-medium">Mejora en Lead Time</p>
                   <p className="text-xs text-muted-foreground">Reducción del 15% en los últimos 30 días</p>
                 </div>
-                <div className="p-3 border-l-4 border-orange-500 bg-orange-500/5">
+                <div className="p-3 border-l-4 border-gray-500 bg-gray-50">
                   <p className="text-sm font-medium">SLA en riesgo</p>
                   <p className="text-xs text-muted-foreground">Tecnología por debajo del objetivo (90%)</p>
                 </div>
-                <div className="p-3 border-l-4 border-blue-500 bg-blue-500/5">
+                <div className="p-3 border-l-4 border-blue-600 bg-blue-50">
                   <p className="text-sm font-medium">Throughput estable</p>
                   <p className="text-xs text-muted-foreground">Crecimiento sostenido del 8% mensual</p>
                 </div>
               </div>
             </Card>
           </div>
-        </main>
+        </div>
       </div>
     </div>
   )

@@ -5,6 +5,7 @@ import type React from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { RoleSwitcher } from "@/components/role-switcher"
 import { Bell, Search, Filter, MoreHorizontal, Sun, Moon } from "lucide-react"
 import { useState } from "react"
 
@@ -31,7 +32,9 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
+        <RoleSwitcher />
+        
         {actions}
 
         <Button variant="ghost" size="sm" className="h-8 w-8 p-0">

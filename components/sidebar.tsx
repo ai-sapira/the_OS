@@ -1,191 +1,363 @@
 "use client"
+
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { useRoles, type SidebarItem, type Role } from "@/hooks/use-roles"
+import { useState, useEffect } from "react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Inbox,
+  User,
   Archive,
-  Activity,
+  Users,
+  Building,
+  Target,
   Map,
   BarChart3,
+  Shield,
+  Crown,
+  Building2,
   Plus,
   Search,
   Settings,
   ChevronDown,
+  ChevronRight,
+  Keyboard,
+  HelpCircle,
   Circle,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  Users,
 } from "lucide-react"
 
 interface SidebarProps {
   className?: string
   onOpenCommandPalette?: () => void
   onOpenCreateIssue?: () => void
+  isCollapsed?: boolean
+  onToggleCollapse?: () => void
 }
 
-export function Sidebar({ className, onOpenCommandPalette, onOpenCreateIssue }: SidebarProps) {
+// Icon mapping
+const iconMap: Record<string, React.ComponentType<any>> = {
+  Inbox,
+  User,
+  Archive,
+  Users,
+  Building,
+  Target,
+  Map,
+  BarChart3,
+  Shield,
+  Crown,
+  Building2,
+  Plus,
+  Settings,
+  Keyboard,
+  HelpCircle,
+}
+
+export function Sidebar({ 
+  className, 
+  onOpenCommandPalette, 
+  onOpenCreateIssue, 
+  isCollapsed = false,
+  onToggleCollapse 
+}: SidebarProps) {
   const pathname = usePathname()
+  const { getVisibleSidebarItems, canView, can, getFilterPreset, activeRole, switchRole, getRoleLabel, allRoles } = useRoles()
+  const [expandedSections, setExpandedSections] = useState<string[]>(["projects"])
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const mainSections = [
-    { id: "triage", label: "Triage", icon: Inbox, count: 12, href: "/" },
-    { id: "backlog", label: "Backlog", icon: Archive, count: 45, href: "/backlog" },
-    { id: "active", label: "Active", icon: Activity, count: 8, href: "/active" },
-    { id: "roadmap", label: "Roadmap", icon: Map, href: "/roadmap" },
-    { id: "projects", label: "Departamentos", icon: Users, href: "/projects" },
-    { id: "metrics", label: "Metrics", icon: BarChart3, href: "/metrics" },
-  ]
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => 
+      prev.includes(sectionId) 
+        ? prev.filter(id => id !== sectionId)
+        : [...prev, sectionId]
+    )
+  }
 
-  const projects = [
-    { id: "tech", name: "Tecnología", color: "bg-blue-500", issues: 15 },
-    { id: "marketing", name: "Marketing", color: "bg-green-500", issues: 8 },
-    { id: "sales", name: "Ventas", color: "bg-purple-500", issues: 12 },
-    { id: "hr", name: "Recursos Humanos", color: "bg-orange-500", issues: 6 },
-    { id: "finance", name: "Finanzas", color: "bg-red-500", issues: 4 },
-  ]
-
-  const recentIssues = [
-    { id: "SAI-307", title: "Licencia DGSFP & contratos", status: "in-progress" },
-    { id: "SAI-306", title: "Comparador - Resumen final", status: "review" },
-    { id: "SAI-305", title: "Contacto de planes con precio", status: "done" },
-  ]
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "done":
-        return <CheckCircle2 className="h-3 w-3 text-green-500" />
-      case "in-progress":
-        return <Clock className="h-3 w-3 text-blue-500" />
-      case "review":
-        return <AlertCircle className="h-3 w-3 text-orange-500" />
-      default:
-        return <Circle className="h-3 w-3 text-muted-foreground" />
+  const handleRoleChange = async (newRole: Role) => {
+    setIsRefreshing(true)
+    
+    // Fade out effect
+    const appElement = document.querySelector('body')
+    if (appElement) {
+      appElement.style.transition = 'opacity 300ms ease-out'
+      appElement.style.opacity = '0.7'
+    }
+    
+    // Wait for fade effect
+    await new Promise(resolve => setTimeout(resolve, 150))
+    
+    // Switch role
+    switchRole(newRole)
+    
+    // Wait a bit more for state updates
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    // Fade back in
+    if (appElement) {
+      appElement.style.opacity = '1'
+      setTimeout(() => {
+        appElement.style.transition = ''
+        setIsRefreshing(false)
+      }, 300)
     }
   }
 
-  return (
-    <div className={cn("flex h-screen w-64 flex-col bg-sidebar border-r border-sidebar-border", className)}>
-      {/* Header */}
-      <div className="flex h-14 items-center justify-between px-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded bg-primary flex items-center justify-center">
-            <span className="text-xs font-bold text-primary-foreground">S</span>
-          </div>
-          <span className="font-semibold text-sidebar-foreground">Sistema</span>
-        </div>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-          <Settings className="h-4 w-4" />
-        </Button>
-      </div>
+  // Group items by section
+  const sidebarItems = getVisibleSidebarItems()
+  const globalItems = sidebarItems.filter(item => item.section === "global")
+  const workspaceItems = sidebarItems.filter(item => item.section === "workspace")
+  const contextItems = sidebarItems.filter(item => item.section === "context")
+  const footerItems = sidebarItems.filter(item => item.section === "footer")
 
-      {/* Search */}
-      <div className="p-4">
-        <Button
-          variant="outline"
-          className="w-full justify-start text-muted-foreground bg-sidebar-accent border-sidebar-border hover:bg-sidebar-accent/80"
-          onClick={onOpenCommandPalette}
-        >
-          <Search className="h-4 w-4 mr-2" />
-          Buscar...
-          <kbd className="ml-auto text-xs bg-muted px-1.5 py-0.5 rounded">⌘K</kbd>
-        </Button>
-      </div>
 
-      <div className="flex-1 overflow-auto">
-        {/* Main Navigation */}
-        <div className="px-4 pb-4">
-          <div className="space-y-1">
-            {mainSections.map((section) => (
-              <Link key={section.id} href={section.href}>
-                <Button
-                  variant={pathname === section.href ? "secondary" : "ghost"}
-                  className={cn(
-                    "w-full justify-start h-8 px-2",
-                    pathname === section.href
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  )}
-                >
-                  <section.icon className="h-4 w-4 mr-2" />
-                  {section.label}
-                  {section.count && (
-                    <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-xs">
-                      {section.count}
-                    </Badge>
-                  )}
-                </Button>
-              </Link>
-            ))}
-          </div>
-        </div>
 
-        {/* Projects */}
-        <div className="px-4 pb-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Departamentos</h3>
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-              <Plus className="h-3 w-3" />
-            </Button>
-          </div>
-          <div className="space-y-1">
-            {projects.map((project) => (
-              <Button
-                key={project.id}
-                variant="ghost"
-                className="w-full justify-start h-8 px-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              >
-                <div className={cn("h-2 w-2 rounded-full mr-2", project.color)} />
-                {project.name}
-                <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-xs">
-                  {project.issues}
+  const renderSidebarItem = (item: SidebarItem, isChild = false) => {
+    const Icon = iconMap[item.icon] || Circle
+    const isActive = pathname === item.href
+    const hasChildren = item.children && item.children.length > 0
+    const isExpanded = expandedSections.includes(item.id)
+
+
+    // Special handling for Triage with count
+    if (item.id === "triage") {
+      return (
+        <Link key={item.id} href={item.href || "#"}>
+          <Button
+            variant={isActive ? "secondary" : "ghost"}
+            className={cn(
+              "w-full justify-start h-8 px-2",
+              isCollapsed ? "px-2" : "px-2",
+              isActive
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <Icon className="h-4 w-4 mr-2 shrink-0" />
+            {!isCollapsed && (
+              <>
+                <span className="flex-1 text-left">{item.label}</span>
+                <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                  {item.count || 12}
                 </Badge>
-              </Button>
-            ))}
+              </>
+            )}
+          </Button>
+        </Link>
+      )
+    }
+
+    // Regular items
+    if (item.href) {
+      return (
+        <Link key={item.id} href={item.href}>
+          <Button
+            variant={isActive ? "secondary" : "ghost"}
+            className={cn(
+              "w-full justify-start h-8 px-2",
+              isCollapsed ? "px-2" : "px-2",
+              isChild && "ml-6 h-7 text-sm",
+              isActive
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <Icon className="h-4 w-4 mr-2 shrink-0" />
+            {!isCollapsed && <span className="flex-1 text-left">{item.label}</span>}
+          </Button>
+        </Link>
+      )
+    }
+
+    // Action items (like new issue)
+    return (
+      <Button
+        key={item.id}
+        variant="ghost"
+        className={cn(
+          "w-full justify-start h-8 px-2",
+          isCollapsed ? "px-2" : "px-2",
+          "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        )}
+        onClick={() => {
+          if (item.id === "new-issue") onOpenCreateIssue?.()
+          if (item.id === "shortcuts") {
+            // Handle keyboard shortcuts modal
+          }
+        }}
+      >
+        <Icon className="h-4 w-4 mr-2 shrink-0" />
+        {!isCollapsed && (
+          <>
+            <span className="flex-1 text-left">{item.label}</span>
+            {item.id === "new-issue" && (
+              <kbd className="ml-auto text-xs bg-muted px-1.5 py-0.5 rounded">N</kbd>
+            )}
+            {item.id === "shortcuts" && (
+              <kbd className="ml-auto text-xs bg-muted px-1.5 py-0.5 rounded">?</kbd>
+            )}
+          </>
+        )}
+      </Button>
+    )
+  }
+
+  const renderSectionHeader = (title: string, isCollapsed: boolean) => {
+    if (isCollapsed) return null
+    
+    return (
+      <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 mb-2">
+        {title}
+      </h3>
+    )
+  }
+
+  // Get current filter info
+  const filterPreset = getFilterPreset()
+  const getFilterChip = () => {
+    if (filterPreset === "mine") return "Filtered to: Me"
+    if (filterPreset === "my-bu") return "Filtered to: My BU"
+    return null
+  }
+
+  return (
+    <div 
+      className={cn(
+        "flex h-screen flex-col transition-all duration-200 relative",
+        isCollapsed ? "w-16" : "w-64",
+        className
+      )}
+      style={{ background: 'var(--bg-app)' }}
+    >
+      {/* Loading overlay */}
+      {isRefreshing && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+            Switching role...
           </div>
         </div>
-
-        {/* Recent Issues */}
-        <div className="px-4 pb-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Recientes</h3>
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-              <ChevronDown className="h-3 w-3" />
+      )}
+      {/* Header - Más compacto y cohesivo */}
+      <div className="flex h-12 items-center justify-between px-3 py-2">
+        {!isCollapsed ? (
+          <div className="flex items-center flex-1 ml-1">
+            <Select value={activeRole} onValueChange={handleRoleChange} disabled={isRefreshing}>
+              <SelectTrigger className="border-none bg-transparent p-0 h-8 focus:ring-0 font-semibold text-sidebar-foreground hover:bg-sidebar-accent rounded-md px-2 flex items-center gap-2 justify-start">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                {allRoles.map((role) => {
+                  const Icon = iconMap[role === "SAP" ? "Shield" : role === "CEO" ? "Crown" : role === "BU" ? "Building2" : "User"]
+                  return (
+                    <SelectItem key={role} value={role}>
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-4 w-4" />
+                        <span>{getRoleLabel(role)}</span>
+                      </div>
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center w-full">
+            {(() => {
+              const Icon = iconMap[activeRole === "SAP" ? "Shield" : activeRole === "CEO" ? "Crown" : activeRole === "BU" ? "Building2" : "User"]
+              return <Icon className="h-4 w-4" />
+            })()}
+          </div>
+        )}
+        
+        {/* Botones compactos al lado del rol */}
+        {!isCollapsed && (
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-7 w-7 p-0"
+              onClick={onOpenCommandPalette}
+              title="Buscar (⌘K)"
+            >
+              <Search className="h-3.5 w-3.5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-7 w-7 p-0"
+              onClick={onToggleCollapse}
+              title="Configuración"
+            >
+              <Settings className="h-3.5 w-3.5" />
             </Button>
           </div>
-          <div className="space-y-1">
-            {recentIssues.map((issue) => (
-              <div
-                key={issue.id}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent cursor-pointer group"
-              >
-                {getStatusIcon(issue.status)}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-muted-foreground">{issue.id}</span>
-                  </div>
-                  <p className="text-xs text-sidebar-foreground truncate">{issue.title}</p>
-                </div>
-              </div>
-            ))}
+        )}
+        
+        {isCollapsed && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-7 w-7 p-0"
+            onClick={onToggleCollapse}
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </div>
+
+      <div className="flex-1 overflow-auto pt-2">
+        {/* Current filter indicator */}
+        {!isCollapsed && getFilterChip() && (
+          <div className="px-4 pb-3">
+            <Badge variant="outline" className="text-xs">
+              {getFilterChip()}
+            </Badge>
           </div>
-        </div>
+        )}
+
+        {/* Global Section */}
+        {globalItems.length > 0 && (
+          <div className="px-4 pb-4">
+            {renderSectionHeader("Global", isCollapsed)}
+            <div className="space-y-1">
+              {globalItems.map(item => renderSidebarItem(item))}
+            </div>
+          </div>
+        )}
+
+        {/* Workspace Section */}
+        {workspaceItems.length > 0 && (
+          <div className="px-4 pb-4">
+            {renderSectionHeader("Workspace", isCollapsed)}
+          <div className="space-y-1">
+              {workspaceItems.map(item => renderSidebarItem(item))}
+            </div>
+          </div>
+        )}
+
+        {/* Context Presets Section */}
+        {contextItems.length > 0 && (
+        <div className="px-4 pb-4">
+            {renderSectionHeader("Quick Access", isCollapsed)}
+          <div className="space-y-1">
+              {contextItems.map(item => renderSidebarItem(item))}
+              </div>
+          </div>
+        )}
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-sidebar-border">
-        <Button
-          variant="ghost"
-          className="w-full justify-start h-8 px-2 text-sidebar-foreground"
-          onClick={onOpenCreateIssue}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo ticket
-          <kbd className="ml-auto text-xs bg-muted px-1.5 py-0.5 rounded">N</kbd>
-        </Button>
-      </div>
+      {footerItems.length > 0 && (
+        <div className="px-4 py-3">
+          <div className="space-y-1">
+            {footerItems.map(item => renderSidebarItem(item))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

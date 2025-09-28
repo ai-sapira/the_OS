@@ -1,13 +1,16 @@
 "use client"
 
-import { useState } from "react"
+// 🚨 DEPRECATED: Este modal ha sido reemplazado por el nuevo Design System
+// 👀 Usar: import { AcceptIssueModal } from "@/components/ui/modal"
+// 📚 Ver: components/ui/modal/README.md para migración completa
+
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
-import { X, User, FolderOpen, Calendar, Link2 } from "lucide-react"
+import { X, User, Building2, CheckCircle, Copy, XCircle, Clock } from "lucide-react"
 
 interface Issue {
   id: string
@@ -35,16 +38,47 @@ interface TriageActionModalProps {
 export function TriageActionModal({ issue, action, open, onOpenChange, onAction }: TriageActionModalProps) {
   const [comment, setComment] = useState("")
   const [priority, setPriority] = useState("")
-  const [assignee, setAssignee] = useState("")
+  const [assignee, setAssignee] = useState("Assign to me")
   const [project, setProject] = useState("")
-  const [subscribeToUpdates, setSubscribeToUpdates] = useState(true)
-  const [setPriorityBeforeAccept, setSetPriorityBeforeAccept] = useState(false)
   const [duplicateIssue, setDuplicateIssue] = useState("")
   const [declineReason, setDeclineReason] = useState("")
   const [snoozeDate, setSnoozeDate] = useState("")
   const [snoozeTime, setSnoozeTime] = useState("")
 
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.shiftKey && e.key === 'A' && action === 'accept') {
+        e.preventDefault()
+        setAssignee("Assign to me")
+      }
+    }
+
+    if (open) {
+      document.addEventListener('keydown', handleKeyDown)
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [open, action])
+
   if (!issue || !action) return null
+
+  const getActionIcon = () => {
+    switch (action) {
+      case "accept":
+        return <CheckCircle className="h-4 w-4 text-green-500" />
+      case "duplicate":
+        return <Copy className="h-4 w-4 text-orange-500" />
+      case "decline":
+        return <XCircle className="h-4 w-4 text-red-500" />
+      case "snooze":
+        return <Clock className="h-4 w-4 text-blue-500" />
+      default:
+        return null
+    }
+  }
 
   const getActionTitle = () => {
     switch (action) {
@@ -79,10 +113,9 @@ export function TriageActionModal({ issue, action, open, onOpenChange, onAction 
   const handleAction = () => {
     const data = {
       comment,
-      priority: setPriorityBeforeAccept ? priority : undefined,
+      priority,
       assignee,
       project,
-      subscribeToUpdates,
       duplicateIssue,
       declineReason,
       snoozeDate,
@@ -93,10 +126,8 @@ export function TriageActionModal({ issue, action, open, onOpenChange, onAction 
     // Reset form
     setComment("")
     setPriority("")
-    setAssignee("")
+    setAssignee("Assign to me")
     setProject("")
-    setSubscribeToUpdates(true)
-    setSetPriorityBeforeAccept(false)
     setDuplicateIssue("")
     setDeclineReason("")
     setSnoozeDate("")
@@ -105,170 +136,145 @@ export function TriageActionModal({ issue, action, open, onOpenChange, onAction 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] p-0 bg-background border-border">
+      <DialogContent className="sm:max-w-[600px] p-0">
         {/* Header */}
-        <DialogHeader className="px-6 py-4 border-b border-border">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-sm font-medium text-foreground">{getActionTitle()}</DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0 hover:bg-accent"
-              onClick={() => onOpenChange(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+        <DialogHeader className="flex flex-row items-center gap-3 px-6 py-4 border-b">
+          {getActionIcon()}
+          <DialogTitle className="text-lg font-semibold">
+            {getActionTitle()}
+          </DialogTitle>
         </DialogHeader>
 
         {/* Content */}
-        <div className="px-6 py-4 space-y-4">
-          {/* Comment field for all actions */}
+        <div className="px-6 py-4 space-y-6">
+          {/* Comment textarea */}
           <div>
             <Textarea
-              placeholder={
-                action === "accept"
-                  ? "Add a comment..."
-                  : action === "decline"
-                    ? "Reason for declining (required)..."
-                    : action === "duplicate"
-                      ? "Reference to canonical issue..."
-                      : "Add a comment..."
-              }
+              placeholder="Add a comment..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="min-h-[80px] resize-none border-border bg-background"
+              className="min-h-[120px] resize-none"
             />
           </div>
 
-          {/* Accept-specific fields */}
+          {/* Accept-specific content */}
           {action === "accept" && (
-            <>
-              {/* Quick assignment bar */}
-              <div className="flex items-center gap-2 p-3 bg-accent/30 rounded-md border border-border">
-                <Badge variant="outline" className="text-xs">
-                  {issue.id}
-                </Badge>
-                <Select value={project} onValueChange={setProject}>
-                  <SelectTrigger className="h-7 text-xs border-none bg-transparent">
-                    <SelectValue placeholder="Backlog" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="backlog">Backlog</SelectItem>
-                    <SelectItem value="tech">Tecnología</SelectItem>
-                    <SelectItem value="marketing">Marketing</SelectItem>
-                    <SelectItem value="sales">Ventas</SelectItem>
-                  </SelectContent>
-                </Select>
-                <div className="text-xs text-muted-foreground">•••</div>
-                <div className="text-xs text-muted-foreground">Priority</div>
-                <Select value={assignee} onValueChange={setAssignee}>
-                  <SelectTrigger className="h-7 text-xs border-none bg-transparent">
-                    <div className="flex items-center gap-1">
-                      <User className="h-3 w-3" />
-                      <SelectValue placeholder="pablosenabre" />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pablosenabre">pablosenabre</SelectItem>
-                    <SelectItem value="tech-team">Tech Team</SelectItem>
-                    <SelectItem value="design-team">Design Team</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                  <FolderOpen className="h-3 w-3" />
-                </Button>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                  <Calendar className="h-3 w-3" />
-                </Button>
-                <div className="text-xs text-muted-foreground">•••</div>
-              </div>
-
-              {/* Checkboxes */}
+            <div className="space-y-4">
+              {/* Three required chips */}
               <div className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="subscribe" checked={subscribeToUpdates} onCheckedChange={setSubscribeToUpdates} />
-                  <label htmlFor="subscribe" className="text-sm text-foreground">
-                    Subscribe to updates
+                {/* Project - Required */}
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">
+                    Project (Departamento/BU) <span className="text-red-500">*</span>
                   </label>
+                  <Select value={project} onValueChange={setProject}>
+                    <SelectTrigger>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4" />
+                        <SelectValue placeholder="Select project..." />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="tech">Tecnología</SelectItem>
+                      <SelectItem value="marketing">Marketing</SelectItem>
+                      <SelectItem value="sales">Ventas</SelectItem>
+                      <SelectItem value="hr">Recursos Humanos</SelectItem>
+                      <SelectItem value="finance">Finanzas</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="priority"
-                    checked={setPriorityBeforeAccept}
-                    onCheckedChange={setSetPriorityBeforeAccept}
-                  />
-                  <label htmlFor="priority" className="text-sm text-foreground">
-                    Set a priority before accepting this issue
+
+                {/* Assignee */}
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">
+                    Assignee (propietario inicial)
                   </label>
+                  <Select value={assignee} onValueChange={setAssignee}>
+                    <SelectTrigger>
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        <SelectValue />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Assign to me">Assign to me (Shift+A)</SelectItem>
+                      <SelectItem value="pablosenabre">pablosenabre</SelectItem>
+                      <SelectItem value="tech-team">Tech Team</SelectItem>
+                      <SelectItem value="design-team">Design Team</SelectItem>
+                      <SelectItem value="auto-assign">Auto-assign (FDE de la BU)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Priority */}
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">
+                    Priority (P0–P3)
+                  </label>
+                  <Select value={priority} onValueChange={setPriority}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select priority (suggested by AI)..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="P0">P0 - Critical</SelectItem>
+                      <SelectItem value="P1">P1 - High</SelectItem>
+                      <SelectItem value="P2">P2 - Medium</SelectItem>
+                      <SelectItem value="P3">P3 - Low</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-
-              {setPriorityBeforeAccept && (
-                <Select value={priority} onValueChange={setPriority}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="urgent">🔴 Urgent</SelectItem>
-                    <SelectItem value="high">🟠 High</SelectItem>
-                    <SelectItem value="medium">🟡 Medium</SelectItem>
-                    <SelectItem value="low">🟢 Low</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            </>
+            </div>
           )}
 
           {/* Duplicate-specific fields */}
           {action === "duplicate" && (
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Reference to canonical issue</label>
-              <div className="flex items-center gap-2">
-                <Link2 className="h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="SAI-123"
-                  value={duplicateIssue}
-                  onChange={(e) => setDuplicateIssue(e.target.value)}
-                  className="flex-1 px-3 py-2 text-sm border border-border rounded-md bg-background"
-                />
-              </div>
+              <label className="text-sm font-medium mb-2 block">Reference to canonical issue</label>
+              <input
+                type="text"
+                placeholder="SAI-123"
+                value={duplicateIssue}
+                onChange={(e) => setDuplicateIssue(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-input rounded-md bg-background"
+              />
             </div>
           )}
 
           {/* Snooze-specific fields */}
           {action === "snooze" && (
             <div className="space-y-3">
-              <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Snooze until</label>
-                <div className="flex gap-2">
-                  <input
-                    type="date"
-                    value={snoozeDate}
-                    onChange={(e) => setSnoozeDate(e.target.value)}
-                    className="flex-1 px-3 py-2 text-sm border border-border rounded-md bg-background"
-                  />
-                  <input
-                    type="time"
-                    value={snoozeTime}
-                    onChange={(e) => setSnoozeTime(e.target.value)}
-                    className="px-3 py-2 text-sm border border-border rounded-md bg-background"
-                  />
-                </div>
+              <label className="text-sm font-medium block">Snooze until</label>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="date"
+                  value={snoozeDate}
+                  onChange={(e) => setSnoozeDate(e.target.value)}
+                  className="px-3 py-2 text-sm border border-input rounded-md bg-background"
+                />
+                <input
+                  type="time"
+                  value={snoozeTime}
+                  onChange={(e) => setSnoozeTime(e.target.value)}
+                  className="px-3 py-2 text-sm border border-input rounded-md bg-background"
+                />
               </div>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t bg-muted/20">
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+          >
             Cancel
           </Button>
           <Button
             onClick={handleAction}
             disabled={
+              (action === "accept" && !project) ||
               (action === "decline" && !comment.trim()) ||
               (action === "duplicate" && !duplicateIssue.trim()) ||
               (action === "snooze" && (!snoozeDate || !snoozeTime))
