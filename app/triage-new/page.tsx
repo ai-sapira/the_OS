@@ -41,6 +41,8 @@ import {
 } from "lucide-react"
 import { useSupabaseData } from "@/hooks/use-supabase-data"
 import { useResizableSections } from "@/hooks/use-resizable-sections"
+import { TeamsConversation } from "@/components/teams-conversation"
+import { IssuesAPI } from "@/lib/api/issues"
 
 // Component for empty state when no issue is selected
 function EmptyIssueState() {
@@ -102,9 +104,11 @@ function PropertyChip({ icon, label, value, onClick, isActive = false, children 
 // Main chip panel component
 interface IssueChipPanelProps {
   issue: any
+  conversationActivity?: any
+  metadataActivity?: any
 }
 
-function IssueChipPanel({ issue }: IssueChipPanelProps) {
+function IssueChipPanel({ issue, conversationActivity, metadataActivity }: IssueChipPanelProps) {
   const selectedIssue = issue // El issue seleccionado es el que se pasa como prop
   const [activeChip, setActiveChip] = useState<string | null>(null)
 
@@ -358,11 +362,24 @@ function IssueChipPanel({ issue }: IssueChipPanelProps) {
                 <h2 className="text-base font-medium text-gray-900">Descripción</h2>
               </div>
               <div className="prose prose-sm max-w-none">
-                <p className="text-gray-700 leading-relaxed text-sm">
+                <p className="text-gray-700 leading-relaxed text-sm whitespace-pre-wrap">
                   {selectedIssue.description || "Este issue necesita ser revisado para determinar si debe ser aceptado en el backlog del producto. El equipo de triage debe evaluar la prioridad, asignar recursos y decidir el siguiente paso."}
                 </p>
               </div>
             </div>
+
+            {/* Conversación de Teams (si existe) */}
+            {conversationActivity?.payload?.messages && (
+              <div className="border border-gray-200 rounded-lg p-4 bg-white">
+                <TeamsConversation
+                  messages={conversationActivity.payload.messages}
+                  conversationUrl={metadataActivity?.payload?.conversation_url}
+                  summary={metadataActivity?.payload?.ai_analysis?.summary}
+                  keyPoints={metadataActivity?.payload?.ai_analysis?.key_points}
+                  suggestedAssignee={metadataActivity?.payload?.ai_analysis?.suggested_assignee}
+                />
+              </div>
+            )}
 
             {/* Contexto y evaluación */}
             <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
@@ -508,9 +525,19 @@ export default function TriageNewPage() {
   const [selectedIssue, setSelectedIssue] = useState<any | null>(null)
   const [isEditingDescription, setIsEditingDescription] = useState(false)
   const [editedDescription, setEditedDescription] = useState("")
+  const [issueActivities, setIssueActivities] = useState<any[]>([])
+  const [loadingActivities, setLoadingActivities] = useState(false)
 
   // Conectar con datos reales de Supabase
-  const { triageIssues, loading, error } = useSupabaseData()
+  const { triageIssues, loading, error} = useSupabaseData()
+  
+  // Get Teams conversation data from activities
+  const conversationActivity = issueActivities.find(
+    (activity: any) => activity.payload?.source === 'teams_conversation_history'
+  )
+  const metadataActivity = issueActivities.find(
+    (activity: any) => activity.payload?.source === 'teams_conversation'
+  )
   
   // Hook para manejar el redimensionamiento entre secciones
   const {
@@ -526,10 +553,24 @@ export default function TriageNewPage() {
     setTriageIssue(issue)
   }
 
-  const handleIssueSelect = (issue: any) => {
+  const handleIssueSelect = async (issue: any) => {
     setSelectedIssue(issue)
     setEditedDescription(issue.description || "")
     setIsEditingDescription(false)
+    
+    // Load activities for this issue
+    if (issue?.id) {
+      setLoadingActivities(true)
+      try {
+        const activities = await IssuesAPI.getIssueActivities(issue.id)
+        setIssueActivities(activities)
+      } catch (error) {
+        console.error('Error loading issue activities:', error)
+        setIssueActivities([])
+      } finally {
+        setLoadingActivities(false)
+      }
+    }
   }
 
   // Helper functions for icons and status
@@ -761,7 +802,11 @@ export default function TriageNewPage() {
             }}
           >
             {selectedIssue ? (
-              <IssueChipPanel issue={selectedIssue} />
+              <IssueChipPanel 
+                issue={selectedIssue} 
+                conversationActivity={conversationActivity}
+                metadataActivity={metadataActivity}
+              />
             ) : (
               <EmptyIssueState />
             )}

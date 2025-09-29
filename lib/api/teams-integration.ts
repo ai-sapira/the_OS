@@ -15,6 +15,7 @@ export interface TeamsConversationData {
     priority: 'P0' | 'P1' | 'P2' | 'P3'
     suggested_labels: string[]
     key_points: string[]
+    suggested_assignee?: string // Email or name of suggested assignee
   }
 }
 
@@ -27,6 +28,15 @@ export interface TeamsIssueCreationResult {
 export class TeamsIntegration {
   private static organizationId = '01234567-8901-2345-6789-012345678901'
   private static aiAgentUserId = '11111111-1111-1111-1111-111111111111' // SAP user as AI agent
+  
+  // Mock assignees by department/topic (in production, this would be smart routing)
+  private static mockAssignees = {
+    'tech': '33333333-3333-3333-3333-333333333333', // Tech BU Manager
+    'marketing': '44444444-4444-4444-4444-444444444444',
+    'sales': '55555555-5555-5555-5555-555555555555',
+    'hr': '66666666-6666-6666-6666-666666666666',
+    'default': '33333333-3333-3333-3333-333333333333' // Default to Tech
+  }
 
   /**
    * Creates an issue from Teams conversation analysis
@@ -121,22 +131,47 @@ export class TeamsIntegration {
   private static generateIssueDescription(data: TeamsConversationData): string {
     const { ai_analysis, participants, messages } = data
     
-    return `## 🤖 Generado automáticamente desde Teams
+    return `## 🤖 Análisis automático desde Teams
 
-### Resumen IA:
+### 📊 Resumen ejecutivo:
 ${ai_analysis.summary}
 
-### Puntos clave:
+### 🎯 Puntos clave identificados:
 ${ai_analysis.key_points.map(point => `- ${point}`).join('\n')}
 
-### Participantes:
+### 👥 Participantes:
 ${participants.join(', ')}
 
-### Conversación original:
-${messages.length} mensajes - [Ver en Teams](${data.conversation_url})
+### 💬 Conversación:
+Se registraron **${messages.length} mensajes** en la conversación original.
+[Ver conversación en Teams →](${data.conversation_url})
+
+${ai_analysis.suggested_assignee ? `\n### 🎯 Asignación sugerida:\n${ai_analysis.suggested_assignee}` : ''}
 
 ---
-*Issue creado automáticamente por AI Agent desde conversación de Teams*`
+*Issue creado automáticamente por Sapira AI Agent • Prioridad: ${ai_analysis.priority}*`
+  }
+
+  private static getSuggestedAssignee(data: TeamsConversationData): string {
+    // Simple keyword-based routing (in production, use ML or rules engine)
+    const summary = data.ai_analysis.summary.toLowerCase()
+    const keyPoints = data.ai_analysis.key_points.join(' ').toLowerCase()
+    const content = summary + ' ' + keyPoints
+    
+    if (content.includes('login') || content.includes('password') || content.includes('technical') || content.includes('bug')) {
+      return this.mockAssignees.tech
+    }
+    if (content.includes('marketing') || content.includes('campaign') || content.includes('content')) {
+      return this.mockAssignees.marketing
+    }
+    if (content.includes('sales') || content.includes('customer') || content.includes('lead')) {
+      return this.mockAssignees.sales
+    }
+    if (content.includes('hr') || content.includes('employee') || content.includes('hiring')) {
+      return this.mockAssignees.hr
+    }
+    
+    return this.mockAssignees.default
   }
 
   private static async addSuggestedLabels(issueId: string, suggestedLabels: string[]): Promise<void> {
@@ -164,6 +199,7 @@ ${messages.length} mensajes - [Ver en Teams](${data.conversation_url})
     issueId: string,
     conversationData: TeamsConversationData
   ): Promise<void> {
+    // 1. Create metadata activity
     await supabase
       .from('issue_activity')
       .insert({
@@ -174,10 +210,37 @@ ${messages.length} mensajes - [Ver en Teams](${data.conversation_url})
         payload: {
           source: 'teams_conversation',
           conversation_id: conversationData.conversation_id,
+          conversation_url: conversationData.conversation_url,
+          participants: conversationData.participants,
           participants_count: conversationData.participants.length,
           messages_count: conversationData.messages.length,
-          ai_priority: conversationData.ai_analysis.priority,
-          ai_confidence: 'high' // You could add confidence scoring
+          ai_analysis: {
+            priority: conversationData.ai_analysis.priority,
+            summary: conversationData.ai_analysis.summary,
+            key_points: conversationData.ai_analysis.key_points,
+            suggested_labels: conversationData.ai_analysis.suggested_labels,
+            suggested_assignee: conversationData.ai_analysis.suggested_assignee || 'Tech Team'
+          },
+          ai_confidence: 'high',
+          suggested_assignee_id: this.getSuggestedAssignee(conversationData)
+        }
+      })
+
+    // 2. Create conversation history activity
+    await supabase
+      .from('issue_activity')
+      .insert({
+        organization_id: this.organizationId,
+        issue_id: issueId,
+        actor_user_id: this.aiAgentUserId,
+        action: 'commented',
+        payload: {
+          source: 'teams_conversation_history',
+          conversation_id: conversationData.conversation_id,
+          messages: conversationData.messages,
+          full_transcript: conversationData.messages
+            .map(m => `[${m.timestamp}] ${m.author}: ${m.content}`)
+            .join('\n')
         }
       })
   }

@@ -253,6 +253,18 @@ export class IssuesAPI {
     if (error) throw error
   }
 
+  // Get issue activities (for showing conversation history, etc)
+  static async getIssueActivities(issueId: string) {
+    const { data, error } = await supabase
+      .from('issue_activity')
+      .select('*')
+      .eq('issue_id', issueId)
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+    return data || []
+  }
+
   private static transformIssuesWithLabels(issues: any[]): IssueWithRelations[] {
     return issues.map(issue => this.transformIssueWithLabels(issue))
   }

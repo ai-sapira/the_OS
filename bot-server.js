@@ -1,37 +1,36 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { GeminiService } from '@/lib/bot/gemini.service';
-import { ConversationManager } from '@/lib/bot/types';
-import { TicketCreationService } from '@/lib/bot/ticket-creation.service';
+const express = require('express');
+const { GeminiService } = require('./lib/bot/gemini.service.ts');
+const { ConversationManager } = require('./lib/bot/types.ts');
+const { TicketCreationService } = require('./lib/bot/ticket-creation.service.ts');
 
-// Servicios del bot - inicialización lazy
-let geminiService: GeminiService | null = null;
-let ticketService: TicketCreationService | null = null;
-const conversations = new Map<string, ConversationManager>();
+const app = express();
+const port = process.env.PORT || 3000;
 
-function getGeminiService() {
-  if (!geminiService) {
-    geminiService = new GeminiService();
-  }
-  return geminiService;
-}
+// Middleware
+app.use(express.json());
 
-function getTicketService() {
-  if (!ticketService) {
-    ticketService = new TicketCreationService();
-  }
-  return ticketService;
-}
+// Services
+const geminiService = new GeminiService();
+const ticketService = new TicketCreationService();
+const conversations = new Map();
 
-/**
- * POST /api/messages
- * Endpoint simplificado para Teams que funciona sin CloudAdapter
- */
-export async function POST(request: NextRequest) {
-  let activity: any;
+// Health check endpoint
+app.get('/api/messages', (req, res) => {
+  res.json({
+    status: 'healthy',
+    message: 'Sapira Teams Bot is running (standalone mode)',
+    configured: true,
+    gemini: !!process.env.GEMINI_API_KEY,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Teams bot endpoint
+app.post('/api/messages', async (req, res) => {
+  let activity;
   
   try {
-    // Parse activity from Teams
-    activity = await request.json();
+    activity = req.body;
     console.log('📩 Received Teams message:', {
       type: activity.type,
       text: activity.text,
@@ -41,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     // Solo procesar mensajes de texto
     if (activity.type !== 'message' || !activity.text) {
-      return NextResponse.json({ status: 'ignored' });
+      return res.json({ status: 'ignored' });
     }
 
     // Extraer información del usuario
@@ -49,7 +48,6 @@ export async function POST(request: NextRequest) {
     const userName = activity.from.name || 'Usuario';
     const userEmail = activity.from.aadObjectId;
     const conversationId = activity.conversation.id;
-    const serviceUrl = activity.serviceUrl;
 
     // Obtener o crear conversación
     const conversation = getOrCreateConversation(
@@ -64,13 +62,13 @@ export async function POST(request: NextRequest) {
     console.log('💬 User message added to conversation');
 
     // Decidir si crear ticket o continuar conversación
-    const shouldCreateTicket = await getGeminiService().shouldCreateTicket(conversation);
+    const shouldCreateTicket = await geminiService.shouldCreateTicket(conversation);
     
     let responseText = '';
     
     if (shouldCreateTicket && conversation.state !== 'awaiting_confirmation') {
       // Generar propuesta de ticket
-      const proposal = await getGeminiService().generateTicketProposal(conversation);
+      const proposal = await geminiService.generateTicketProposal(conversation);
       conversation.setTicketProposal(proposal);
       
       responseText = `He analizado tu problema y preparé este ticket:
@@ -87,17 +85,17 @@ ${proposal.description}
       
     } else if (conversation.isWaitingForConfirmation()) {
       // Analizar respuesta del usuario
-      const feedback = await getGeminiService().analyzeTicketFeedback(
+      const feedback = await geminiService.analyzeTicketFeedback(
         activity.text,
-        conversation.ticketProposal!
+        conversation.ticketProposal
       );
       
       if (feedback.action === 'confirm') {
         try {
           // Crear ticket
-          const result = await getTicketService().createTicketFromConversation(
+          const result = await ticketService.createTicketFromConversation(
             conversation,
-            conversation.ticketProposal!
+            conversation.ticketProposal
           );
           
           responseText = `🎉 ¡Perfecto! Tu ticket **${result.ticket_key}** ha sido creado exitosamente.
@@ -121,7 +119,7 @@ El equipo de soporte lo revisará y te contactará si necesita información adic
       
     } else {
       // Continuar conversación normal
-      responseText = await getGeminiService().continueConversation(conversation);
+      responseText = await geminiService.continueConversation(conversation);
     }
 
     // Añadir respuesta del bot a la conversación
@@ -129,21 +127,21 @@ El equipo de soporte lo revisará y te contactará si necesita información adic
     console.log('🤖 Bot response prepared');
 
     // Responder a Teams
-    const response = await sendTeamsMessage(
+    await sendTeamsMessage(
       activity.serviceUrl,
       activity.conversation,
       activity.from,
       responseText,
-      activity.id // Pasar el ID del mensaje para responder directamente
+      activity.id
     );
 
     console.log('✅ Response sent to Teams');
-    return NextResponse.json({ status: 'ok', sent: true });
+    res.json({ status: 'ok', sent: true });
 
   } catch (error) {
     console.error('❌ Bot error:', error);
     
-    // Respuesta de fallback - solo si tenemos la actividad parseada
+    // Respuesta de fallback
     if (activity) {
       try {
         await sendTeamsMessage(
@@ -158,37 +156,15 @@ El equipo de soporte lo revisará y te contactará si necesita información adic
       }
     }
     
-    return NextResponse.json(
-      { 
-        error: 'Bot processing failed',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    res.status(500).json({
+      error: 'Bot processing failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
-}
-
-/**
- * GET /api/messages
- * Health check endpoint
- */
-export async function GET() {
-  return NextResponse.json({
-    status: 'healthy',
-    message: 'Sapira Teams Bot is running (direct mode)',
-    configured: true,
-    gemini: !!process.env.GEMINI_API_KEY,
-    timestamp: new Date().toISOString()
-  });
-}
+});
 
 // Helper functions
-function getOrCreateConversation(
-  conversationId: string,
-  userId: string,
-  userName: string,
-  userEmail?: string
-): ConversationManager {
+function getOrCreateConversation(conversationId, userId, userName, userEmail) {
   const key = `${conversationId}:${userId}`;
   
   if (!conversations.has(key)) {
@@ -202,19 +178,12 @@ function getOrCreateConversation(
     conversations.set(key, conversation);
   }
   
-  return conversations.get(key)!;
+  return conversations.get(key);
 }
 
-async function sendTeamsMessage(
-  serviceUrl: string,
-  conversation: any,
-  recipient: any,
-  text: string,
-  replyToId?: string
-) {
+async function sendTeamsMessage(serviceUrl, conversation, recipient, text, replyToId) {
   const token = await getAccessToken();
   
-  // Si tenemos un replyToId, usar la URL de respuesta específica
   const url = replyToId 
     ? `${serviceUrl}v3/conversations/${conversation.id}/activities/${replyToId}`
     : `${serviceUrl}v3/conversations/${conversation.id}/activities`;
@@ -228,7 +197,7 @@ async function sendTeamsMessage(
       id: `28:${process.env.MICROSOFT_APP_ID}`,
       name: 'Sapira Soporte'
     },
-    ...(replyToId ? {} : { recipient: recipient }) // Solo incluir recipient si no es una respuesta
+    ...(replyToId ? {} : { recipient: recipient })
   };
   
   const response = await fetch(url, {
@@ -256,7 +225,7 @@ async function sendTeamsMessage(
   return response.json();
 }
 
-async function getAccessToken(): Promise<string> {
+async function getAccessToken() {
   const tokenUrl = 'https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token';
   
   console.log('🔑 Requesting access token with:', {
@@ -271,8 +240,8 @@ async function getAccessToken(): Promise<string> {
     },
     body: new URLSearchParams({
       grant_type: 'client_credentials',
-      client_id: process.env.MICROSOFT_APP_ID!,
-      client_secret: process.env.MICROSOFT_APP_PASSWORD!,
+      client_id: process.env.MICROSOFT_APP_ID,
+      client_secret: process.env.MICROSOFT_APP_PASSWORD,
       scope: 'https://api.botframework.com/.default'
     })
   });
@@ -287,3 +256,8 @@ async function getAccessToken(): Promise<string> {
   console.log('✅ Access token obtained successfully');
   return data.access_token;
 }
+
+app.listen(port, () => {
+  console.log(`🤖 Sapira Teams Bot listening on port ${port}`);
+  console.log(`📋 Health check: http://localhost:${port}/api/messages`);
+});
