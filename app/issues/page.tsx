@@ -64,7 +64,8 @@ import {
   SearchIcon,
   ListFilter,
   SettingsIcon,
-  PlusIcon
+  PlusIcon,
+  ChevronDownIcon
 } from "lucide-react"
 import {
   Popover,
@@ -889,6 +890,8 @@ function ProjectMatrixRow({
   displayProperties, 
   onIssueClick 
 }: ProjectMatrixRowProps) {
+  const [isExpanded, setIsExpanded] = useState(true) // Expandido por defecto
+  
   const getProjectStatusColor = (status: string | null) => {
     switch (status) {
       case "active": return "bg-green-500"
@@ -897,6 +900,16 @@ function ProjectMatrixRow({
       case "done": return "bg-gray-500"
       default: return "bg-gray-400"
     }
+  }
+
+  const getProjectStatusBadge = (status: string | null) => {
+    const statusLabels = {
+      "active": "Active",
+      "planned": "Planned", 
+      "paused": "Paused",
+      "done": "Done"
+    }
+    return statusLabels[status as keyof typeof statusLabels] || "Unknown"
   }
 
   // Group issues by state
@@ -909,40 +922,81 @@ function ProjectMatrixRow({
   }, [issues, columnOrder])
 
   return (
-    <div className="flex border-b border-border min-h-[120px]">
-      {/* Project Header - Sticky */}
-      <div className="w-60 flex-shrink-0 border-r border-border bg-card sticky left-0 z-30">
-        <div className="p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <h3 className="font-semibold text-sm">{project.name}</h3>
-            {project.status && (
-              <div className={`w-2 h-2 rounded-full ${getProjectStatusColor(project.status)}`} />
-            )}
-          </div>
-          {project.id !== "unassigned" && (
-            <p className="text-xs text-muted-foreground">
-              {project.description || "No description"}
-            </p>
-          )}
-          <div className="mt-2 text-xs text-muted-foreground">
-            {issues.length} issue{issues.length !== 1 ? 's' : ''}
+    <div className="border-b border-border">
+      {/* Project Header - Fixed 44px height, sticky horizontal */}
+      <div className="h-11 bg-background border-b border-border/50 flex items-center">
+        <div className="w-60 flex-shrink-0 border-r border-border bg-background sticky left-0 z-30 h-full flex items-center px-4">
+          <div className="flex items-center gap-2 w-full">
+            {/* Collapse/Expand Caret */}
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="flex-shrink-0 p-0.5 hover:bg-gray-100 rounded transition-colors"
+            >
+              <ChevronDownIcon 
+                className={`h-3 w-3 text-gray-600 transition-transform ${
+                  isExpanded ? 'rotate-0' : '-rotate-90'
+                }`} 
+              />
+            </button>
+            
+            {/* Project Name + Status Chip */}
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <h3 className="font-medium text-sm truncate">{project.name}</h3>
+              {project.status && project.id !== "unassigned" && (
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <div className={`w-1.5 h-1.5 rounded-full ${getProjectStatusColor(project.status)}`} />
+                  <span className="text-xs text-gray-600">
+                    {getProjectStatusBadge(project.status)}
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            {/* Issues Counter */}
+            <div className="flex-shrink-0 text-xs text-gray-500 font-medium">
+              {issues.length}
+            </div>
           </div>
         </div>
+
+        {/* Column Headers (when collapsed, show summary) */}
+        {!isExpanded && (
+          <div className="flex-1 flex">
+            {columnOrder.map(state => {
+              const stateIssues = issuesByState[state] || []
+              return (
+                <div key={state} className="flex-1 min-w-[280px] border-r border-border last:border-r-0 flex items-center justify-center">
+                  <span className="text-xs text-gray-500">
+                    {stateIssues.length}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
-      {/* State Columns */}
-      <div className="flex-1 flex">
-        {columnOrder.map(state => (
-          <ProjectStateColumn
-            key={state}
-            projectId={project.id}
-            state={state}
-            issues={issuesByState[state] || []}
-            displayProperties={displayProperties}
-            onIssueClick={onIssueClick}
-          />
-        ))}
-      </div>
+      {/* Expandable Content - Issues organized by columns */}
+      {isExpanded && (
+        <div className="flex">
+          {/* Empty space for alignment with header */}
+          <div className="w-60 flex-shrink-0 border-r border-border bg-background sticky left-0 z-20" />
+          
+          {/* State Columns */}
+          <div className="flex-1 flex">
+            {columnOrder.map(state => (
+              <ProjectStateColumn
+                key={state}
+                projectId={project.id}
+                state={state}
+                issues={issuesByState[state] || []}
+                displayProperties={displayProperties}
+                onIssueClick={onIssueClick}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -974,7 +1028,8 @@ function ProjectStateColumn({
         isOver ? 'bg-accent/20' : ''
       }`}
     >
-      <div className="p-3 space-y-3 min-h-[120px]">
+      <div className="p-3 space-y-2 min-h-[80px]">
+        {/* Issues stacked vertically */}
         {issues.map(issue => (
           <FullyDraggableIssueCard
             key={issue.id}
@@ -986,7 +1041,7 @@ function ProjectStateColumn({
         
         {/* Empty state */}
         {issues.length === 0 && !isOver && (
-          <div className="h-16 flex items-center justify-center text-muted-foreground text-xs opacity-0 hover:opacity-100 transition-opacity">
+          <div className="h-12 flex items-center justify-center text-muted-foreground text-xs opacity-0 hover:opacity-100 transition-opacity">
             Drop here
           </div>
         )}
