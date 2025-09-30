@@ -40,12 +40,16 @@ export class TeamsMessenger {
   static async sendMessageToIssue(params: SendTeamsMessageParams): Promise<boolean> {
     try {
       // 1. Get conversation reference from issue_links
-      const { data: link, error } = await supabase
+      // Note: We get the most recent link if multiple exist for the same conversation
+      const { data: links, error } = await supabase
         .from('issue_links')
         .select('teams_context, url')
         .eq('issue_id', params.issueId)
         .eq('provider', 'teams')
-        .single()
+        .order('created_at', { ascending: false })
+        .limit(1)
+      
+      const link = links?.[0]
       
       if (error || !link?.teams_context) {
         console.warn('No Teams context found for issue:', params.issueId)
@@ -165,7 +169,7 @@ export class TeamsMessenger {
     messageType?: string
   ): Promise<void> {
     try {
-      // Update sync timestamp on the link
+      // Update sync timestamp on all Teams links for this issue
       await supabase
         .from('issue_links')
         .update({ 
@@ -205,9 +209,10 @@ export class TeamsMessenger {
         .select('teams_context')
         .eq('issue_id', issueId)
         .eq('provider', 'teams')
-        .single()
+        .order('created_at', { ascending: false })
+        .limit(1)
       
-      return !!(data?.teams_context)
+      return !!(data?.[0]?.teams_context)
     } catch {
       return false
     }
