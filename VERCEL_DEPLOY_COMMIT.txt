@@ -1,0 +1,51 @@
+feat: Soporte completo para initiatives de Gonvarri con agente Teams
+
+CAMBIOS PRINCIPALES:
+
+🔗 API - Integración con Bot de Teams:
+- lib/api/teams-integration.ts: Acepta campos de Gonvarri del bot
+  * short_description, impact, core_technology
+  * difficulty, impact_score (para cálculo de prioridad)
+- lib/api/issues.ts: CreateIssueData con nuevos campos
+- lib/database/types.ts: Tipos actualizados para Gonvarri
+
+🎯 Funcionalidad de Initiatives:
+- app/triage-new/page.tsx: Vista de triage para initiatives
+- app/initiatives/[slug]/page.tsx: Detalle de initiatives
+- components/new-issue-modal.tsx: Modal de creación
+- components/ui/modal/accept-issue-modal.tsx: Aceptar initiatives
+
+📊 Base de Datos:
+- supabase/migrations/add_gonvarri_fields_to_issues.sql: Nuevos campos
+  * short_description (text)
+  * impact (text)
+  * core_technology (text)
+
+📚 Documentación:
+- AGENT_GONVARRI_UPDATE.md: Resumen de cambios del agente
+- DEPLOY_BOT_INSTRUCTIONS.md: Guía de deploy
+- GONVARRI_CHANGES_SUMMARY.md: Cambios generales
+- ROADMAP_STRATEGY.md: Estrategia de roadmap
+
+🔧 Scripts y Datos:
+- scripts/import-gonvarri-initiatives.ts: Importar initiatives
+- scripts/update-roadmap-dates.ts: Actualizar fechas
+- Gonvarri clean initiatives shared - Hoja 1.csv: Datos de ejemplo
+
+INTEGRACIÓN BOT ↔ API:
+El bot de Teams ahora envía initiatives estructuradas que el API 
+procesa correctamente con todos los campos de Gonvarri.
+
+Flujo:
+1. Usuario conversa con bot en Teams
+2. Bot genera propuesta con campos Gonvarri
+3. API crea issue con: short_description, impact, core_technology
+4. Issue aparece en triage con toda la información
+
+TESTING:
+- ✅ API acepta nuevos campos desde bot
+- ✅ Issues se crean con estructura completa
+- ✅ Triage muestra campos correctamente
+- ✅ Modal de aceptación funciona
+
+Co-authored-by: Sapira AI Agent

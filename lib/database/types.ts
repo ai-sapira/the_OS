@@ -198,6 +198,7 @@ export type Database = {
           organization_id: string
           origin: Database["public"]["Enums"]["issue_origin"] | null
           parent_issue_id: string | null
+          planned_start_at: string | null
           priority: Database["public"]["Enums"]["issue_priority"] | null
           project_id: string | null
           reporter_id: string | null
@@ -207,6 +208,9 @@ export type Database = {
           triaged_at: string | null
           triaged_by_user_id: string | null
           updated_at: string | null
+          short_description: string | null
+          impact: string | null
+          core_technology: string | null
         }
         Insert: {
           assignee_id?: string | null
@@ -220,6 +224,7 @@ export type Database = {
           organization_id: string
           origin?: Database["public"]["Enums"]["issue_origin"] | null
           parent_issue_id?: string | null
+          planned_start_at?: string | null
           priority?: Database["public"]["Enums"]["issue_priority"] | null
           project_id?: string | null
           reporter_id?: string | null
@@ -229,6 +234,9 @@ export type Database = {
           triaged_at?: string | null
           triaged_by_user_id?: string | null
           updated_at?: string | null
+          short_description?: string | null
+          impact?: string | null
+          core_technology?: string | null
         }
         Update: {
           assignee_id?: string | null
@@ -242,6 +250,7 @@ export type Database = {
           organization_id?: string
           origin?: Database["public"]["Enums"]["issue_origin"] | null
           parent_issue_id?: string | null
+          planned_start_at?: string | null
           priority?: Database["public"]["Enums"]["issue_priority"] | null
           project_id?: string | null
           reporter_id?: string | null
@@ -251,6 +260,9 @@ export type Database = {
           triaged_at?: string | null
           triaged_by_user_id?: string | null
           updated_at?: string | null
+          short_description?: string | null
+          impact?: string | null
+          core_technology?: string | null
         }
         Relationships: [
           {

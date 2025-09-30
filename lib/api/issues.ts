@@ -12,6 +12,9 @@ export interface IssueWithRelations extends Issue {
 export interface CreateIssueData {
   title: string
   description?: string
+  short_description?: string // Brief scope description (Gonvarri)
+  impact?: string // Business impact (Gonvarri)
+  core_technology?: string // Core technology used (Gonvarri)
   priority?: IssuePriority
   reporter_id?: string
   origin?: IssueOrigin

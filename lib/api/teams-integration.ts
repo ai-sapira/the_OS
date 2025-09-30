@@ -33,6 +33,11 @@ export interface TeamsConversationData {
   }[]
   ai_analysis: {
     summary: string
+    short_description?: string // Brief scope description
+    impact?: string // Business impact
+    core_technology?: string // Core technology used
+    difficulty?: 1 | 2 | 3 // Technical difficulty
+    impact_score?: 1 | 2 | 3 // Business impact score
     priority: 'P0' | 'P1' | 'P2' | 'P3'
     suggested_labels: string[]
     key_points: string[]
@@ -69,10 +74,13 @@ export class TeamsIntegration {
   ): Promise<TeamsIssueCreationResult> {
     const { ai_analysis, conversation_id, conversation_url, conversation_reference } = conversationData
 
-    // 1. Create the issue in triage
+    // 1. Create the issue in triage with Gonvarri fields
     const issueData: CreateIssueData = {
       title: this.generateIssueTitle(ai_analysis.summary),
       description: this.generateIssueDescription(conversationData),
+      short_description: ai_analysis.short_description,
+      impact: ai_analysis.impact,
+      core_technology: ai_analysis.core_technology,
       priority: ai_analysis.priority,
       origin: 'teams',
       reporter_id: this.aiAgentUserId,
