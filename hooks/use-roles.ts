@@ -90,7 +90,7 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
     id: "triage",
     label: "Triage",
     icon: "Inbox",
-    href: "/",
+    href: "/triage-new",
     count: 12,
     roles: ["SAP", "CEO", "BU"], // Optional for CEO/BU
     section: "global",
