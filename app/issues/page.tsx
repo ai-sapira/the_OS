@@ -4,6 +4,8 @@ import * as React from "react";
 import { useState, useEffect, useCallback } from "react"
 import { useSupabaseData } from "@/hooks/use-supabase-data"
 import { Issue, Project, Initiative, User, IssueState, IssuePriority } from "@/lib/database/types"
+import type { IssueWithRelations } from "@/lib/api/issues"
+import type { ProjectWithRelations } from "@/lib/api/projects"
 import { Sidebar } from "@/components/sidebar"
 import { CreateIssueModal } from "@/components/create-issue-modal"
 import { Button } from "@/components/ui/button"
@@ -101,9 +103,9 @@ const DEFAULT_DISPLAY_PROPERTIES: DisplayProperties = {
   showStatus: false,
   showAssignee: true,
   showPriority: true,
-  showDueDate: true,
+  showDueDate: false,
   showProject: false,
-  showLabels: false,
+  showLabels: true,
   showLinks: false
 }
 
@@ -428,12 +430,12 @@ export default function IssuesPage() {
   const [displayProperties, setDisplayProperties] = useState<DisplayProperties>(DEFAULT_DISPLAY_PROPERTIES)
   const [boardSettings, setBoardSettings] = useState<BoardSettings>(DEFAULT_BOARD_SETTINGS)
   const [displayPopoverOpen, setDisplayPopoverOpen] = useState(false)
-  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
+  const [selectedIssue, setSelectedIssue] = useState<IssueWithRelations | null>(null)
   const [issueDrawerOpen, setIssueDrawerOpen] = useState(false)
   
   // Drag and drop state
-  const [activeIssue, setActiveIssue] = useState<Issue | null>(null)
-  const [dragOverlay, setDragOverlay] = useState<Issue | null>(null)
+  const [activeIssue, setActiveIssue] = useState<IssueWithRelations | null>(null)
+  const [dragOverlay, setDragOverlay] = useState<IssueWithRelations | null>(null)
   
   // Responsive state
   const [isMobile, setIsMobile] = useState(false)
@@ -451,6 +453,19 @@ export default function IssuesPage() {
     initiatives: allInitiatives,
     updateIssue
   } = useSupabaseData()
+  
+  // Extract all available labels from issues for filtering
+  const allLabels = React.useMemo(() => {
+    const labelMap = new Map()
+    allIssues.forEach(issue => {
+      issue.labels?.forEach(label => {
+        if (!labelMap.has(label.id)) {
+          labelMap.set(label.id, label)
+        }
+      })
+    })
+    return Array.from(labelMap.values())
+  }, [allIssues])
 
   // Set up sensors for drag and drop
   const sensors = useSensors(
@@ -536,8 +551,9 @@ export default function IssuesPage() {
       owner_user_id: null,
       planned_start_at: null,
       planned_end_at: null,
-      progress: null
-    })
+      progress: null,
+      initiative_id: null
+    } as ProjectWithRelations)
   }
     
     return orderedProjects
@@ -568,18 +584,17 @@ export default function IssuesPage() {
     
     // Parse drop target: format is "project-{projectId}-state-{state}"
     const overIdParts = overId.split('-')
-    if (overIdParts.length !== 4 || overIdParts[0] !== 'project' || overIdParts[2] !== 'state') {
+    if (overIdParts.length < 4 || overIdParts[0] !== 'project' || overIdParts[2] !== 'state') {
       return
     }
     
-    const targetProjectId = overIdParts[1] === 'unassigned' ? null : overIdParts[1]
     const targetState = overIdParts[3] as IssueState
     
     const issue = allIssues.find(i => i.id === issueId)
     if (!issue) return
     
-    // Don't update if dropping on the same project and state
-    if (issue.project_id === targetProjectId && issue.state === targetState) return
+    // Don't update if dropping on the same state
+    if (issue.state === targetState) return
     
     // Don't allow dropping on terminal states unless coming from terminal states
     if ((targetState === 'canceled' || targetState === 'duplicate') && 
@@ -589,8 +604,7 @@ export default function IssuesPage() {
     
     try {
       await updateIssue(issueId, {
-        state: targetState,
-        project_id: targetProjectId
+        state: targetState
       })
     } catch (error) {
       console.error('Failed to update issue:', error)
@@ -599,7 +613,7 @@ export default function IssuesPage() {
   }
 
   // Handle issue card click
-  const handleIssueClick = (issue: Issue) => {
+  const handleIssueClick = (issue: IssueWithRelations) => {
     setSelectedIssue(issue)
     setIssueDrawerOpen(true)
   }
@@ -699,8 +713,8 @@ export default function IssuesPage() {
           </div>
         }
       >
-        {/* Container that goes to edges - compensate sheet padding exactly */}
-        <div className="-mx-5 -mt-4">
+        {/* Container that goes to edges */}
+        <div className="-mx-5 -mt-4 -mb-5 h-[calc(100vh-var(--header-h)*2)]">
           {/* Main Content */}
           <DndContext
             sensors={sensors}
@@ -736,55 +750,45 @@ export default function IssuesPage() {
         </div>
       )}
 
-            {/* Project-State Matrix Board Container */}
+            {/* Project Matrix Board Container */}
       <div className="flex-1 overflow-hidden">
         <div className="relative h-full">
-                {/* Desktop Layout (≥1280px) - Project Rows × State Columns */}
+                {/* Desktop Layout (≥1280px) - Project Rows × State Columns Matrix */}
           {!isMobile && !isTablet && (
-                  <div className="h-[calc(100vh-200px)] flex flex-col">
-              {/* Column Headers - Sticky */}
-              <div className="sticky top-0 z-40 flex bg-card border-b border-border">
-                      {/* Empty space for project headers */}
-                      <div className="w-60 flex-shrink-0 border-r border-border p-3">
-                        <span className="text-xs font-medium text-muted-foreground">Projects</span>
+                  <div className="h-full flex flex-col">
+                      {/* Column Headers - Sticky at top */}
+                      <div className="sticky top-0 z-40 bg-background border-b border-border flex">
+                        {boardSettings.columnOrder.map(state => {
+                          const stateInfo = ISSUE_STATES.find(s => s.value === state)
+                          const count = filteredIssues.filter(issue => issue.state === state).length
+                          
+                          return (
+                            <div key={state} className="flex-1 min-w-[280px] px-3 py-2 border-r border-border last:border-r-0">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${stateInfo?.color}`} />
+                                <span className="font-semibold text-xs">{stateInfo?.label}</span>
+                                <span className="ml-auto text-xs text-muted-foreground">{count}</span>
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
                       
-                      {/* State Column Headers */}
-                <div className="flex-1 flex">
-                  {boardSettings.columnOrder.map(state => {
-                    const stateInfo = ISSUE_STATES.find(s => s.value === state)
-                          const count = filteredIssues.filter(issue => issue.state === state).length
-                    
-                    return (
-                      <div key={state} className="flex-1 min-w-[280px] p-3 border-r border-border last:border-r-0">
-                        <div className="flex items-center gap-2">
-                                <div className={`w-3 h-3 rounded-full ${stateInfo?.color}`} />
-                                <span className="font-semibold text-sm">{stateInfo?.label}</span>
-                                <Badge variant="secondary" className="ml-auto text-xs">
-                            {count}
-                          </Badge>
-                        </div>
+                      {/* Project Rows - Scrollable */}
+                      <div className="flex-1 overflow-y-auto">
+                        {getProjectsWithIssues().map(project => (
+                          <ProjectMatrixRow
+                      key={project.id}
+                      project={project}
+                            issues={filteredIssues.filter(issue => 
+                              (issue.project_id || "unassigned") === project.id
+                            )}
+                      columnOrder={boardSettings.columnOrder}
+                      displayProperties={displayProperties}
+                      onIssueClick={handleIssueClick}
+                    />
+                  ))}
                       </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-                    {/* Project Rows - Scrollable */}
-                    <div className="flex-1 overflow-y-auto">
-                      {getProjectsWithIssues().map(project => (
-                        <ProjectMatrixRow
-                    key={project.id}
-                    project={project}
-                          issues={filteredIssues.filter(issue => 
-                            (issue.project_id || "unassigned") === project.id
-                          )}
-                    columnOrder={boardSettings.columnOrder}
-                    displayProperties={displayProperties}
-                    onIssueClick={handleIssueClick}
-                  />
-                ))}
-              </div>
                   </div>
           )}
 
@@ -876,11 +880,11 @@ export default function IssuesPage() {
 
 // Project Matrix Row Component
 interface ProjectMatrixRowProps {
-  project: Project
-  issues: Issue[]
+  project: ProjectWithRelations
+  issues: IssueWithRelations[]
   columnOrder: IssueState[]
   displayProperties: DisplayProperties
-  onIssueClick: (issue: Issue) => void
+  onIssueClick: (issue: IssueWithRelations) => void
 }
 
 function ProjectMatrixRow({ 
@@ -888,9 +892,9 @@ function ProjectMatrixRow({
   issues, 
   columnOrder, 
   displayProperties, 
-  onIssueClick 
+  onIssueClick
 }: ProjectMatrixRowProps) {
-  const [isExpanded, setIsExpanded] = useState(true) // Expandido por defecto
+  const [isExpanded, setIsExpanded] = useState(true)
   
   const getProjectStatusColor = (status: string | null) => {
     switch (status) {
@@ -902,19 +906,9 @@ function ProjectMatrixRow({
     }
   }
 
-  const getProjectStatusBadge = (status: string | null) => {
-    const statusLabels = {
-      "active": "Active",
-      "planned": "Planned", 
-      "paused": "Paused",
-      "done": "Done"
-    }
-    return statusLabels[status as keyof typeof statusLabels] || "Unknown"
-  }
-
   // Group issues by state
   const issuesByState = React.useMemo(() => {
-    const grouped: Record<string, Issue[]> = {}
+    const grouped: Record<string, IssueWithRelations[]> = {}
     columnOrder.forEach(state => {
       grouped[state] = issues.filter(issue => issue.state === state)
     })
@@ -923,78 +917,47 @@ function ProjectMatrixRow({
 
   return (
     <div className="border-b border-border">
-      {/* Project Header - Fixed 44px height, sticky horizontal */}
-      <div className="h-11 bg-background border-b border-border/50 flex items-center">
-        <div className="w-60 flex-shrink-0 border-r border-border bg-background sticky left-0 z-30 h-full flex items-center px-4">
-          <div className="flex items-center gap-2 w-full">
-            {/* Collapse/Expand Caret */}
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="flex-shrink-0 p-0.5 hover:bg-gray-100 rounded transition-colors"
-            >
-              <ChevronDownIcon 
-                className={`h-3 w-3 text-gray-600 transition-transform ${
-                  isExpanded ? 'rotate-0' : '-rotate-90'
-                }`} 
-              />
-            </button>
-            
-            {/* Project Name + Status Chip */}
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <h3 className="font-medium text-sm truncate">{project.name}</h3>
-              {project.status && project.id !== "unassigned" && (
-                <div className="flex items-center gap-1 flex-shrink-0">
-                  <div className={`w-1.5 h-1.5 rounded-full ${getProjectStatusColor(project.status)}`} />
-                  <span className="text-xs text-gray-600">
-                    {getProjectStatusBadge(project.status)}
-                  </span>
-                </div>
-              )}
-            </div>
-            
-            {/* Issues Counter */}
-            <div className="flex-shrink-0 text-xs text-gray-500 font-medium">
-              {issues.length}
-            </div>
-          </div>
-        </div>
-
-        {/* Column Headers (when collapsed, show summary) */}
-        {!isExpanded && (
-          <div className="flex-1 flex">
-            {columnOrder.map(state => {
-              const stateIssues = issuesByState[state] || []
-              return (
-                <div key={state} className="flex-1 min-w-[280px] border-r border-border last:border-r-0 flex items-center justify-center">
-                  <span className="text-xs text-gray-500">
-                    {stateIssues.length}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+      {/* Project Header */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center gap-2 px-4 py-2 hover:bg-muted/50 transition-colors"
+      >
+        <ChevronDownIcon 
+          className={`h-3 w-3 text-muted-foreground transition-transform flex-shrink-0 ${
+            isExpanded ? 'rotate-0' : '-rotate-90'
+          }`} 
+        />
+        
+        {project.status && project.id !== "unassigned" && (
+          <div className={`w-2 h-2 rounded-full ${getProjectStatusColor(project.status)} flex-shrink-0`} />
         )}
-      </div>
+        
+        <span className="font-semibold text-sm flex-1 text-left truncate">
+          {project.name}
+        </span>
+        
+        <span className="text-xs text-muted-foreground flex-shrink-0">
+          {issues.length}
+        </span>
+      </button>
 
-      {/* Expandable Content - Issues organized by columns */}
+      {/* Project Content - State Columns */}
       {isExpanded && (
         <div className="flex">
-          {/* Empty space for alignment with header */}
-          <div className="w-60 flex-shrink-0 border-r border-border bg-background sticky left-0 z-20" />
-          
-          {/* State Columns */}
-          <div className="flex-1 flex">
-            {columnOrder.map(state => (
+          {columnOrder.map((state) => {
+            const stateIssues = issuesByState[state] || []
+            
+            return (
               <ProjectStateColumn
                 key={state}
                 projectId={project.id}
                 state={state}
-                issues={issuesByState[state] || []}
+                issues={stateIssues}
                 displayProperties={displayProperties}
                 onIssueClick={onIssueClick}
               />
-            ))}
-          </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -1005,9 +968,9 @@ function ProjectMatrixRow({
 interface ProjectStateColumnProps {
   projectId: string
   state: IssueState
-  issues: Issue[]
+  issues: IssueWithRelations[]
   displayProperties: DisplayProperties
-  onIssueClick: (issue: Issue) => void
+  onIssueClick: (issue: IssueWithRelations) => void
 }
 
 function ProjectStateColumn({ 
@@ -1015,7 +978,7 @@ function ProjectStateColumn({
   state, 
   issues, 
   displayProperties, 
-  onIssueClick 
+  onIssueClick
 }: ProjectStateColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `project-${projectId}-state-${state}`,
@@ -1028,10 +991,10 @@ function ProjectStateColumn({
         isOver ? 'bg-accent/20' : ''
       }`}
     >
-      <div className="p-3 space-y-2 min-h-[80px]">
-        {/* Issues stacked vertically */}
+      <div className="px-3 py-2 space-y-2 min-h-[80px]">
+        {/* Issues as Cards */}
         {issues.map(issue => (
-          <FullyDraggableIssueCard
+          <DraggableIssueCard
             key={issue.id}
             issue={issue}
             displayProperties={displayProperties}
@@ -1039,16 +1002,16 @@ function ProjectStateColumn({
           />
         ))}
         
-        {/* Empty state */}
+        {/* Empty state placeholder */}
         {issues.length === 0 && !isOver && (
-          <div className="h-12 flex items-center justify-center text-muted-foreground text-xs opacity-0 hover:opacity-100 transition-opacity">
+          <div className="h-16 flex items-center justify-center text-muted-foreground text-xs opacity-0 hover:opacity-30 transition-opacity">
             Drop here
           </div>
         )}
         
         {/* Drop indicator when dragging over */}
-        {isOver && (
-          <div className="h-2 bg-primary rounded opacity-50 transition-opacity" />
+        {isOver && issues.length === 0 && (
+          <div className="h-16 border-2 border-dashed border-primary rounded opacity-50 transition-opacity" />
         )}
       </div>
     </div>
@@ -1059,11 +1022,11 @@ function ProjectStateColumn({
 interface KanbanColumnProps {
   state: IssueState
   stateInfo: { value: IssueState; label: string; color: string } | undefined
-  issues: Issue[]
+  issues: IssueWithRelations[]
   count: number
   displayProperties: DisplayProperties
-  onIssueClick: (issue: Issue) => void
-  allProjects: Project[]
+  onIssueClick: (issue: IssueWithRelations) => void
+  allProjects: ProjectWithRelations[]
 }
 
 function KanbanColumn({ 
@@ -1081,7 +1044,7 @@ function KanbanColumn({
 
   // Group issues by project for display
   const issuesByProject = React.useMemo(() => {
-    const grouped: Record<string, Issue[]> = {}
+    const grouped: Record<string, IssueWithRelations[]> = {}
     
     issues.forEach(issue => {
       const projectId = issue.project_id || "unassigned"
@@ -1095,22 +1058,22 @@ function KanbanColumn({
   }, [issues])
 
   return (
-    <div className="flex-1 min-w-[320px] max-w-[400px] border-r border-border last:border-r-0 bg-background">
-      {/* Column Header */}
-      <div className="sticky top-0 z-30 bg-background border-b border-border p-4">
+    <div className="h-full flex flex-col bg-background">
+      {/* Column Header - Sticky */}
+      <div className="flex-shrink-0 border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className={`w-3 h-3 rounded-full ${stateInfo?.color}`} />
+          <div className={`w-2 h-2 rounded-full ${stateInfo?.color}`} />
           <span className="font-semibold text-sm">{stateInfo?.label}</span>
-          <Badge variant="secondary" className="ml-auto text-xs">
+          <span className="ml-auto text-xs text-muted-foreground font-medium">
             {count}
-          </Badge>
+          </span>
         </div>
       </div>
 
       {/* Column Content - Scrollable */}
       <div 
         ref={setNodeRef}
-        className={`h-[calc(100%-65px)] overflow-y-auto p-4 space-y-4 transition-colors ${
+        className={`flex-1 overflow-y-auto px-3 py-2 space-y-3 transition-colors ${
           isOver ? 'bg-accent/20' : ''
         }`}
       >
@@ -1136,14 +1099,14 @@ function KanbanColumn({
         
         {/* Empty state */}
         {issues.length === 0 && (
-          <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+          <div className="flex items-center justify-center h-32 text-muted-foreground text-xs">
             No issues
           </div>
         )}
         
         {/* Drop indicator when dragging over */}
         {isOver && (
-          <div className="h-2 bg-primary rounded opacity-50 transition-opacity" />
+          <div className="h-1 bg-primary rounded opacity-50 transition-opacity" />
         )}
       </div>
     </div>
@@ -1152,10 +1115,10 @@ function KanbanColumn({
 
 // Project Group Component within Kanban Column
 interface ProjectGroupProps {
-  project: Partial<Project>
-  issues: Issue[]
+  project: Partial<ProjectWithRelations>
+  issues: IssueWithRelations[]
   displayProperties: DisplayProperties
-  onIssueClick: (issue: Issue) => void
+  onIssueClick: (issue: IssueWithRelations) => void
   showProjectHeader: boolean
 }
 
@@ -1166,43 +1129,54 @@ function ProjectGroup({
   onIssueClick,
   showProjectHeader 
 }: ProjectGroupProps) {
+  const [isExpanded, setIsExpanded] = useState(true)
+  
   return (
-    <div className="space-y-3">
-      {/* Project Header */}
+    <div className="space-y-2">
+      {/* Project Header - Collapsible */}
       {showProjectHeader && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 rounded-lg">
-          <div className="w-2 h-2 rounded-full bg-primary/60" />
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex items-center gap-2 w-full px-2 py-1 hover:bg-muted/50 rounded transition-colors group"
+        >
+          <ChevronDownIcon 
+            className={`h-3 w-3 text-muted-foreground transition-transform ${
+              isExpanded ? 'rotate-0' : '-rotate-90'
+            }`} 
+          />
           <span className="text-xs font-medium text-muted-foreground">
             {project.name}
           </span>
-          <Badge variant="outline" className="ml-auto text-xs">
+          <span className="ml-auto text-xs text-muted-foreground">
             {issues.length}
-          </Badge>
-        </div>
+          </span>
+        </button>
       )}
       
       {/* Issues */}
-      <div className="space-y-3">
-        {issues.map(issue => (
-          <DraggableIssueCard
-            key={issue.id}
-            issue={issue}
-            displayProperties={displayProperties}
-            onClick={() => onIssueClick(issue)}
-          />
-        ))}
-      </div>
+      {isExpanded && (
+        <div className="space-y-1">
+          {issues.map(issue => (
+            <DraggableIssueCard
+              key={issue.id}
+              issue={issue}
+              displayProperties={displayProperties}
+              onClick={() => onIssueClick(issue)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 // Board Row Component (kept for tablet/mobile layouts)
 interface BoardRowProps {
-  project: Project
-  issues: Record<string, Issue[]>
+  project: ProjectWithRelations
+  issues: Record<string, IssueWithRelations[]>
   columnOrder: IssueState[]
   displayProperties: DisplayProperties
-  onIssueClick: (issue: Issue) => void
+  onIssueClick: (issue: IssueWithRelations) => void
 }
 
 function BoardRow({ project, issues, columnOrder, displayProperties, onIssueClick }: BoardRowProps) {
@@ -1255,9 +1229,9 @@ function BoardRow({ project, issues, columnOrder, displayProperties, onIssueClic
 // Board Column Component
 interface BoardColumnProps {
   state: IssueState
-  issues: Issue[]
+  issues: IssueWithRelations[]
   displayProperties: DisplayProperties
-  onIssueClick: (issue: Issue) => void
+  onIssueClick: (issue: IssueWithRelations) => void
   projectId: string
 }
 
@@ -1301,7 +1275,7 @@ function BoardColumn({ state, issues, displayProperties, onIssueClick, projectId
 
 // Fully Draggable Issue Card Component (entire card is draggable)
 interface FullyDraggableIssueCardProps {
-  issue: Issue
+  issue: IssueWithRelations
   displayProperties: DisplayProperties
   onClick: () => void
 }
@@ -1346,7 +1320,7 @@ function FullyDraggableIssueCard({ issue, displayProperties, onClick }: FullyDra
 
 // Draggable Issue Card Component (with handle)
 interface DraggableIssueCardProps {
-  issue: Issue
+  issue: IssueWithRelations
   displayProperties: DisplayProperties
   onClick: () => void
 }
@@ -1383,7 +1357,7 @@ function DraggableIssueCard({ issue, displayProperties, onClick }: DraggableIssu
 
 // Issue Card Component
 interface IssueCardProps {
-  issue: Issue
+  issue: IssueWithRelations
   displayProperties: DisplayProperties
   onClick: () => void
   isDragging?: boolean
@@ -1402,85 +1376,98 @@ function IssueCard({ issue, displayProperties, onClick, isDragging = false, drag
     }
   }
 
-  const getDueDateColor = (dueDate: string | null) => {
-    if (!dueDate) return "bg-gray-500"
-    
-    const due = new Date(dueDate)
-    const now = new Date()
-    const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-    
-    if (diffDays < 0) return "bg-red-500" // Overdue
-    if (diffDays <= 1) return "bg-orange-500" // Due soon
-    if (diffDays <= 3) return "bg-yellow-500" // Due this week
-    return "bg-green-500" // Future
+  const getStatusIcon = (state: string) => {
+    switch (state) {
+      case 'done':
+        return <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+      case 'in_progress':
+        return <Clock className="h-3.5 w-3.5 text-blue-600" />
+      case 'blocked':
+        return <AlertCircle className="h-3.5 w-3.5 text-red-600" />
+      case 'waiting_info':
+        return <Clock className="h-3.5 w-3.5 text-orange-600" />
+      default:
+        return <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-300" />
+    }
   }
 
   const isDisabled = issue.state === 'canceled' || issue.state === 'duplicate'
 
   return (
-    <Card 
-      className={`p-3 cursor-pointer hover:shadow-lg transition-all duration-200 bg-card border-border hover:border-accent ${
-        isDragging ? 'rotate-2 shadow-2xl z-50' : ''
+    <Card
+      className={`group p-2.5 cursor-pointer hover:shadow-md transition-all duration-200 border-border ${
+        isDragging ? 'opacity-50 shadow-lg' : ''
       } ${isDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
       onClick={onClick}
     >
-      {/* Header Row */}
-      <div className="flex items-start justify-between gap-2 mb-2">
-        {displayProperties.showId && (
-          <Badge variant="outline" className="text-xs">
-            {issue.key}
-          </Badge>
-        )}
-        <div className="flex items-center gap-1">
-          {/* Drag Handle - only show when not fully draggable */}
-          {!isDisabled && !isFullyDraggable && dragListeners && (
-            <div 
-              {...dragListeners}
-              className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-accent"
-            >
-              <GripVertical className="h-3 w-3 text-muted-foreground" />
-            </div>
-          )}
-          {displayProperties.showLinks && (
-            <Link className="h-3 w-3 text-muted-foreground" />
-          )}
-          <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
-        </div>
-      </div>
-
-      {/* Title */}
-      <h4 className="text-sm font-medium line-clamp-2 mb-2">
-        {issue.title}
-      </h4>
-
-      {/* Meta Row */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {displayProperties.showPriority && issue.priority && (
-          <Badge className={`text-xs px-2 py-0.5 ${getPriorityColor(issue.priority)} text-white`}>
-            {issue.priority}
-          </Badge>
-        )}
-        
-        {displayProperties.showAssignee && issue.assignee_id && (
-          <div className="h-5 w-5 bg-muted rounded-full flex items-center justify-center">
-            <UserIcon className="h-3 w-3 text-muted-foreground" />
+      <div className="flex items-start gap-2">
+        {/* Drag Handle - Left Side */}
+        {!isDisabled && !isFullyDraggable && dragListeners && (
+          <div 
+            {...dragListeners}
+            className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity pt-0.5"
+          >
+            <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
         )}
         
-        {displayProperties.showDueDate && issue.due_at && (
-          <Badge className={`text-xs px-2 py-0.5 ${getDueDateColor(issue.due_at)} text-white`}>
-            <Calendar className="h-3 w-3 mr-1" />
-            {new Date(issue.due_at).toLocaleDateString()}
-          </Badge>
-        )}
+        {/* Status Icon */}
+        <div className="pt-0.5">
+          {getStatusIcon(issue.state || 'todo')}
+        </div>
 
-        {issue.state === "blocked" && (
-          <AlertCircle className="h-4 w-4 text-red-500" />
-        )}
-        
-        {issue.state === "waiting_info" && (
-          <Clock className="h-4 w-4 text-orange-500" />
-        )}
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          {/* Header with Key and Title */}
+          <div className="flex items-start gap-2 mb-1.5">
+            <span className="text-xs font-mono text-muted-foreground flex-shrink-0">
+              {issue.key}
+            </span>
+            <h4 className="text-sm font-medium flex-1 line-clamp-2">
+              {issue.title}
+            </h4>
+          </div>
+
+          {/* Meta Info */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Labels - Dots */}
+            {displayProperties.showLabels && issue.labels && issue.labels.length > 0 && (
+              <div className="flex gap-1">
+                {issue.labels.slice(0, 3).map(label => (
+                  <div
+                    key={label.id}
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: label.color || '#gray-500' }}
+                    title={label.name}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Priority Badge */}
+            {displayProperties.showPriority && issue.priority && (
+              <Badge className={`text-xs px-1.5 py-0 h-5 ${getPriorityColor(issue.priority)} text-white`}>
+                {issue.priority}
+              </Badge>
+            )}
+
+            {/* Assignee Avatar */}
+            {displayProperties.showAssignee && issue.assignee && (
+              <div className="h-5 w-5 bg-muted rounded-full flex items-center justify-center ml-auto" title={issue.assignee.name}>
+                {issue.assignee.avatar_url ? (
+                  <img src={issue.assignee.avatar_url} alt={issue.assignee.name} className="h-5 w-5 rounded-full" />
+                ) : (
+                  <span className="text-xs font-medium">{issue.assignee.name.charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* More Options - Right Side */}
+        <div className="pt-0.5">
+          <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
       </div>
     </Card>
   )
@@ -1488,11 +1475,11 @@ function IssueCard({ issue, displayProperties, onClick, isDragging = false, drag
 
 // Tablet Project Accordion Component (1024-1279px)
 interface TabletProjectAccordionProps {
-  project: Project
-  issues: Record<string, Issue[]>
+  project: ProjectWithRelations
+  issues: Record<string, IssueWithRelations[]>
   columnOrder: IssueState[]
   displayProperties: DisplayProperties
-  onIssueClick: (issue: Issue) => void
+  onIssueClick: (issue: IssueWithRelations) => void
 }
 
 function TabletProjectAccordion({ project, issues, columnOrder, displayProperties, onIssueClick }: TabletProjectAccordionProps) {
@@ -1573,11 +1560,11 @@ function TabletProjectAccordion({ project, issues, columnOrder, displayPropertie
 
 // Mobile Kanban View Component (≤1023px)
 interface MobileKanbanViewProps {
-  filteredIssues: Issue[]
+  filteredIssues: IssueWithRelations[]
   columnOrder: IssueState[]
   displayProperties: DisplayProperties
-  onIssueClick: (issue: Issue) => void
-  allProjects: Project[]
+  onIssueClick: (issue: IssueWithRelations) => void
+  allProjects: ProjectWithRelations[]
 }
 
 function MobileKanbanView({ 

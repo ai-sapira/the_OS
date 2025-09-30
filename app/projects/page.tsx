@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   SearchIcon,
   MoreHorizontalIcon,
@@ -453,6 +454,7 @@ function ProjectsCardList({
   globalFilter?: string,
   onDataChange?: () => void
 }) {
+  const router = useRouter();
   const [data, setData] = useState<ProjectWithRelations[]>([]);
   const [filteredData, setFilteredData] = useState<ProjectWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
@@ -542,6 +544,7 @@ function ProjectsCardList({
           <div
             key={project.id}
             className="py-3 hover:bg-gray-50/50 transition-colors cursor-pointer"
+            onClick={() => router.push(`/projects/${project.slug}`)}
           >
             <div className="grid grid-cols-[1fr_120px_160px_180px_140px] gap-4 items-center">
               {/* Project Column */}
@@ -555,7 +558,7 @@ function ProjectsCardList({
               </div>
 
               {/* Status Column */}
-              <div className="flex justify-start">
+              <div className="flex justify-start" onClick={(e) => e.stopPropagation()}>
                 <EditableProjectStatusDropdown
                   currentStatus={project.status || "planned"}
                   projectId={project.id}
@@ -575,7 +578,7 @@ function ProjectsCardList({
               </div>
 
               {/* Business Unit Column */}
-              <div className="flex justify-start min-w-0">
+              <div className="flex justify-start min-w-0" onClick={(e) => e.stopPropagation()}>
                 <EditableProjectBUDropdown
                   currentBU={project.initiative ? {
                     id: project.initiative.id,
@@ -599,7 +602,7 @@ function ProjectsCardList({
               </div>
 
               {/* Owner Column */}
-              <div className="flex justify-start">
+              <div className="flex justify-start" onClick={(e) => e.stopPropagation()}>
                 <EditableProjectOwnerDropdown
                   currentOwner={project.owner}
                   projectId={project.id}
