@@ -55,6 +55,26 @@ export class IssuesAPI {
     return this.transformIssuesWithLabels(data || [])
   }
 
+  // Get all issues (for admin/general views)
+  static async getIssues(): Promise<IssueWithRelations[]> {
+    const { data, error } = await supabase
+      .from('issues')
+      .select(`
+        *,
+        initiative:initiatives(*),
+        project:projects(*),
+        assignee:users!issues_assignee_id_fkey(id, name, email, avatar_url),
+        reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url),
+        labels:issue_labels(label_id, labels(*))
+      `)
+      .eq('organization_id', this.organizationId)
+      .neq('state', 'triage')
+      .order('updated_at', { ascending: false })
+
+    if (error) throw error
+    return this.transformIssuesWithLabels(data || [])
+  }
+
   // Get issues by role filter
   static async getIssuesByRole(role: string, userId?: string, initiativeId?: string): Promise<IssueWithRelations[]> {
     let query = supabase
