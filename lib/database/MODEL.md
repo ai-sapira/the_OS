@@ -73,17 +73,22 @@ Máxima simplicidad pero completitud y lógica impecable.
 * `id`, `organization_id`
 * `key` *(código humano, ej. "SAP-458")* — **único**
 * `title`, `description?`
+* `short_description?` — **NUEVO** *(resumen breve, para Gonvarri)*
+* `impact?` — **NUEVO** *(impacto en negocio, ej. "Reduced repetitive tasks")*
+* `core_technology?` — **NUEVO** *(tecnología core, ej. "Predictive AI", "GenAI + Analytics")*
 
 **Estado y prioridad:**
 * `state` → `triage | todo | in_progress | blocked | waiting_info | done | canceled | duplicate`
-* `priority?` → `P0 | P1 | P2 | P3`
+* `priority?` → `P0 | P1 | P2 | P3` *(puede calcularse desde difficulty + impact_score)*
 
 **Contexto y ruteo:**
 * `initiative_id?` — **NULL en Triage**, **OBLIGATORIO** tras "Accept"
 * `project_id?` — **opcional** (proyecto estratégico)
 
 **Personas y fechas:**
-* `assignee_id?`, `reporter_id?`, `due_at?`
+* `assignee_id?`, `reporter_id?`
+* `planned_start_at?` — **NUEVO** *(fecha de inicio planificada, para roadmap)*
+* `due_at?` — *(fecha de vencimiento)*
 
 **Origen y control:**
 * `origin?` → `teams | email | slack | api | url`

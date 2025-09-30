@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { CreateIssueModal } from "@/components/create-issue-modal"
+import { NewIssueModal } from "@/components/new-issue-modal"
 import { AcceptIssueModal } from "@/components/ui/modal/accept-issue-modal"
 import { CommandPalette } from "@/components/command-palette"
 import { 
@@ -171,6 +171,254 @@ function PropertyChip({ icon, label, value, options, onSelect, loading = false }
   )
 }
 
+// AI Suggestions Component
+interface AISuggestionsProps {
+  issue: any
+  onApplySuggestion: (field: string, value: any) => Promise<void>
+  availableUsers?: any[]
+  availableProjects?: any[]
+  availableInitiatives?: any[]
+}
+
+interface Suggestion {
+  field: string
+  label: string
+  value: any
+  displayValue: string
+  icon: React.ReactNode
+  confidence: 'high' | 'medium' | 'low'
+}
+
+function AISuggestions({ 
+  issue, 
+  onApplySuggestion, 
+  availableUsers = [], 
+  availableProjects = [], 
+  availableInitiatives = [] 
+}: AISuggestionsProps) {
+  const [loadingField, setLoadingField] = useState<string | null>(null)
+
+  // Generate AI suggestions based on issue content
+  const suggestions: Suggestion[] = React.useMemo(() => {
+    const result: Suggestion[] = []
+    const title = (issue.title || '').toLowerCase()
+    const description = (issue.description || '').toLowerCase()
+    const shortDesc = (issue.short_description || '').toLowerCase()
+    const fullText = `${title} ${description} ${shortDesc}`
+    
+    // Mapeo de keywords a Business Units según CSV de Gonvarri
+    const buMapping: Record<string, string[]> = {
+      'Finance': ['pricing', 'invoice', 'invoicing', 'financial', 'fraud', 'debt', 'accounting', 'payment', 'receivable', 'payable', 'billing'],
+      'Sales': ['offer', 'proposal', 'bid', 'tender', 'customer', 'negotiation', 'crafter'],
+      'Legal': ['contract', 'legal', 'compliance', 'advisory', 'regulatory'],
+      'HR': ['employee', 'talent', 'recruitment', 'onboarding', 'attrition', 'career', 'upskilling', 'sentiment', 'nps', 'hr'],
+      'Procurement': ['supplier', 'procurement', 'purchasing', 'rfp', 'spend', 'acquisition']
+    }
+    
+    // Mapeo de keywords a Projects
+    const projectMapping: Record<string, string[]> = {
+      'Pricing': ['pricing', 'discount', 'margin'],
+      'Processing': ['processing', 'automation', 'offer', 'proposal'],
+      'Advisory': ['advisory', 'legal', 'contract', 'compliance'],
+      'Invoicing': ['invoice', 'billing', 'payment', 'fraud', 'receivable', 'payable'],
+      'Negotiation': ['negotiation', 'trading', 'booth'],
+      'Compliance': ['compliance', 'regulatory', 'risk'],
+      'NPS': ['employee', 'chatbot', 'assistant', 'onboarding', 'sentiment', 'nps'],
+      'Upskilling': ['career', 'upskilling', 'path', 'development'],
+      'Retention': ['attrition', 'retention', 'turnover'],
+      'Reporting': ['analytics', 'reporting', 'insight', 'dashboard'],
+      'Operations': ['operations', 'inquiry', 'handling'],
+      'Accounting': ['accounting', 'consolidation', 'reconciliation']
+    }
+    
+    // 1. Determinar Business Unit basada en keywords
+    let suggestedBU = null
+    if (availableInitiatives.length > 0) {
+      for (const [bu, keywords] of Object.entries(buMapping)) {
+        if (keywords.some(kw => fullText.includes(kw))) {
+          suggestedBU = availableInitiatives.find(i => i.name === bu)
+          if (suggestedBU) break
+        }
+      }
+      if (!suggestedBU) suggestedBU = availableInitiatives[0]
+    }
+    
+    // 2. Determinar Project basado en keywords
+    let suggestedProject = null
+    if (availableProjects.length > 0) {
+      for (const [project, keywords] of Object.entries(projectMapping)) {
+        if (keywords.some(kw => fullText.includes(kw))) {
+          suggestedProject = availableProjects.find(p => p.name === project)
+          if (suggestedProject) break
+        }
+      }
+      if (!suggestedProject) suggestedProject = availableProjects[0]
+    }
+    
+    // 3. ORDEN DE SUGERENCIAS: Priority, Assignee, Project, BU
+    
+    // 3.1. Priority basada en core_technology y impact
+    const isCriticalTech = issue.core_technology?.includes('Predictive AI') || 
+                          issue.core_technology?.includes('Fraud') ||
+                          issue.core_technology?.includes('Compliance')
+    const suggestedPriority = isCriticalTech ? 'P0' : 
+                             issue.impact?.includes('Reduced') || issue.impact?.includes('Increase') ? 'P1' : 'P2'
+    
+    result.push({
+      field: 'priority',
+      label: 'Prioridad',
+      value: suggestedPriority,
+      displayValue: suggestedPriority,
+      icon: <Flag className="h-3 w-3" />,
+      confidence: isCriticalTech ? 'high' : 'medium'
+    })
+    
+    // 3.2. Assignee (distribuir equitativamente usando hash)
+    if (availableUsers.length > 0) {
+      const hashCode = issue.id.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0)
+      const userIndex = hashCode % availableUsers.length
+      const suggestedUser = availableUsers[userIndex]
+      
+      result.push({
+        field: 'assignee_id',
+        label: 'Asignar a',
+        value: suggestedUser.id,
+        displayValue: suggestedUser.name,
+        icon: <User className="h-3 w-3" />,
+        confidence: 'medium'
+      })
+    }
+    
+    // 3.3. Project
+    if (suggestedProject) {
+      result.push({
+        field: 'project_id',
+        label: 'Proyecto',
+        value: suggestedProject.id,
+        displayValue: suggestedProject.name,
+        icon: <Hexagon className="h-3 w-3" />,
+        confidence: 'high'
+      })
+    }
+    
+    // 3.4. Business Unit
+    if (suggestedBU) {
+      result.push({
+        field: 'initiative_id',
+        label: 'Business Unit',
+        value: suggestedBU.id,
+        displayValue: suggestedBU.name,
+        icon: <Target className="h-3 w-3" />,
+        confidence: 'high'
+      })
+    }
+
+    return result
+  }, [issue, availableUsers, availableProjects, availableInitiatives])
+
+  const handleApplySuggestion = async (suggestion: Suggestion) => {
+    setLoadingField(suggestion.field)
+    try {
+      await onApplySuggestion(suggestion.field, suggestion.value)
+    } finally {
+      setLoadingField(null)
+    }
+  }
+
+  const handleApplyAll = async () => {
+    setLoadingField('all')
+    try {
+      // Construir objeto con todas las actualizaciones
+      const updates: any = {}
+      suggestions.forEach(suggestion => {
+        updates[suggestion.field] = suggestion.value
+      })
+      
+      // Aplicar todas de una vez
+      await onApplySuggestion('bulk', updates)
+    } finally {
+      setLoadingField(null)
+    }
+  }
+
+  if (suggestions.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+      <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+        <div className="flex items-center">
+          <div className="h-2 w-2 rounded-full bg-purple-500 animate-pulse" />
+          <h3 className="text-sm font-medium text-gray-900 ml-2">Sugerencias</h3>
+          <span className="text-xs text-gray-500 ml-auto mr-3">Basadas en el contenido del issue</span>
+          
+          {/* Botón Aplicar todas */}
+          <button
+            onClick={handleApplyAll}
+            disabled={loadingField !== null}
+            className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loadingField === 'all' ? (
+              <>
+                <div className="h-3 w-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                <span>Aplicando...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-3 w-3" />
+                <span>Aplicar todas</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+      <div className="p-4 space-y-3">
+        {suggestions.map((suggestion) => (
+          <div 
+            key={suggestion.field}
+            className="flex items-center gap-3 p-3 border border-dashed border-gray-300 rounded-lg bg-gray-50/50 hover:bg-gray-50 transition-colors"
+          >
+            {/* Label */}
+            <div className="flex items-center gap-1.5 min-w-[100px]">
+              <div className="text-gray-500">
+                {suggestion.icon}
+              </div>
+              <span className="text-xs font-medium text-gray-700">{suggestion.label}:</span>
+            </div>
+
+            {/* Suggested Value */}
+            <div className="flex-1">
+              <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-white border border-gray-200 text-gray-900">
+                {suggestion.displayValue}
+              </div>
+            </div>
+
+            {/* Apply Button */}
+            <button
+              onClick={() => handleApplySuggestion(suggestion)}
+              disabled={loadingField === suggestion.field}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            >
+              {loadingField === suggestion.field ? (
+                <>
+                  <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Aplicando...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-3 w-3" />
+                  <span>Aplicar</span>
+                </>
+              )}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // Main chip panel component
 interface IssueChipPanelProps {
   issue: any
@@ -305,8 +553,8 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
   return (
     <div className="flex flex-col h-full">
       {/* Sección de chips de propiedades */}
-      <div className="flex-shrink-0 px-4 py-3 border-b bg-white relative" style={{ borderColor: 'var(--stroke)' }}>
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex-shrink-0 border-b bg-white relative" style={{ borderColor: 'var(--stroke)' }}>
+        <div className="flex items-center gap-2 flex-wrap px-6 py-2">
           <PropertyChip
             icon={getStateIcon(localIssue.state).icon}
             label="Estado"
@@ -465,13 +713,27 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
             {/* Header con título del issue */}
             <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
               <div className="p-4">
-                <h1 className="text-lg font-semibold text-gray-900 mb-3">{selectedIssue.title}</h1>
+                <div className="flex items-center gap-3 mb-3">
+                  {/* Badge con número del issue */}
+                  {selectedIssue.key && (
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-gray-50 border border-dashed border-gray-300 text-gray-700 shrink-0">
+                      <Hash className="h-3 w-3" />
+                      <span>{selectedIssue.key.replace('GON-', '')}</span>
+                    </div>
+                  )}
+                  
+                  <h1 className="text-lg font-semibold text-gray-900 flex-1">{selectedIssue.title}</h1>
+                  
+                  {/* Badge de tecnología core (estilo filtros) */}
+                  {selectedIssue.core_technology && (
+                    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-gray-50 border border-dashed border-gray-300 text-gray-700 shrink-0">
+                      <Hexagon className="h-3 w-3" />
+                      <span>{selectedIssue.core_technology}</span>
+                    </div>
+                  )}
+                </div>
+                
                 <div className="flex items-center gap-2 text-xs flex-wrap">
-                  <div className="flex items-center gap-1.5 text-gray-500">
-                    <Hash className="h-3 w-3" />
-                    <span className="font-mono">{selectedIssue.key}</span>
-                  </div>
-                  <div className="h-1 w-1 rounded-full bg-gray-300" />
                   <div className="flex items-center gap-1.5 text-gray-500">
                     <User className="h-3 w-3" />
                     <span>{selectedIssue.reporter?.name || 'Usuario desconocido'}</span>
@@ -489,20 +751,110 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
               </div>
             </div>
 
-            {/* Descripción del Issue */}
+            {/* Contenido unificado: Resumen, Impacto y Descripción */}
             <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-gray-500" />
-                  <h2 className="text-sm font-medium text-gray-900">Descripción</h2>
-                </div>
-              </div>
-              <div className="p-4">
-                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                  {selectedIssue.description || "Este issue necesita ser revisado para determinar si debe ser aceptado en el backlog del producto. El equipo de triage debe evaluar la prioridad, asignar recursos y decidir el siguiente paso."}
-                </p>
+              <div className="p-5 space-y-4">
+                {/* Resumen (si existe) */}
+                {selectedIssue.short_description && (
+                  <div>
+                    <h3 className="text-[13px] text-gray-600 mb-2">Resumen</h3>
+                    <p className="text-sm font-medium text-gray-900 leading-relaxed">
+                      {selectedIssue.short_description}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Impacto (si existe) */}
+                {selectedIssue.impact && (
+                  <div>
+                    <h3 className="text-[13px] text-gray-600 mb-2">Impacto en negocio</h3>
+                    <p className="text-sm font-medium text-gray-900 leading-relaxed">
+                      {selectedIssue.impact}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Separador si hay contenido adicional */}
+                {(selectedIssue.short_description || selectedIssue.impact) && selectedIssue.description && (
+                  <div className="border-t border-gray-100 my-4" />
+                )}
+                
+                {/* Descripción completa */}
+                {selectedIssue.description && (
+                  <div>
+                    <h3 className="text-[13px] text-gray-600 mb-2">Detalles</h3>
+                    <p className="text-sm font-medium text-gray-900 leading-relaxed whitespace-pre-wrap">
+                      {selectedIssue.description}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Mensaje por defecto si no hay nada */}
+                {!selectedIssue.short_description && !selectedIssue.impact && !selectedIssue.description && (
+                  <p className="text-sm text-gray-500 italic">
+                    Este issue necesita ser revisado para determinar si debe ser aceptado en el backlog del producto.
+                  </p>
+                )}
               </div>
             </div>
+
+            {/* Sugerencias AI */}
+            <AISuggestions 
+              issue={selectedIssue}
+              availableUsers={availableUsers}
+              availableProjects={availableProjects}
+              availableInitiatives={availableInitiatives}
+              onApplySuggestion={async (field, value) => {
+                try {
+                  // Si es bulk update (aplicar todas)
+                  if (field === 'bulk') {
+                    const bulkUpdates = value as any
+                    await IssuesAPI.updateIssue(selectedIssue.id, bulkUpdates)
+                    
+                    // Actualizar el issue con la info completa
+                    const updatedIssue = { ...selectedIssue, ...bulkUpdates }
+                    
+                    // Actualizar objetos relacionados
+                    if (bulkUpdates.assignee_id) {
+                      updatedIssue.assignee = availableUsers.find(u => u.id === bulkUpdates.assignee_id) || null
+                    }
+                    if (bulkUpdates.project_id) {
+                      updatedIssue.project = availableProjects.find(p => p.id === bulkUpdates.project_id) || null
+                    }
+                    if (bulkUpdates.initiative_id) {
+                      updatedIssue.initiative = availableInitiatives.find(i => i.id === bulkUpdates.initiative_id) || null
+                    }
+                    
+                    onIssueUpdate?.(updatedIssue)
+                  } else {
+                    // Update individual
+                    await IssuesAPI.updateIssue(selectedIssue.id, { [field]: value })
+                    
+                    // Actualizar el issue con la info completa de las relaciones
+                    const updatedIssue = { ...selectedIssue, [field]: value }
+                    
+                    // Si es assignee, actualizar el objeto completo
+                    if (field === 'assignee_id') {
+                      updatedIssue.assignee = availableUsers.find(u => u.id === value) || null
+                    }
+                    
+                    // Si es project, actualizar el objeto completo
+                    if (field === 'project_id') {
+                      updatedIssue.project = availableProjects.find(p => p.id === value) || null
+                    }
+                    
+                    // Si es initiative, actualizar el objeto completo
+                    if (field === 'initiative_id') {
+                      updatedIssue.initiative = availableInitiatives.find(i => i.id === value) || null
+                    }
+                    
+                    onIssueUpdate?.(updatedIssue)
+                  }
+                } catch (error) {
+                  console.error('Error applying suggestion:', error)
+                }
+              }}
+            />
 
             {/* Conversación de Teams (si existe) */}
             {conversationActivity?.payload?.messages && (
@@ -515,116 +867,23 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
               />
             )}
 
-            {/* Contexto y evaluación */}
+            {/* Notas internas */}
             <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-amber-500" />
-                  <h3 className="text-sm font-medium text-gray-900">Guía de evaluación</h3>
+              <div className="p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="h-1 w-1 rounded-full bg-gray-400" />
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Notas internas</h3>
                 </div>
-              </div>
-              <div className="p-4">
-                <p className="text-sm text-gray-600 leading-relaxed mb-4">
-                  Sigue estos pasos para evaluar correctamente este issue y determinar la acción a tomar.
-                </p>
-                
-                {/* Pasos del proceso */}
-                <div className="space-y-2.5">
-                  {[
-                    { step: 1, text: "Revisar la descripción y determinar el tipo de issue", icon: <Circle className="h-3 w-3" /> },
-                    { step: 2, text: "Asignar prioridad basada en impacto y urgencia", icon: <Flag className="h-3 w-3" /> },
-                    { step: 3, text: "Decidir la acción: aceptar, rechazar o posponer", icon: <CheckCircle2 className="h-3 w-3" /> }
-                  ].map((item, index) => (
-                    <div key={item.step} className="flex items-start gap-2.5">
-                      <div className="flex-shrink-0 w-5 h-5 bg-gray-100 text-gray-700 rounded-full flex items-center justify-center text-xs font-medium mt-0.5">
-                        {item.step}
-                      </div>
-                      <p className="text-sm text-gray-700 pt-0.5">{item.text}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Información técnica */}
-            <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-                <div className="flex items-center gap-2">
-                  <Hash className="h-4 w-4 text-gray-500" />
-                  <h3 className="text-sm font-medium text-gray-900">Metadata</h3>
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">ID</div>
-                    <div className="text-sm font-mono text-gray-900">{selectedIssue.key}</div>
-                  </div>
-                  <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Origen</div>
-                    <div className="text-sm text-gray-900 flex items-center gap-1.5">
-                      {selectedIssue.origin === 'teams' && <MessageSquare className="h-3.5 w-3.5 text-indigo-600" />}
-                      <span className="capitalize">{selectedIssue.origin || 'Manual'}</span>
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Estado actual</div>
-                    <div className="text-sm text-gray-900 capitalize">{selectedIssue.state || 'Triage'}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Acciones de triage */}
-            <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <h3 className="text-sm font-medium text-gray-900">Acciones</h3>
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <button className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm border border-green-200 text-green-700 bg-green-50 rounded-lg hover:bg-green-100 hover:border-green-300 transition-all duration-200 font-medium">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Aceptar
+                <textarea 
+                  placeholder="Añade comentarios sobre este issue para tu equipo..."
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300 transition-colors resize-none bg-white text-gray-900 placeholder:text-gray-400"
+                  rows={3}
+                />
+                <div className="flex justify-end mt-3">
+                  <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-md transition-colors">
+                    <Save className="h-3 w-3" />
+                    <span>Guardar</span>
                   </button>
-                  <button className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm border border-red-200 text-red-700 bg-red-50 rounded-lg hover:bg-red-100 hover:border-red-300 transition-all duration-200 font-medium">
-                    <X className="h-4 w-4" />
-                    Rechazar
-                  </button>
-                  <button className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm border border-orange-200 text-orange-700 bg-orange-50 rounded-lg hover:bg-orange-100 hover:border-orange-300 transition-all duration-200 font-medium">
-                    <Copy className="h-4 w-4" />
-                    Duplicado
-                  </button>
-                  <button className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm border border-blue-200 text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 font-medium">
-                    <Clock className="h-4 w-4" />
-                    Posponer
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Comentarios y notas */}
-            <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
-              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-                <div className="flex items-center gap-2">
-                  <Edit3 className="h-4 w-4 text-gray-500" />
-                  <h3 className="text-sm font-medium text-gray-900">Notas</h3>
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="space-y-3">
-                  <textarea 
-                    placeholder="Agregar notas sobre la decisión de triage..."
-                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-colors resize-none bg-white"
-                    rows={3}
-                  />
-                  <div className="flex justify-end">
-                    <button className="px-4 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium">
-                      Guardar nota
-                    </button>
-                  </div>
                 </div>
               </div>
             </div>
@@ -940,7 +1199,7 @@ export default function TriageNewPage() {
                   {triageIssues.map((issue, index) => (
                     <div
                       key={issue.id}
-                      className={`px-4 py-3 hover:bg-gray-50/50 cursor-pointer transition-all duration-200 relative ${
+                      className={`px-6 py-3 hover:bg-gray-50/50 cursor-pointer transition-all duration-200 relative ${
                         selectedIssue?.id === issue.id ? '' : ''
                       }`}
                       onClick={() => handleIssueSelect(issue)}
@@ -949,11 +1208,22 @@ export default function TriageNewPage() {
                       {selectedIssue?.id === issue.id && (
                         <div className="absolute bottom-0 left-0 right-0 h-px bg-gray-400" />
                       )}
-                      {/* Título del issue */}
+                      {/* Título del issue con número de iniciativa */}
                       <div className="mb-2.5">
-                        <h3 className="text-sm font-medium text-gray-900 leading-5 mb-1">
-                          {issue.title}
-                        </h3>
+                        <div className="flex items-start gap-2 mb-1">
+                          {/* Número de iniciativa (estilo filtros) */}
+                          {issue.key && (
+                            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-gray-50 border border-dashed border-gray-300 text-gray-700 shrink-0">
+                              <Hash className="h-3 w-3" />
+                              <span>{issue.key.replace('GON-', '')}</span>
+                            </div>
+                          )}
+                          
+                          <h3 className="text-sm font-medium text-gray-900 leading-5 flex-1">
+                            {issue.title}
+                          </h3>
+                        </div>
+                        
                         {/* Tags y metadata */}
                         <div className="flex items-center gap-2 flex-wrap">
                           {/* Estado badge */}
@@ -986,25 +1256,25 @@ export default function TriageNewPage() {
                               <span>Teams</span>
                             </div>
                           )}
-                        </div>
-                      </div>
-
-                      {/* Línea inferior con autor y fecha */}
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5 text-gray-500">
-                          <User className="h-3 w-3" />
-                          <span>
-                            {issue.reporter?.name || issue.assignee?.name || 'Sin asignar'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-gray-400">
-                          <Calendar className="h-3 w-3" />
-                          <span>
-                            {issue.created_at ? new Date(issue.created_at).toLocaleDateString('es-ES', { 
-                              month: 'short', 
-                              day: 'numeric' 
-                            }) : 'Sin fecha'}
-                          </span>
+                          
+                          {/* Core Technology badge (gris discreto) */}
+                          {issue.core_technology && (
+                            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-900 border border-gray-200">
+                              <Hexagon className="h-3 w-3" />
+                              <span className="truncate max-w-[120px]">{issue.core_technology}</span>
+                            </div>
+                          )}
+                          
+                          {/* Fecha */}
+                          <div className="flex items-center gap-1.5 text-xs text-gray-400 ml-auto">
+                            <Calendar className="h-3 w-3" />
+                            <span>
+                              {issue.created_at ? new Date(issue.created_at).toLocaleDateString('es-ES', { 
+                                month: 'short', 
+                                day: 'numeric' 
+                              }) : 'Sin fecha'}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1069,10 +1339,9 @@ export default function TriageNewPage() {
       </ResizablePageSheet>
 
       {/* Modales */}
-      <CreateIssueModal 
+      <NewIssueModal 
         open={showCreateModal} 
         onOpenChange={setShowCreateModal} 
-        onCreateIssue={() => {}} 
       />
 
       <AcceptIssueModal

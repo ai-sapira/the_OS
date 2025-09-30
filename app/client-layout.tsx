@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, Suspense } from "react"
 import { CommandPalette } from "@/components/command-palette"
 import { KeyboardShortcuts } from "@/components/keyboard-shortcuts"
-import { CreateIssueModal } from "@/components/create-issue-modal"
+import { NewIssueModal } from "@/components/new-issue-modal"
 
 export default function ClientLayout({
   children,
@@ -14,11 +14,6 @@ export default function ClientLayout({
 }>) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [createIssueOpen, setCreateIssueOpen] = useState(false)
-
-  const handleCreateIssue = (issue: any) => {
-    console.log("Created issue:", issue)
-    // This would typically update global state or trigger a refetch
-  }
 
   return (
     <>
@@ -34,7 +29,7 @@ export default function ClientLayout({
 
       <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
 
-      <CreateIssueModal open={createIssueOpen} onOpenChange={setCreateIssueOpen} onCreateIssue={handleCreateIssue} />
+      <NewIssueModal open={createIssueOpen} onOpenChange={setCreateIssueOpen} />
 
       {/* Global Keyboard Shortcuts */}
       <KeyboardShortcuts

@@ -340,7 +340,12 @@ function TriageActionPopover({ action, issue, onAction, children }: TriageAction
                   <Button
                     type="submit"
                     size="sm"
-                    className="h-8 px-3 text-[12px] bg-blue-500 hover:bg-blue-600 text-white"
+                    className={`h-8 px-3 text-[12px] text-white ${
+                      action === 'accept' ? 'bg-emerald-600 hover:bg-emerald-700' :
+                      action === 'decline' ? 'bg-red-500 hover:bg-red-600' :
+                      action === 'snooze' ? 'bg-yellow-500 hover:bg-yellow-600' :
+                      'bg-blue-500 hover:bg-blue-600'
+                    }`}
                     disabled={!isFormValid()}
                   >
                     {getActionButtonText()}

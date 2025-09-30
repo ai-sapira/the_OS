@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   Target,
   Hexagon,
@@ -354,6 +354,7 @@ function InitiativeProjectsList({
 }: { 
   initiativeId: string 
 }) {
+  const router = useRouter();
   const [projects, setProjects] = useState<ProjectWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -418,6 +419,7 @@ function InitiativeProjectsList({
           <div
             key={project.id}
             className="py-3 px-6 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-b-0"
+            onClick={() => router.push(`/projects/${project.slug}`)}
           >
             <div className="grid grid-cols-[1fr_120px_180px_140px] gap-4 items-center">
               {/* Project Column */}

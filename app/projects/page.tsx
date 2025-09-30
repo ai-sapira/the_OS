@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 import { EditableProjectStatusDropdown } from "@/components/ui/editable-project-status-dropdown";
 import { EditableProjectBUDropdown } from "@/components/ui/editable-project-bu-dropdown";
 import { EditableProjectOwnerDropdown } from "@/components/ui/editable-project-owner-dropdown";
+import { NewProjectModal } from "@/components/new-project-modal";
 
 // Projects Filters Bar Component
 function ProjectsFiltersBar({
@@ -663,10 +664,15 @@ export default function ProjectsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [filters, setFilters] = useState<any[]>([])
   const [globalFilter, setGlobalFilter] = useState("")
+  const [dataVersion, setDataVersion] = useState(0)
 
   const handleFiltersChange = (newFilters: any[], newGlobalFilter: string) => {
     setFilters(newFilters)
     setGlobalFilter(newGlobalFilter)
+  }
+
+  const handleProjectCreated = () => {
+    setDataVersion(v => v + 1) // Force refresh
   }
 
   return (
@@ -687,7 +693,12 @@ export default function ProjectsPage() {
               
               {/* Actions */}
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 w-8 p-0 hover:bg-gray-100"
+                  onClick={() => setShowCreateModal(true)}
+                >
                   <PlusIcon className="h-4 w-4" />
                 </Button>
               </div>
@@ -728,6 +739,13 @@ export default function ProjectsPage() {
           </div>
         </div>
       </ResizablePageSheet>
+
+      {/* Create Project Modal */}
+      <NewProjectModal 
+        open={showCreateModal} 
+        onOpenChange={setShowCreateModal}
+        onCreateProject={handleProjectCreated}
+      />
     </ResizableAppShell>
   );
 }

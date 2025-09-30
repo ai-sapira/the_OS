@@ -2,18 +2,18 @@
 
 import * as React from "react";
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { useSupabaseData } from "@/hooks/use-supabase-data"
 import { Issue, Project, Initiative, User, IssueState, IssuePriority } from "@/lib/database/types"
 import type { IssueWithRelations } from "@/lib/api/issues"
 import type { ProjectWithRelations } from "@/lib/api/projects"
 import { Sidebar } from "@/components/sidebar"
-import { CreateIssueModal } from "@/components/create-issue-modal"
+import { NewIssueModal } from "@/components/new-issue-modal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar } from "@/components/ui/avatar"
 import { Card } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
@@ -59,7 +59,12 @@ import {
   AlertCircle,
   Clock,
   CheckCircle,
+  CheckCircle2,
   XCircle,
+  Circle,
+  ArrowRight,
+  HelpCircle,
+  Ban,
   Copy,
   Filter,
   X,
@@ -67,7 +72,10 @@ import {
   ListFilter,
   SettingsIcon,
   PlusIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  Target,
+  Pause,
+  CheckSquare
 } from "lucide-react"
 import {
   Popover,
@@ -144,7 +152,7 @@ const DEFAULT_BOARD_SETTINGS: BoardSettings = {
   showEmptyRows: false,
   showSubIssues: true,
   showTriageIssues: false,
-  columnOrder: ["todo", "in_progress", "blocked", "waiting_info", "done", "canceled", "duplicate"],
+  columnOrder: ["todo", "in_progress", "done", "waiting_info"],
   rowOrder: "name",
   sortInColumns: "priority"
 }
@@ -426,12 +434,11 @@ function IssuesFiltersBar({
 }
 
 export default function IssuesPage() {
+  const router = useRouter()
   const [filters, setFilters] = useState<BoardFilters>(DEFAULT_FILTERS)
   const [displayProperties, setDisplayProperties] = useState<DisplayProperties>(DEFAULT_DISPLAY_PROPERTIES)
   const [boardSettings, setBoardSettings] = useState<BoardSettings>(DEFAULT_BOARD_SETTINGS)
   const [displayPopoverOpen, setDisplayPopoverOpen] = useState(false)
-  const [selectedIssue, setSelectedIssue] = useState<IssueWithRelations | null>(null)
-  const [issueDrawerOpen, setIssueDrawerOpen] = useState(false)
   
   // Drag and drop state
   const [activeIssue, setActiveIssue] = useState<IssueWithRelations | null>(null)
@@ -471,12 +478,12 @@ export default function IssuesPage() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 3,
+        distance: 8,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 250,
+        delay: 150,
         tolerance: 5,
       },
     })
@@ -577,45 +584,62 @@ export default function IssuesPage() {
     setActiveIssue(null)
     setDragOverlay(null)
 
-    if (!over || !active.id) return
+    console.log('🎯 Drag ended:', { activeId: active.id, overId: over?.id })
+
+    if (!over || !active.id) {
+      console.log('❌ No over or active.id')
+      return
+    }
 
     const issueId = active.id as string
     const overId = over.id as string
     
-    // Parse drop target: format is "project-{projectId}-state-{state}"
-    const overIdParts = overId.split('-')
-    if (overIdParts.length < 4 || overIdParts[0] !== 'project' || overIdParts[2] !== 'state') {
+    // Parse drop target: format is "project___{projectId}___state___{state}"
+    const overIdParts = overId.split('___')
+    console.log('📍 Over ID parts:', overIdParts)
+    
+    if (overIdParts.length !== 4 || overIdParts[0] !== 'project' || overIdParts[2] !== 'state') {
+      console.log('❌ Invalid drop target format')
       return
     }
     
     const targetState = overIdParts[3] as IssueState
     
     const issue = allIssues.find(i => i.id === issueId)
-    if (!issue) return
+    if (!issue) {
+      console.log('❌ Issue not found')
+      return
+    }
+    
+    console.log('🔄 Changing state:', { from: issue.state, to: targetState })
     
     // Don't update if dropping on the same state
-    if (issue.state === targetState) return
+    if (issue.state === targetState) {
+      console.log('⏭️ Same state, skipping')
+      return
+    }
     
     // Don't allow dropping on terminal states unless coming from terminal states
     if ((targetState === 'canceled' || targetState === 'duplicate') && 
         (issue.state !== 'canceled' && issue.state !== 'duplicate')) {
+      console.log('❌ Cannot drop on terminal state')
       return
     }
     
     try {
+      console.log('✅ Updating issue state...')
       await updateIssue(issueId, {
         state: targetState
       })
+      console.log('✅ Issue updated successfully!')
     } catch (error) {
-      console.error('Failed to update issue:', error)
-      // TODO: Show error toast and revert optimistic update
+      console.error('❌ Failed to update issue:', error)
     }
   }
 
   // Handle issue card click
   const handleIssueClick = (issue: IssueWithRelations) => {
-    setSelectedIssue(issue)
-    setIssueDrawerOpen(true)
+    router.push(`/issues/${issue.id}`)
   }
 
   // Clear filters
@@ -636,17 +660,26 @@ export default function IssuesPage() {
     setDisplayPopoverOpen(false)
   }
 
-  // Handle responsive breakpoints
+  // Handle responsive breakpoints - use matchMedia instead of innerWidth
   useEffect(() => {
+    const mobileQuery = window.matchMedia('(max-width: 1023px)')
+    const tabletQuery = window.matchMedia('(min-width: 1024px) and (max-width: 1279px)')
+    
     const handleResize = () => {
-      const width = window.innerWidth
-      setIsMobile(width <= 1023)
-      setIsTablet(width >= 1024 && width <= 1279)
+      setIsMobile(mobileQuery.matches)
+      setIsTablet(tabletQuery.matches)
     }
 
     handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    
+    // Modern browsers support addEventListener on MediaQueryList
+    mobileQuery.addEventListener('change', handleResize)
+    tabletQuery.addEventListener('change', handleResize)
+    
+    return () => {
+      mobileQuery.removeEventListener('change', handleResize)
+      tabletQuery.removeEventListener('change', handleResize)
+    }
   }, [])
 
   // Load display preferences on mount
@@ -698,7 +731,12 @@ export default function IssuesPage() {
 
               {/* Actions */}
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setCreateIssueOpen(true)}>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 w-8 p-0 hover:bg-gray-100" 
+                  onClick={() => setCreateIssueOpen(true)}
+                >
                   <PlusIcon className="h-4 w-4" />
               </Button>
           </div>
@@ -762,10 +800,30 @@ export default function IssuesPage() {
                           const stateInfo = ISSUE_STATES.find(s => s.value === state)
                           const count = filteredIssues.filter(issue => issue.state === state).length
                           
+                          const getStateIcon = (stateValue: string) => {
+                            switch (stateValue) {
+                              case 'done':
+                                return <CheckCircle2 className="h-3 w-3 text-muted-foreground" />
+                              case 'in_progress':
+                                return <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                              case 'blocked':
+                                return <XCircle className="h-3 w-3 text-muted-foreground" />
+                              case 'waiting_info':
+                                return <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                              case 'canceled':
+                                return <Ban className="h-3 w-3 text-muted-foreground" />
+                              case 'duplicate':
+                                return <Copy className="h-3 w-3 text-muted-foreground" />
+                              case 'todo':
+                              default:
+                                return <Circle className="h-3 w-3 text-muted-foreground" />
+                            }
+                          }
+                          
                           return (
-                            <div key={state} className="flex-1 min-w-[280px] px-3 py-2 border-r border-border last:border-r-0">
+                            <div key={state} className="flex-1 min-w-[280px] px-3 py-3 border-r border-border last:border-r-0">
                               <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${stateInfo?.color}`} />
+                                {getStateIcon(state)}
                                 <span className="font-semibold text-xs">{stateInfo?.label}</span>
                                 <span className="ml-auto text-xs text-muted-foreground">{count}</span>
                               </div>
@@ -848,30 +906,10 @@ export default function IssuesPage() {
           </DndContext>
       </div>
 
-      {/* Issue Detail Drawer */}
-      <Dialog open={issueDrawerOpen} onOpenChange={setIssueDrawerOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedIssue && `${selectedIssue.key} - ${selectedIssue.title}`}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedIssue && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                {selectedIssue.description || "No description"}
-              </p>
-              {/* Add more issue details here */}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-      
       {/* Create Issue Modal */}
-      <CreateIssueModal 
+      <NewIssueModal 
         open={createIssueOpen} 
         onOpenChange={setCreateIssueOpen} 
-        onCreateIssue={handleCreateIssue} 
       />
       </ResizablePageSheet>
     </ResizableAppShell>
@@ -896,13 +934,18 @@ function ProjectMatrixRow({
 }: ProjectMatrixRowProps) {
   const [isExpanded, setIsExpanded] = useState(true)
   
-  const getProjectStatusColor = (status: string | null) => {
+  const getProjectStatusIcon = (status: string | null) => {
     switch (status) {
-      case "active": return "bg-green-500"
-      case "planned": return "bg-blue-500"
-      case "paused": return "bg-yellow-500"
-      case "done": return "bg-gray-500"
-      default: return "bg-gray-400"
+      case "active": 
+        return <Target className="h-3 w-3 text-muted-foreground" />
+      case "planned": 
+        return <Clock className="h-3 w-3 text-muted-foreground" />
+      case "paused": 
+        return <Pause className="h-3 w-3 text-muted-foreground" />
+      case "done": 
+        return <CheckSquare className="h-3 w-3 text-muted-foreground" />
+      default: 
+        return <Circle className="h-3 w-3 text-muted-foreground" />
     }
   }
 
@@ -929,7 +972,9 @@ function ProjectMatrixRow({
         />
         
         {project.status && project.id !== "unassigned" && (
-          <div className={`w-2 h-2 rounded-full ${getProjectStatusColor(project.status)} flex-shrink-0`} />
+          <div className="flex-shrink-0">
+            {getProjectStatusIcon(project.status)}
+          </div>
         )}
         
         <span className="font-semibold text-sm flex-1 text-left truncate">
@@ -981,7 +1026,7 @@ function ProjectStateColumn({
   onIssueClick
 }: ProjectStateColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
-    id: `project-${projectId}-state-${state}`,
+    id: `project___${projectId}___state___${state}`,
   })
 
   return (
@@ -991,7 +1036,7 @@ function ProjectStateColumn({
         isOver ? 'bg-accent/20' : ''
       }`}
     >
-      <div className="px-3 py-2 space-y-2 min-h-[80px]">
+      <div className="px-3 py-2 space-y-2 min-h-[80px] pb-4">
         {/* Issues as Cards */}
         {issues.map(issue => (
           <DraggableIssueCard
@@ -1180,13 +1225,18 @@ interface BoardRowProps {
 }
 
 function BoardRow({ project, issues, columnOrder, displayProperties, onIssueClick }: BoardRowProps) {
-  const getProjectStatusColor = (status: string | null) => {
+  const getProjectStatusIcon = (status: string | null) => {
     switch (status) {
-      case "active": return "bg-green-500"
-      case "planned": return "bg-blue-500"
-      case "paused": return "bg-yellow-500"
-      case "done": return "bg-gray-500"
-      default: return "bg-gray-400"
+      case "active": 
+        return <Target className="h-3 w-3 text-muted-foreground" />
+      case "planned": 
+        return <Clock className="h-3 w-3 text-muted-foreground" />
+      case "paused": 
+        return <Pause className="h-3 w-3 text-muted-foreground" />
+      case "done": 
+        return <CheckSquare className="h-3 w-3 text-muted-foreground" />
+      default: 
+        return <Circle className="h-3 w-3 text-muted-foreground" />
     }
   }
 
@@ -1196,10 +1246,12 @@ function BoardRow({ project, issues, columnOrder, displayProperties, onIssueClic
       <div className="w-60 flex-shrink-0 border-r border-border bg-card sticky left-0 z-30">
         <div className="p-4">
           <div className="flex items-center gap-2 mb-2">
-            <h3 className="font-medium text-sm">{project.name}</h3>
             {project.status && (
-              <div className={`w-2 h-2 rounded-full ${getProjectStatusColor(project.status)}`} />
+              <div className="flex-shrink-0">
+                {getProjectStatusIcon(project.status)}
+              </div>
             )}
+            <h3 className="font-medium text-sm">{project.name}</h3>
           </div>
           {project.id !== "unassigned" && (
             <p className="text-xs text-muted-foreground">
@@ -1237,7 +1289,7 @@ interface BoardColumnProps {
 
 function BoardColumn({ state, issues, displayProperties, onIssueClick, projectId }: BoardColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
-    id: `project-${projectId}-state-${state}`,
+    id: `project___${projectId}___state___${state}`,
   })
 
   return (
@@ -1339,17 +1391,31 @@ function DraggableIssueCard({ issue, displayProperties, onClick }: DraggableIssu
 
   const style = {
     transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-    opacity: isDragging ? 0.5 : 1,
+  }
+
+  const handleClick = (e?: React.MouseEvent) => {
+    // Don't trigger onClick if we're dragging
+    if (isDragging) {
+      e?.stopPropagation()
+      return
+    }
+    onClick()
   }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      {...attributes}
+      {...listeners}
+      className={isDragging ? 'cursor-grabbing' : 'cursor-grab'}
+    >
       <IssueCard
         issue={issue}
         displayProperties={displayProperties}
-        onClick={onClick}
+        onClick={handleClick}
         isDragging={isDragging}
-        dragListeners={listeners}
+        isFullyDraggable={true}
       />
     </div>
   )
@@ -1379,15 +1445,20 @@ function IssueCard({ issue, displayProperties, onClick, isDragging = false, drag
   const getStatusIcon = (state: string) => {
     switch (state) {
       case 'done':
-        return <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+        return <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
       case 'in_progress':
-        return <Clock className="h-3.5 w-3.5 text-blue-600" />
+        return <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
       case 'blocked':
-        return <AlertCircle className="h-3.5 w-3.5 text-red-600" />
+        return <XCircle className="h-3.5 w-3.5 text-muted-foreground" />
       case 'waiting_info':
-        return <Clock className="h-3.5 w-3.5 text-orange-600" />
+        return <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+      case 'canceled':
+        return <Ban className="h-3.5 w-3.5 text-muted-foreground" />
+      case 'duplicate':
+        return <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+      case 'todo':
       default:
-        return <div className="w-3.5 h-3.5 rounded-full border-2 border-gray-300" />
+        return <Circle className="h-3.5 w-3.5 text-muted-foreground" />
     }
   }
 
@@ -1395,79 +1466,79 @@ function IssueCard({ issue, displayProperties, onClick, isDragging = false, drag
 
   return (
     <Card
-      className={`group p-2.5 cursor-pointer hover:shadow-md transition-all duration-200 border-border ${
-        isDragging ? 'opacity-50 shadow-lg' : ''
+      className={`group relative p-2 hover:shadow-md transition-all duration-200 border-border ${
+        isDragging ? 'opacity-50 shadow-lg scale-105' : ''
       } ${isDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
       onClick={onClick}
     >
-      <div className="flex items-start gap-2">
-        {/* Drag Handle - Left Side */}
-        {!isDisabled && !isFullyDraggable && dragListeners && (
-          <div 
-            {...dragListeners}
-            className="cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity pt-0.5"
-          >
-            <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+
+      {/* Top Row: Title (left) + Key (right) */}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        {/* Title */}
+        <h4 className="text-sm font-medium line-clamp-1 flex-1">
+          {issue.title}
+        </h4>
+
+        {/* Key */}
+        <span className="text-xs font-mono text-muted-foreground flex-shrink-0">
+          {issue.key}
+        </span>
+      </div>
+
+      {/* Middle Row: Short description (if exists) - more compact */}
+      {issue.short_description && (
+        <div className="mb-2">
+          <p className="text-xs text-muted-foreground line-clamp-1 leading-snug">
+            {issue.short_description}
+          </p>
+        </div>
+      )}
+
+      {/* Technology Badge (if exists) - inline with bottom row if possible */}
+      {issue.core_technology && (
+        <div className="mb-1.5">
+          <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 border border-purple-200">
+            <span className="text-[10px] font-medium text-purple-700">{issue.core_technology}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Row: Owner (left) + Priority (right) */}
+      <div className="flex items-center justify-between gap-2">
+        {/* Owner with name */}
+        {displayProperties.showAssignee && issue.assignee ? (
+          <div className="flex items-center gap-1.5">
+            <div className="h-4 w-4 bg-muted rounded-full flex items-center justify-center" title={issue.assignee.name}>
+              {issue.assignee.avatar_url ? (
+                <img src={issue.assignee.avatar_url} alt={issue.assignee.name} className="h-4 w-4 rounded-full" />
+              ) : (
+                <span className="text-[10px] font-medium">{issue.assignee.name.charAt(0).toUpperCase()}</span>
+              )}
+            </div>
+            <span className="text-xs text-muted-foreground truncate max-w-[100px]">
+              {issue.assignee.name}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <div className="h-4 w-4 bg-muted rounded-full flex items-center justify-center">
+              <UserIcon className="h-2.5 w-2.5 text-muted-foreground" />
+            </div>
+            <span className="text-xs text-muted-foreground">Unassigned</span>
           </div>
         )}
-        
-        {/* Status Icon */}
-        <div className="pt-0.5">
-          {getStatusIcon(issue.state || 'todo')}
-        </div>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          {/* Header with Key and Title */}
-          <div className="flex items-start gap-2 mb-1.5">
-            <span className="text-xs font-mono text-muted-foreground flex-shrink-0">
-              {issue.key}
-            </span>
-            <h4 className="text-sm font-medium flex-1 line-clamp-2">
-              {issue.title}
-            </h4>
-          </div>
+        {/* Priority */}
+        {displayProperties.showPriority && issue.priority && (
+          <Badge className={`text-[10px] px-1.5 py-0 ${getPriorityColor(issue.priority)} text-white flex-shrink-0`}>
+            {issue.priority}
+          </Badge>
+        )}
+      </div>
 
-          {/* Meta Info */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Labels - Dots */}
-            {displayProperties.showLabels && issue.labels && issue.labels.length > 0 && (
-              <div className="flex gap-1">
-                {issue.labels.slice(0, 3).map(label => (
-                  <div
-                    key={label.id}
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: label.color || '#gray-500' }}
-                    title={label.name}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Priority Badge */}
-            {displayProperties.showPriority && issue.priority && (
-              <Badge className={`text-xs px-1.5 py-0 h-5 ${getPriorityColor(issue.priority)} text-white`}>
-                {issue.priority}
-              </Badge>
-            )}
-
-            {/* Assignee Avatar */}
-            {displayProperties.showAssignee && issue.assignee && (
-              <div className="h-5 w-5 bg-muted rounded-full flex items-center justify-center ml-auto" title={issue.assignee.name}>
-                {issue.assignee.avatar_url ? (
-                  <img src={issue.assignee.avatar_url} alt={issue.assignee.name} className="h-5 w-5 rounded-full" />
-                ) : (
-                  <span className="text-xs font-medium">{issue.assignee.name.charAt(0).toUpperCase()}</span>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* More Options - Right Side */}
-        <div className="pt-0.5">
-          <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
+      {/* More Options - Absolute positioned top right */}
+      <div className="absolute right-1 top-1">
+        <MoreHorizontal className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
     </Card>
   )
@@ -1485,13 +1556,18 @@ interface TabletProjectAccordionProps {
 function TabletProjectAccordion({ project, issues, columnOrder, displayProperties, onIssueClick }: TabletProjectAccordionProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   
-  const getProjectStatusColor = (status: string | null) => {
+  const getProjectStatusIcon = (status: string | null) => {
     switch (status) {
-      case "active": return "bg-green-500"
-      case "planned": return "bg-blue-500"
-      case "paused": return "bg-yellow-500"
-      case "done": return "bg-gray-500"
-      default: return "bg-gray-400"
+      case "active": 
+        return <Target className="h-3 w-3 text-muted-foreground" />
+      case "planned": 
+        return <Clock className="h-3 w-3 text-muted-foreground" />
+      case "paused": 
+        return <Pause className="h-3 w-3 text-muted-foreground" />
+      case "done": 
+        return <CheckSquare className="h-3 w-3 text-muted-foreground" />
+      default: 
+        return <Circle className="h-3 w-3 text-muted-foreground" />
     }
   }
 
@@ -1506,7 +1582,11 @@ function TabletProjectAccordion({ project, issues, columnOrder, displayPropertie
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-3 h-3 rounded-full ${getProjectStatusColor(project.status)}`} />
+            {project.status && (
+              <div className="flex-shrink-0">
+                {getProjectStatusIcon(project.status)}
+              </div>
+            )}
             <h3 className="font-medium">{project.name}</h3>
             <Badge variant="secondary">{totalIssues} issues</Badge>
           </div>

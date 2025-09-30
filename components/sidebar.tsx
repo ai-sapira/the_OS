@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useRoles, type SidebarItem, type Role } from "@/hooks/use-roles"
+import { useSupabaseData } from "@/hooks/use-supabase-data"
 import { useState, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
@@ -66,6 +67,7 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname()
   const { getVisibleSidebarItems, canView, can, getFilterPreset, activeRole, switchRole, getRoleLabel, allRoles } = useRoles()
+  const { triageCount } = useSupabaseData()
   const [expandedSections, setExpandedSections] = useState<string[]>(["projects"])
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -141,7 +143,7 @@ export function Sidebar({
               <>
                 <span className="flex-1 text-left">{item.label}</span>
                 <Badge variant="secondary" className="h-5 px-1.5 text-xs">
-                  {item.count || 12}
+                  {triageCount}
                 </Badge>
               </>
             )}

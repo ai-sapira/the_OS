@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Sidebar } from "@/components/sidebar"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -39,236 +39,262 @@ import {
   EyeIcon,
   LinkIcon,
   TrashIcon,
-  ZoomIn,
-  ZoomOut,
   BarChart3,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react"
+import { ProjectsAPI, type ProjectWithRelations } from "@/lib/api/projects"
+import { IssuesAPI, type IssueWithRelations } from "@/lib/api/issues"
+import { InitiativesAPI } from "@/lib/api/initiatives"
 
-interface Initiative {
-  id: string
-  title: string
-  description: string
-  status: "planning" | "in-progress" | "completed" | "on-hold"
-  progress: number
-  startDate: string
-  endDate: string
-  owner: string
-  projects: string[]
-  totalIssues: number
-  completedIssues: number
-  priority: "high" | "medium" | "low"
-  budget?: string
-  roi?: string
+// Types for expanded projects and issues
+interface ProjectItem {
+  type: 'project'
+  project: ProjectWithRelations
+  expanded: boolean
 }
 
+interface IssueItem {
+  type: 'issue'
+  issue: IssueWithRelations
+  projectId: string
+}
+
+type RoadmapItem = ProjectItem | IssueItem
+
+type ZoomLevel = 'week' | 'month' | 'quarter' | 'year'
+
 export default function RoadmapPage() {
-  const [selectedQuarter, setSelectedQuarter] = useState("Q1 2025")
   const [viewMode, setViewMode] = useState<"cards" | "gantt">("gantt")
-  const [zoom, setZoom] = useState(100)
+  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('month')
+  const [projects, setProjects] = useState<ProjectWithRelations[]>([])
+  const [issues, setIssues] = useState<IssueWithRelations[]>([])
+  const [loading, setLoading] = useState(true)
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
 
-  const initiatives: Initiative[] = [
-    {
-      id: "INIT-001",
-      title: "Transformación Digital Completa",
-      description:
-        "Modernización de todos los sistemas internos y procesos digitales para mejorar la eficiencia operacional",
-      status: "in-progress",
-      progress: 65,
-      startDate: "Ene 2025",
-      endDate: "Jun 2025",
-      owner: "CTO",
-      projects: ["Tecnología", "Marketing", "Ventas"],
-      totalIssues: 45,
-      completedIssues: 29,
-      priority: "high",
-      budget: "€150K",
-      roi: "+25%",
-    },
-    {
-      id: "INIT-002",
-      title: "Expansión de Mercado Internacional",
-      description: "Estrategia de entrada a nuevos mercados europeos con adaptación de productos y servicios",
-      status: "planning",
-      progress: 15,
-      startDate: "Mar 2025",
-      endDate: "Dic 2025",
-      owner: "CEO",
-      projects: ["Marketing", "Ventas", "Recursos Humanos"],
-      totalIssues: 32,
-      completedIssues: 5,
-      priority: "high",
-      budget: "€200K",
-      roi: "+40%",
-    },
-    {
-      id: "INIT-003",
-      title: "Optimización de Procesos Internos",
-      description: "Automatización y mejora de workflows internos para reducir tiempos y costos operacionales",
-      status: "in-progress",
-      progress: 80,
-      startDate: "Nov 2024",
-      endDate: "Feb 2025",
-      owner: "COO",
-      projects: ["Recursos Humanos", "Finanzas", "Tecnología"],
-      totalIssues: 28,
-      completedIssues: 22,
-      priority: "medium",
-      budget: "€75K",
-      roi: "+15%",
-    },
-    {
-      id: "INIT-004",
-      title: "Plataforma de Customer Success",
-      description: "Desarrollo de herramientas y procesos para mejorar la experiencia y retención de clientes",
-      status: "completed",
-      progress: 100,
-      startDate: "Sep 2024",
-      endDate: "Dic 2024",
-      owner: "VP Customer Success",
-      projects: ["Tecnología", "Marketing"],
-      totalIssues: 18,
-      completedIssues: 18,
-      priority: "medium",
-      budget: "€90K",
-      roi: "+30%",
-    },
-  ]
+  // Load data on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        const [projectsData, issuesData] = await Promise.all([
+          ProjectsAPI.getProjects(),
+          IssuesAPI.getIssues()
+        ])
+        setProjects(projectsData)
+        setIssues(issuesData)
+      } catch (error) {
+        console.error('Error loading roadmap data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  const getStatusColor = (status: Initiative["status"]) => {
+    loadData()
+  }, [])
+
+  // Toggle project expansion
+  const toggleProjectExpansion = (projectId: string) => {
+    setExpandedProjects(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(projectId)) {
+        newSet.delete(projectId)
+      } else {
+        newSet.add(projectId)
+      }
+      return newSet
+    })
+  }
+
+  // Convert ZoomLevel to Gantt range and zoom percentage
+  const getGanttConfig = (level: ZoomLevel): { range: 'daily' | 'monthly' | 'quarterly', zoom: number } => {
+    switch (level) {
+      case 'week':
+        // Week view: show days with detailed zoom
+        return { range: 'daily', zoom: 200 }
+      case 'month':
+        // Month view: show months with medium zoom
+        return { range: 'monthly', zoom: 120 }
+      case 'quarter':
+        // Quarter view: show months with less zoom to see more context
+        return { range: 'monthly', zoom: 70 }
+      case 'year':
+        // Year view: show quarters
+        return { range: 'quarterly', zoom: 100 }
+    }
+  }
+
+  const getZoomLabel = (level: ZoomLevel): string => {
+    switch (level) {
+      case 'week':
+        return 'Semana'
+      case 'month':
+        return 'Mes'
+      case 'quarter':
+        return 'Trimestre'
+      case 'year':
+        return 'Año'
+    }
+  }
+
+  const getStatusColor = (status: string | null) => {
     switch (status) {
-      case "completed":
+      case "done":
         return "bg-green-500/10 text-green-500 border-green-500/20"
-      case "in-progress":
+      case "active":
         return "bg-blue-500/10 text-blue-500 border-blue-500/20"
-      case "planning":
+      case "planned":
         return "bg-orange-500/10 text-orange-500 border-orange-500/20"
-      case "on-hold":
+      case "paused":
         return "bg-red-500/10 text-red-500 border-red-500/20"
       default:
         return "bg-muted text-muted-foreground border-border"
     }
   }
 
-  const getStatusLabel = (status: Initiative["status"]) => {
+  const getStatusLabel = (status: string | null) => {
     switch (status) {
-      case "completed":
+      case "done":
         return "Completado"
-      case "in-progress":
+      case "active":
+        return "Activo"
+      case "planned":
+        return "Planificado"
+      case "paused":
+        return "Pausado"
+      default:
+        return status || "Sin estado"
+    }
+  }
+
+  const getIssueStateLabel = (state: string | null) => {
+    switch (state) {
+      case "todo":
+        return "Por hacer"
+      case "in_progress":
         return "En progreso"
-      case "planning":
-        return "Planificación"
-      case "on-hold":
-        return "En pausa"
+      case "done":
+        return "Completado"
+      case "blocked":
+        return "Bloqueado"
+      case "waiting_info":
+        return "Esperando info"
+      case "canceled":
+        return "Cancelado"
       default:
-        return status
+        return state || "Sin estado"
     }
   }
 
-  const getStatusIcon = (status: Initiative["status"]) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle2 className="h-4 w-4 text-green-500" />
-      case "in-progress":
-        return <Clock className="h-4 w-4 text-blue-500" />
-      case "planning":
-        return <Target className="h-4 w-4 text-orange-500" />
-      case "on-hold":
-        return <AlertTriangle className="h-4 w-4 text-red-500" />
-      default:
-        return <Target className="h-4 w-4 text-muted-foreground" />
-    }
-  }
-
-  const getPriorityColor = (priority: Initiative["priority"]) => {
+  const getPriorityColor = (priority: string | null) => {
     switch (priority) {
-      case "high":
+      case "P0":
+      case "P1":
         return "text-red-500"
-      case "medium":
+      case "P2":
         return "text-orange-500"
-      case "low":
+      case "P3":
         return "text-green-500"
       default:
         return "text-muted-foreground"
     }
   }
 
-  const quarters = ["Q4 2024", "Q1 2025", "Q2 2025", "Q3 2025", "Q4 2025"]
+  // Helper function to convert ISO date strings to Date objects
+  const convertToDate = (dateString: string | null): Date => {
+    if (!dateString) return new Date()
+    return new Date(dateString)
+  }
 
-  // Helper function to convert month strings to dates
-  const convertToDate = (dateString: string, isEndDate = false) => {
-    const monthMap: Record<string, number> = {
-      'Ene': 0, 'Feb': 1, 'Mar': 2, 'Abr': 3, 'May': 4, 'Jun': 5,
-      'Jul': 6, 'Ago': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dic': 11
-    }
-    
-    const parts = dateString.split(' ')
-    const monthName = parts[0]
-    const year = parseInt(parts[1])
-    const month = monthMap[monthName]
-    
-    if (month === undefined) {
-      console.warn(`Unknown month: ${monthName}`)
-      return new Date()
-    }
-    
-    // For start dates, use the 1st of the month
-    // For end dates, use the last day of the month
-    if (isEndDate) {
-      return new Date(year, month + 1, 0) // Last day of the month
-    } else {
-      return new Date(year, month, 1) // First day of the month
+  // Get issues for a specific project
+  const getProjectIssues = (projectId: string): IssueWithRelations[] => {
+    return issues.filter(issue => issue.project_id === projectId)
+  }
+
+  // Convert project to Gantt format
+  const projectToGanttItem = (project: ProjectWithRelations): GanttInitiative => {
+    const projectIssues = getProjectIssues(project.id)
+    const completedIssues = projectIssues.filter(i => i.state === 'done').length
+    const progress = project._progress?.manual || project._progress?.calculated || 0
+
+    return {
+      id: project.id,
+      title: project.name,
+      description: project.description || '',
+      status: project.status === 'done' ? 'completed' : project.status === 'active' ? 'in-progress' : project.status === 'paused' ? 'on-hold' : 'planning',
+      progress,
+      startDate: convertToDate(project.planned_start_at),
+      endDate: convertToDate(project.planned_end_at),
+      owner: project.owner?.name || 'Sin asignar',
+      projects: project.initiative?.name ? [project.initiative.name] : [],
+      priority: "medium",
     }
   }
 
-  // Convert initiatives to Gantt format
-  const ganttInitiatives: GanttInitiative[] = initiatives.map(initiative => ({
-    id: initiative.id,
-    title: initiative.title,
-    description: initiative.description,
-    status: initiative.status,
-    progress: initiative.progress,
-    startDate: convertToDate(initiative.startDate, false),
-    endDate: convertToDate(initiative.endDate, true),
-    owner: initiative.owner,
-    projects: initiative.projects,
-    priority: initiative.priority,
-    budget: initiative.budget,
-    roi: initiative.roi,
-  }))
-
-  // Group initiatives by status for Gantt
-  const groupedInitiatives: Record<string, GanttInitiative[]> = ganttInitiatives.reduce<
-    Record<string, GanttInitiative[]>
-  >((groups, initiative) => {
-    const statusName = getStatusLabel(initiative.status);
+  // Convert issue to Gantt format
+  const issueToGanttItem = (issue: IssueWithRelations): GanttInitiative => {
+    const progress = issue.state === 'done' ? 100 : issue.state === 'in_progress' ? 50 : 0
+    
+    // Use planned_start_at if available, otherwise fall back to created_at or due_at - 14 days
+    const startDate = convertToDate(issue.planned_start_at) || 
+                     (issue.due_at ? new Date(convertToDate(issue.due_at).getTime() - 14 * 24 * 60 * 60 * 1000) : convertToDate(issue.created_at))
+    
+    // Use due_at if available, otherwise default to 14 days after start
+    const endDate = convertToDate(issue.due_at) || new Date(startDate.getTime() + 14 * 24 * 60 * 60 * 1000)
+    
     return {
-        ...groups,
-        [statusName]: [...(groups[statusName] || []), initiative],
-      };
-    },
-    {}
-  );
+      id: issue.id,
+      title: issue.title,
+      description: issue.description || '',
+      status: issue.state === 'done' ? 'completed' : issue.state === 'in_progress' ? 'in-progress' : 'planning',
+      progress,
+      startDate,
+      endDate,
+      owner: issue.assignee?.name || 'Sin asignar',
+      projects: [],
+      priority: issue.priority === 'P0' || issue.priority === 'P1' ? 'high' : issue.priority === 'P2' ? 'medium' : 'low',
+    }
+  }
 
-  const sortedGroupedInitiatives = Object.fromEntries(
-    Object.entries(groupedInitiatives).sort(([nameA], [nameB]) =>
+  // Group projects by BU (Initiative)
+  const groupedByBU = projects.reduce<Record<string, ProjectWithRelations[]>>((acc, project) => {
+    const buName = project.initiative?.name || 'Sin BU'
+    if (!acc[buName]) {
+      acc[buName] = []
+    }
+    acc[buName].push(project)
+    return acc
+  }, {})
+
+  // Sort BUs alphabetically
+  const sortedGroupedByBU = Object.fromEntries(
+    Object.entries(groupedByBU).sort(([nameA], [nameB]) =>
       nameA.localeCompare(nameB)
     )
-  );
+  )
 
   // Gantt event handlers
-  const handleViewInitiative = (id: string) => {
-    console.log(`Initiative selected: ${id}`)
-    // TODO: Open initiative detail modal
+  const handleViewProject = (id: string) => {
+    // Check if it's a project or issue
+    const project = projects.find(p => p.id === id)
+    if (project) {
+      // Toggle project expansion
+      toggleProjectExpansion(id)
+    } else {
+      // It's an issue, open issue detail
+      console.log(`Issue selected: ${id}`)
+      // TODO: Open issue detail modal
+    }
   }
 
   const handleCopyLink = (id: string) => {
     console.log(`Copy link: ${id}`)
-    // TODO: Copy initiative link to clipboard
+    // TODO: Copy project/issue link to clipboard
   }
 
-  const handleRemoveInitiative = (id: string) => {
-    console.log(`Remove initiative: ${id}`)
-    // TODO: Remove initiative from roadmap
+  const handleRemoveItem = (id: string) => {
+    console.log(`Remove item: ${id}`)
+    // TODO: Remove project/issue from roadmap
   }
 
   const handleRemoveMarker = (id: string) => {
@@ -281,16 +307,16 @@ export default function RoadmapPage() {
     // TODO: Create new marker
   }
 
-  const handleMoveInitiative = (id: string, startAt: Date, endAt: Date | null) => {
+  const handleMoveItem = (id: string, startAt: Date, endAt: Date | null) => {
     if (!endAt) return;
     
-    console.log(`Move initiative: ${id} from ${startAt} to ${endAt}`)
-    // TODO: Update initiative dates
+    console.log(`Move item: ${id} from ${startAt} to ${endAt}`)
+    // TODO: Update project/issue dates
   }
 
-  const handleAddInitiative = (date: Date) => {
-    console.log(`Add initiative: ${date.toISOString()}`)
-    // TODO: Create new initiative
+  const handleAddProject = (date: Date) => {
+    console.log(`Add project: ${date.toISOString()}`)
+    // TODO: Create new project
   }
 
   // Sample markers for the Gantt
@@ -357,23 +383,36 @@ export default function RoadmapPage() {
               {viewMode === "gantt" && (
                 <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
                   <Button
-                    variant="ghost"
+                    variant={zoomLevel === 'week' ? "secondary" : "ghost"}
                     size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => setZoom(Math.max(50, zoom - 25))}
-                    disabled={zoom <= 50}
+                    className="h-8 px-3"
+                    onClick={() => setZoomLevel('week')}
                   >
-                    <ZoomOut className="h-4 w-4" />
+                    Semana
                   </Button>
-                  <span className="text-xs text-muted-foreground px-2">{zoom}%</span>
                   <Button
-                    variant="ghost"
+                    variant={zoomLevel === 'month' ? "secondary" : "ghost"}
                     size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => setZoom(Math.min(200, zoom + 25))}
-                    disabled={zoom >= 200}
+                    className="h-8 px-3"
+                    onClick={() => setZoomLevel('month')}
                   >
-                    <ZoomIn className="h-4 w-4" />
+                    Mes
+                  </Button>
+                  <Button
+                    variant={zoomLevel === 'quarter' ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-8 px-3"
+                    onClick={() => setZoomLevel('quarter')}
+                  >
+                    Trimestre
+                  </Button>
+                  <Button
+                    variant={zoomLevel === 'year' ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-8 px-3"
+                    onClick={() => setZoomLevel('year')}
+                  >
+                    Año
                   </Button>
                 </div>
               )}
@@ -383,69 +422,179 @@ export default function RoadmapPage() {
 
         {/* Content */}
         <div className="flex-1 overflow-hidden p-6">
-          {viewMode === "gantt" ? (
+          {loading ? (
+            <Card className="h-full flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Cargando roadmap...</p>
+              </div>
+            </Card>
+          ) : viewMode === "gantt" ? (
             // Gantt View - Full height without metrics
             <Card className="h-full overflow-hidden">
-                <GanttProvider onAddItem={handleAddInitiative} range="monthly" zoom={zoom}>
+                <GanttProvider 
+                  onAddItem={handleAddProject} 
+                  range={getGanttConfig(zoomLevel).range} 
+                  zoom={getGanttConfig(zoomLevel).zoom}
+                >
                   <GanttSidebar>
-                    {Object.entries(sortedGroupedInitiatives).map(([group, initiatives]) => (
-                      <GanttSidebarGroup key={group} name={group}>
-                        {initiatives.map((initiative) => (
-                          <GanttSidebarItem
-                            key={initiative.id}
-                            initiative={initiative}
-                            onSelectItem={handleViewInitiative}
-                          />
-                        ))}
+                    {Object.entries(sortedGroupedByBU).map(([buName, buProjects]) => (
+                      <GanttSidebarGroup key={buName} name={buName}>
+                        {buProjects.map((project) => {
+                          const isExpanded = expandedProjects.has(project.id)
+                          const projectIssues = getProjectIssues(project.id)
+                          
+                          return (
+                            <div key={project.id}>
+                              {/* Project Row */}
+                              <div 
+                                className="relative flex items-center gap-2.5 p-2.5 text-xs hover:bg-accent/50 cursor-pointer"
+                                style={{ height: 'var(--gantt-row-height)' }}
+                                onClick={() => toggleProjectExpansion(project.id)}
+                              >
+                                {projectIssues.length > 0 && (
+                                  isExpanded ? 
+                                    <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" /> :
+                                    <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                                )}
+                                {projectIssues.length === 0 && <div className="w-3" />}
+                                <div
+                                  className="pointer-events-none h-2 w-2 shrink-0 rounded-full bg-blue-500"
+                                />
+                                <p className="pointer-events-none flex-1 truncate text-left font-medium">
+                                  {project.name}
+                                </p>
+                                <p className="pointer-events-none text-muted-foreground text-xs">
+                                  {projectIssues.length} issues
+                                </p>
+                              </div>
+                              
+                              {/* Issue Rows (if expanded) */}
+                              {isExpanded && projectIssues.map((issue) => (
+                                <div 
+                                  key={issue.id}
+                                  className="relative flex items-center gap-2.5 p-2.5 pl-8 text-xs hover:bg-accent/50 cursor-pointer"
+                                  style={{ height: 'var(--gantt-row-height)' }}
+                                  onClick={() => handleViewProject(issue.id)}
+                                >
+                                  <div className="pointer-events-none h-2 w-2 shrink-0 rounded-full bg-gray-400" />
+                                  <p className="pointer-events-none flex-1 truncate text-left">
+                                    {issue.title}
+                                  </p>
+                                  <p className="pointer-events-none text-muted-foreground text-xs">
+                                    {issue.state === 'done' ? '✓ Completado' : issue.state === 'in_progress' ? 'En progreso' : 'Por hacer'}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        })}
                       </GanttSidebarGroup>
                     ))}
                   </GanttSidebar>
                   <GanttTimeline>
                     <GanttHeader />
                     <GanttInitiativeList>
-                      {Object.entries(sortedGroupedInitiatives).map(([group, initiatives]) => (
-                        <GanttInitiativeListGroup key={group}>
-                          {initiatives.map((initiative) => (
-                            <div className="flex" key={initiative.id}>
-                              <ContextMenu>
-                                <ContextMenuTrigger asChild>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleViewInitiative(initiative.id)}
-                                    className="w-full"
-                                  >
-                                    <GanttInitiativeItem
-                                      onMove={handleMoveInitiative}
-                                      {...initiative}
-                                    />
-                                  </button>
-                                </ContextMenuTrigger>
-                                <ContextMenuContent>
-                                  <ContextMenuItem
-                                    className="flex items-center gap-2"
-                                    onClick={() => handleViewInitiative(initiative.id)}
-                                  >
-                                    <EyeIcon size={16} className="text-muted-foreground" />
-                                    Ver iniciativa
-                                  </ContextMenuItem>
-                                  <ContextMenuItem
-                                    className="flex items-center gap-2"
-                                    onClick={() => handleCopyLink(initiative.id)}
-                                  >
-                                    <LinkIcon size={16} className="text-muted-foreground" />
-                                    Copiar enlace
-                                  </ContextMenuItem>
-                                  <ContextMenuItem
-                                    className="flex items-center gap-2 text-destructive"
-                                    onClick={() => handleRemoveInitiative(initiative.id)}
-                                  >
-                                    <TrashIcon size={16} />
-                                    Eliminar del roadmap
-                                  </ContextMenuItem>
-                                </ContextMenuContent>
-                              </ContextMenu>
-                            </div>
-                          ))}
+                      {Object.entries(sortedGroupedByBU).map(([buName, buProjects]) => (
+                        <GanttInitiativeListGroup key={buName}>
+                          {buProjects.map((project) => {
+                            const isExpanded = expandedProjects.has(project.id)
+                            const projectIssues = getProjectIssues(project.id)
+                            const projectGanttItem = projectToGanttItem(project)
+                            
+                            return (
+                              <div key={project.id}>
+                                {/* Project Bar */}
+                                <div className="flex">
+                                  <ContextMenu>
+                                    <ContextMenuTrigger asChild>
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleProjectExpansion(project.id)}
+                                        className="w-full"
+                                      >
+                                        <GanttInitiativeItem
+                                          onMove={handleMoveItem}
+                                          {...projectGanttItem}
+                                        />
+                                      </button>
+                                    </ContextMenuTrigger>
+                                    <ContextMenuContent>
+                                      <ContextMenuItem
+                                        className="flex items-center gap-2"
+                                        onClick={() => handleViewProject(project.id)}
+                                      >
+                                        <EyeIcon size={16} className="text-muted-foreground" />
+                                        Ver proyecto
+                                      </ContextMenuItem>
+                                      <ContextMenuItem
+                                        className="flex items-center gap-2"
+                                        onClick={() => handleCopyLink(project.id)}
+                                      >
+                                        <LinkIcon size={16} className="text-muted-foreground" />
+                                        Copiar enlace
+                                      </ContextMenuItem>
+                                      <ContextMenuItem
+                                        className="flex items-center gap-2 text-destructive"
+                                        onClick={() => handleRemoveItem(project.id)}
+                                      >
+                                        <TrashIcon size={16} />
+                                        Eliminar del roadmap
+                                      </ContextMenuItem>
+                                    </ContextMenuContent>
+                                  </ContextMenu>
+                                </div>
+                                
+                                {/* Issue Bars (if expanded) - Each in its own row */}
+                                {isExpanded && projectIssues.map((issue) => {
+                                  const issueGanttItem = issueToGanttItem(issue)
+                                  
+                                  return (
+                                    <div 
+                                      className="flex" 
+                                      key={issue.id}
+                                      style={{ 
+                                        height: 'var(--gantt-row-height)',
+                                        minHeight: 'var(--gantt-row-height)'
+                                      }}
+                                    >
+                                      <ContextMenu>
+                                        <ContextMenuTrigger asChild>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleViewProject(issue.id)}
+                                            className="w-full relative"
+                                            style={{ height: '100%' }}
+                                          >
+                                            <GanttInitiativeItem
+                                              onMove={handleMoveItem}
+                                              {...issueGanttItem}
+                                            />
+                                          </button>
+                                        </ContextMenuTrigger>
+                                        <ContextMenuContent>
+                                          <ContextMenuItem
+                                            className="flex items-center gap-2"
+                                            onClick={() => handleViewProject(issue.id)}
+                                          >
+                                            <EyeIcon size={16} className="text-muted-foreground" />
+                                            Ver issue
+                                          </ContextMenuItem>
+                                          <ContextMenuItem
+                                            className="flex items-center gap-2"
+                                            onClick={() => handleCopyLink(issue.id)}
+                                          >
+                                            <LinkIcon size={16} className="text-muted-foreground" />
+                                            Copiar enlace
+                                          </ContextMenuItem>
+                                        </ContextMenuContent>
+                                      </ContextMenu>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )
+                          })}
                         </GanttInitiativeListGroup>
                       ))}
                     </GanttInitiativeList>
@@ -464,88 +613,84 @@ export default function RoadmapPage() {
           ) : (
             // Cards View - Simple list without metrics
             <div className="h-full overflow-y-auto">
-              <div className="space-y-4">
-                {initiatives.map((initiative) => (
-                  <Card key={initiative.id} className="p-6 hover:bg-accent/50 transition-colors cursor-pointer">
+              <div className="space-y-6">
+                {Object.entries(sortedGroupedByBU).map(([buName, buProjects]) => (
+                  <div key={buName}>
+                    <h3 className="text-lg font-semibold mb-4 text-foreground">{buName}</h3>
                     <div className="space-y-4">
-                      {/* Header */}
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-4 flex-1">
-                          {getStatusIcon(initiative.status)}
+                      {buProjects.map((project) => {
+                        const projectIssues = getProjectIssues(project.id)
+                        const completedIssues = projectIssues.filter(i => i.state === 'done').length
+                        const progress = project._progress?.manual || project._progress?.calculated || 0
+                        
+                        return (
+                          <Card key={project.id} className="p-6 hover:bg-accent/50 transition-colors cursor-pointer">
+                            <div className="space-y-4">
+                              {/* Header */}
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-start gap-4 flex-1">
+                                  <Target className="h-5 w-5 text-blue-500 mt-1" />
 
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h3 className="text-lg font-semibold text-foreground">{initiative.title}</h3>
-                              <Badge className={`${getStatusColor(initiative.status)} border`}>
-                                {getStatusLabel(initiative.status)}
-                              </Badge>
-                              <Badge variant="outline" className={getPriorityColor(initiative.priority)}>
-                                {initiative.priority === "high"
-                                  ? "Alta"
-                                  : initiative.priority === "medium"
-                                    ? "Media"
-                                    : "Baja"}
-                              </Badge>
-                            </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <h3 className="text-lg font-semibold text-foreground">{project.name}</h3>
+                                      <Badge className={`${getStatusColor(project.status)} border`}>
+                                        {getStatusLabel(project.status)}
+                                      </Badge>
+                                    </div>
 
-                            <p className="text-muted-foreground mb-3 text-pretty">{initiative.description}</p>
+                                    {project.description && (
+                                      <p className="text-muted-foreground mb-3 text-pretty">{project.description}</p>
+                                    )}
 
-                            <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4" />
-                                <span>
-                                  {initiative.startDate} - {initiative.endDate}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Users className="h-4 w-4" />
-                                <span>{initiative.owner}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Target className="h-4 w-4" />
-                                <span>
-                                  {initiative.completedIssues}/{initiative.totalIssues} tickets
-                                </span>
-                              </div>
-                              {initiative.budget && (
-                                <div className="flex items-center gap-2">
-                                  <TrendingUp className="h-4 w-4" />
-                                  <span>
-                                    {initiative.budget} • ROI {initiative.roi}
-                                  </span>
+                                    <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                                      <div className="flex items-center gap-2">
+                                        <Calendar className="h-4 w-4" />
+                                        <span>
+                                          {project.planned_start_at ? new Date(project.planned_start_at).toLocaleDateString() : 'Sin fecha'} - {project.planned_end_at ? new Date(project.planned_end_at).toLocaleDateString() : 'Sin fecha'}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Users className="h-4 w-4" />
+                                        <span>{project.owner?.name || 'Sin asignar'}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Target className="h-4 w-4" />
+                                        <span>
+                                          {completedIssues}/{projectIssues.length} issues completados
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
-                              )}
+
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </div>
+
+                              {/* Progress */}
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-muted-foreground">Progreso</span>
+                                  <span className="font-medium">{Math.round(progress)}%</span>
+                                </div>
+                                <Progress value={progress} className="h-2" />
+                              </div>
+
+                              {/* BU */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-muted-foreground">Business Unit:</span>
+                                <Badge variant="secondary" className="text-xs">
+                                  {project.initiative?.name || 'Sin BU'}
+                                </Badge>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      {/* Progress */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Progreso</span>
-                          <span className="font-medium">{initiative.progress}%</span>
-                        </div>
-                        <Progress value={initiative.progress} className="h-2" />
-                      </div>
-
-                      {/* Projects */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">Departamentos:</span>
-                        <div className="flex items-center gap-2">
-                          {initiative.projects.map((project, index) => (
-                            <Badge key={project} variant="secondary" className="text-xs">
-                              {project}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
+                          </Card>
+                        )
+                      })}
                     </div>
-                  </Card>
+                  </div>
                 ))}
               </div>
             </div>
