@@ -58,37 +58,26 @@ export class TeamsMessenger {
       
       const teamsContext = link.teams_context as TeamsContext
       
-      // 2. Get Microsoft access token
-      const accessToken = await this.getAccessToken()
-      
-      // 3. Build Teams API URL
-      const serviceUrl = teamsContext.service_url
-      const conversationId = teamsContext.conversation.id
-      const url = `${serviceUrl}v3/conversations/${conversationId}/activities`
-      
-      // 4. Format message based on type
+      // 2. Format message based on type
       const formattedMessage = this.formatMessage(params.message, params.messageType)
       
-      // 5. Send message via Teams Bot Framework API
-      const response = await fetch(url, {
+      // 3. Send proactive message via Bot server (Render)
+      // The bot server has the Bot Framework adapter which is required for proactive messaging
+      const botServerUrl = process.env.BOT_SERVER_URL || 'https://sapira-teams-bot.onrender.com'
+      const response = await fetch(`${botServerUrl}/api/proactive-message`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          type: 'message',
-          text: formattedMessage,
-          from: {
-            id: teamsContext.bot.id,
-            name: teamsContext.bot.name || 'Sapira'
-          }
+          teams_context: teamsContext,
+          message: formattedMessage
         })
       })
       
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('Failed to send Teams message:', {
+        console.error('Failed to send Teams message via bot server:', {
           status: response.status,
           error: errorText,
           issueId: params.issueId
@@ -96,7 +85,7 @@ export class TeamsMessenger {
         return false
       }
       
-      // 6. Log activity in database
+      // 4. Log activity in database
       await this.logTeamsMessageSent(params.issueId, params.message, params.messageType)
       
       console.log('✅ Teams message sent successfully for issue:', params.issueId)
@@ -108,35 +97,6 @@ export class TeamsMessenger {
     }
   }
   
-  /**
-   * Gets Microsoft Bot Framework access token
-   */
-  private static async getAccessToken(): Promise<string> {
-    const tokenUrl = 'https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token'
-    
-    if (!process.env.MICROSOFT_APP_ID || !process.env.MICROSOFT_APP_PASSWORD) {
-      throw new Error('Missing Microsoft credentials in environment variables')
-    }
-    
-    const response = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'client_credentials',
-        client_id: process.env.MICROSOFT_APP_ID,
-        client_secret: process.env.MICROSOFT_APP_PASSWORD,
-        scope: 'https://api.botframework.com/.default'
-      })
-    })
-    
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Failed to get Microsoft access token: ${response.status} - ${errorText}`)
-    }
-    
-    const data = await response.json()
-    return data.access_token
-  }
   
   /**
    * Formats message based on context type
