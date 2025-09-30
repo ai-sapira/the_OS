@@ -120,7 +120,7 @@ async function main() {
           organization_id: ORGANIZATION_ID,
           key,
           title: initiative.initiative,
-          description: `**Business Unit:** ${initiative.businessUnit}\n**Project:** ${initiative.project}\n\n${initiative.shortDescription}\n\n**Impact:** ${initiative.impact}\n**Core Technology:** ${initiative.coreTechnology}`,
+          description: `Business Unit: ${initiative.businessUnit}\nProject: ${initiative.project}\n\n${initiative.shortDescription}\n\nImpact: ${initiative.impact}\nCore Technology: ${initiative.coreTechnology}`,
           short_description: initiative.shortDescription,
           impact: initiative.impact,
           core_technology: initiative.coreTechnology,

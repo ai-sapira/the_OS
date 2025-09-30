@@ -168,25 +168,23 @@ export class TeamsIntegration {
   private static generateIssueDescription(data: TeamsConversationData): string {
     const { ai_analysis, participants, messages } = data
     
-    return `## 🤖 Análisis automático desde Teams
+    // Build clean description
+    let description = ai_analysis.summary
 
-### 📊 Resumen ejecutivo:
-${ai_analysis.summary}
+    // Add key points if available
+    if (ai_analysis.key_points && ai_analysis.key_points.length > 0) {
+      description += '\n\nPuntos clave:\n' + ai_analysis.key_points.map(point => `- ${point}`).join('\n')
+    }
 
-### 🎯 Puntos clave identificados:
-${ai_analysis.key_points.map(point => `- ${point}`).join('\n')}
+    // Add technical context if available
+    if (ai_analysis.core_technology) {
+      description += `\n\nTecnología propuesta: ${ai_analysis.core_technology}`
+    }
 
-### 👥 Participantes:
-${participants.join(', ')}
+    // Add metadata at the end
+    description += `\n\n---\nOrigen: Conversación en Teams (${messages.length} mensajes)\nParticipantes: ${participants.join(', ')}\nEnlace: ${data.conversation_url}`
 
-### 💬 Conversación:
-Se registraron **${messages.length} mensajes** en la conversación original.
-[Ver conversación en Teams →](${data.conversation_url})
-
-${ai_analysis.suggested_assignee ? `\n### 🎯 Asignación sugerida:\n${ai_analysis.suggested_assignee}` : ''}
-
----
-*Issue creado automáticamente por Sapira AI Agent • Prioridad: ${ai_analysis.priority}*`
+    return description
   }
 
   private static getSuggestedAssignee(data: TeamsConversationData): string {
