@@ -92,10 +92,23 @@ ${proposal.description}
       
       if (feedback.action === 'confirm') {
         try {
+          // Build conversation reference for proactive messaging
+          const conversationReference = {
+            serviceUrl: activity.serviceUrl,
+            channelId: activity.channelId,
+            conversation: activity.conversation,
+            user: activity.from,
+            bot: {
+              id: `28:${process.env.MICROSOFT_APP_ID}`,
+              name: 'Sapira Soporte'
+            }
+          };
+          
           // Crear ticket
           const result = await ticketService.createTicketFromConversation(
             conversation,
-            conversation.ticketProposal
+            conversation.ticketProposal,
+            conversationReference
           );
           
           responseText = `🎉 ¡Perfecto! Tu ticket **${result.ticket_key}** ha sido creado exitosamente.
@@ -261,3 +274,6 @@ app.listen(port, () => {
   console.log(`🤖 Sapira Teams Bot listening on port ${port}`);
   console.log(`📋 Health check: http://localhost:${port}/api/messages`);
 });
+
+
+

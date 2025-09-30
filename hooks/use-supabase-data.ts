@@ -113,17 +113,53 @@ export function useSupabaseData() {
     loadData()
   }, [loadData])
 
+  // Helper: Send notification to Teams if issue has Teams context
+  const sendTeamsNotification = useCallback(async (
+    issueId: string,
+    message: string,
+    messageType: string = 'status_update'
+  ) => {
+    try {
+      const response = await fetch('/api/teams/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          issue_id: issueId,
+          message: message,
+          message_type: messageType
+        })
+      })
+      
+      if (!response.ok) {
+        console.warn('Failed to send Teams notification:', await response.text())
+      }
+    } catch (error) {
+      // Don't fail the whole operation if Teams notification fails
+      console.error('Error sending Teams notification:', error)
+    }
+  }, [])
+
   // Triage actions
   const acceptIssue = useCallback(async (
     issueId: string, 
-    acceptData: Parameters<typeof IssuesAPI.triageIssue>[1]['accept_data']
+    acceptData: Parameters<typeof IssuesAPI.triageIssue>[1]['accept_data'],
+    comment?: string
   ) => {
     try {
       const { userId } = getCurrentUser()
+      
+      // Accept the issue
       await IssuesAPI.triageIssue(issueId, {
         action: 'accept',
-        accept_data: acceptData
+        accept_data: acceptData,
+        reason: comment
       }, userId)
+      
+      // Send Teams notification if there's a comment
+      if (comment?.trim()) {
+        const message = `✅ Tu issue ha sido **aceptado** y está ahora en el backlog.\n\n**Comentario del equipo:**\n${comment}`
+        await sendTeamsNotification(issueId, message, 'status_update')
+      }
       
       // Reload data
       await Promise.all([loadTriageIssues(), loadRoleIssues()])
@@ -134,15 +170,23 @@ export function useSupabaseData() {
       setError('Error accepting issue')
       return false
     }
-  }, [getCurrentUser, loadTriageIssues, loadRoleIssues])
+  }, [getCurrentUser, loadTriageIssues, loadRoleIssues, sendTeamsNotification])
 
   const declineIssue = useCallback(async (issueId: string, reason?: string) => {
     try {
       const { userId } = getCurrentUser()
+      
+      // Decline the issue
       await IssuesAPI.triageIssue(issueId, {
         action: 'decline',
         reason
       }, userId)
+      
+      // Send Teams notification
+      if (reason?.trim()) {
+        const message = `❌ Tu issue ha sido **rechazado**.\n\n**Razón:**\n${reason}\n\nSi crees que esto es un error, por favor contacta al equipo.`
+        await sendTeamsNotification(issueId, message, 'status_update')
+      }
       
       // Reload triage data
       await loadTriageIssues()
@@ -153,7 +197,7 @@ export function useSupabaseData() {
       setError('Error declining issue')
       return false
     }
-  }, [getCurrentUser, loadTriageIssues])
+  }, [getCurrentUser, loadTriageIssues, sendTeamsNotification])
 
   const duplicateIssue = useCallback(async (issueId: string, duplicateOfId: string, reason?: string) => {
     try {
@@ -178,11 +222,22 @@ export function useSupabaseData() {
   const snoozeIssue = useCallback(async (issueId: string, snoozeUntil: string, reason?: string) => {
     try {
       const { userId } = getCurrentUser()
+      
+      // Snooze the issue
       await IssuesAPI.triageIssue(issueId, {
         action: 'snooze',
         snooze_until: snoozeUntil,
         reason
       }, userId)
+      
+      // Send Teams notification
+      const snoozeDate = new Date(snoozeUntil).toLocaleDateString('es-ES', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      })
+      const message = `🕐 Tu issue ha sido **pospuesto** hasta el **${snoozeDate}**.\n\n${reason ? `**Nota:** ${reason}\n\n` : ''}Volverá a aparecer en triage en esa fecha.`
+      await sendTeamsNotification(issueId, message, 'info')
       
       // Reload triage data
       await loadTriageIssues()
@@ -193,7 +248,7 @@ export function useSupabaseData() {
       setError('Error snoozing issue')
       return false
     }
-  }, [getCurrentUser, loadTriageIssues])
+  }, [getCurrentUser, loadTriageIssues, sendTeamsNotification])
 
   // Create new issue
   const createIssue = useCallback(async (issueData: Parameters<typeof IssuesAPI.createIssue>[0]) => {

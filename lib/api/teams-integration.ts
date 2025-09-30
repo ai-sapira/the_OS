@@ -1,6 +1,27 @@
 import { IssuesAPI, type CreateIssueData } from './issues'
 import { supabase } from '../supabase/client'
 
+export interface TeamsConversationReference {
+  service_url: string
+  tenant_id?: string
+  channel_id: string
+  conversation: {
+    id: string
+    isGroup?: boolean
+    conversationType?: string
+    tenantId?: string
+  }
+  bot: {
+    id: string
+    name: string
+  }
+  user: {
+    id: string
+    name: string
+    aadObjectId?: string
+  }
+}
+
 export interface TeamsConversationData {
   conversation_id: string
   conversation_url: string
@@ -17,6 +38,7 @@ export interface TeamsConversationData {
     key_points: string[]
     suggested_assignee?: string // Email or name of suggested assignee
   }
+  conversation_reference?: TeamsConversationReference // For proactive messaging
 }
 
 export interface TeamsIssueCreationResult {
@@ -45,7 +67,7 @@ export class TeamsIntegration {
   static async createIssueFromTeamsConversation(
     conversationData: TeamsConversationData
   ): Promise<TeamsIssueCreationResult> {
-    const { ai_analysis, conversation_id, conversation_url } = conversationData
+    const { ai_analysis, conversation_id, conversation_url, conversation_reference } = conversationData
 
     // 1. Create the issue in triage
     const issueData: CreateIssueData = {
@@ -59,16 +81,23 @@ export class TeamsIntegration {
 
     const issue = await IssuesAPI.createIssue(issueData)
 
-    // 2. Create link to Teams conversation
+    // 2. Create link to Teams conversation (with conversation_reference for proactive messaging)
+    const linkData: any = {
+      issue_id: issue.id,
+      provider: 'teams',
+      external_id: conversation_id,
+      url: conversation_url,
+      synced_at: new Date().toISOString()
+    }
+
+    // Add conversation reference if provided (for proactive messaging)
+    if (conversation_reference) {
+      linkData.teams_context = conversation_reference
+    }
+
     const { data: link, error: linkError } = await supabase
       .from('issue_links')
-      .insert({
-        issue_id: issue.id,
-        provider: 'teams',
-        external_id: conversation_id,
-        url: conversation_url,
-        synced_at: new Date().toISOString()
-      })
+      .insert(linkData)
       .select()
       .single()
 

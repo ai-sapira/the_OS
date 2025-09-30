@@ -35,120 +35,132 @@ export function TeamsConversation({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Summary section */}
-      {summary && (
-        <div className="border border-blue-100 bg-blue-50/50 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <Bot className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-medium text-blue-900 mb-2">
-                Resumen IA
-              </h3>
-              <p className="text-sm text-blue-800 leading-relaxed">
-                {summary}
-              </p>
+    <div className="space-y-3">
+      {/* AI Analysis Section - Combined */}
+      {(summary || keyPoints || suggestedAssignee) && (
+        <div className="border border-gray-200 rounded-lg overflow-hidden bg-gradient-to-br from-blue-50/30 to-purple-50/30">
+          <div className="px-4 py-3 border-b border-gray-200/50 bg-white/50">
+            <div className="flex items-center gap-2">
+              <Bot className="h-4 w-4 text-blue-600" />
+              <h3 className="text-sm font-medium text-gray-900">Análisis de IA</h3>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Key points */}
-      {keyPoints && keyPoints.length > 0 && (
-        <div className="border border-purple-100 bg-purple-50/50 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-purple-900 mb-2">
-            Puntos clave identificados
-          </h3>
-          <ul className="space-y-1.5">
-            {keyPoints.map((point, index) => (
-              <li key={index} className="text-sm text-purple-800 flex items-start gap-2">
-                <span className="text-purple-400 mt-0.5">•</span>
-                <span className="flex-1">{point}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Suggested assignee */}
-      {suggestedAssignee && (
-        <div className="border border-green-100 bg-green-50/50 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-medium text-green-900">
-              Asignación sugerida:
-            </h3>
-            <Badge variant="outline" className="bg-white border-green-200 text-green-700">
-              {suggestedAssignee}
-            </Badge>
-          </div>
-        </div>
-      )}
-
-      {/* Conversation header */}
-      <div className="flex items-center justify-between border-b border-gray-200 pb-3">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="h-4 w-4 text-gray-500" />
-          <h3 className="text-sm font-medium text-gray-900">
-            Conversación original ({messages.length} mensajes)
-          </h3>
-        </div>
-        {conversationUrl && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => window.open(conversationUrl, '_blank')}
-          >
-            <ExternalLink className="h-3 w-3 mr-1" />
-            Abrir en Teams
-          </Button>
-        )}
-      </div>
-
-      {/* Messages */}
-      <div className="space-y-3 max-h-[400px] overflow-y-auto">
-        {messages.map((message, index) => {
-          const isAI = isAIMessage(message.author)
           
-          return (
-            <div
-              key={index}
-              className={`flex gap-3 ${isAI ? 'bg-gray-50/50' : ''} rounded-lg p-3`}
-            >
-              <div className="flex-shrink-0">
-                {isAI ? (
-                  <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <Bot className="h-4 w-4 text-blue-600" />
-                  </div>
-                ) : (
-                  <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                    <User className="h-4 w-4 text-gray-600" />
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-sm font-medium text-gray-900">
-                    {message.author}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {new Date(message.timestamp).toLocaleString('es-ES', {
-                      day: 'numeric',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                  {message.content}
+          <div className="p-4 space-y-3">
+            {/* Summary */}
+            {summary && (
+              <div>
+                <h4 className="text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">Resumen</h4>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  {summary}
                 </p>
               </div>
+            )}
+
+            {/* Key points */}
+            {keyPoints && keyPoints.length > 0 && (
+              <div>
+                <h4 className="text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">Puntos clave</h4>
+                <ul className="space-y-1">
+                  {keyPoints.map((point, index) => (
+                    <li key={index} className="text-sm text-gray-700 flex items-start gap-2">
+                      <span className="text-blue-400 mt-1">•</span>
+                      <span className="flex-1">{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Suggested assignee */}
+            {suggestedAssignee && (
+              <div className="pt-2 border-t border-gray-200/50">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-medium text-gray-700 uppercase tracking-wide">
+                    Asignación sugerida:
+                  </h4>
+                  <Badge variant="outline" className="bg-white border-blue-200 text-blue-700 text-xs">
+                    {suggestedAssignee}
+                  </Badge>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Conversation section */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-gray-500" />
+              <h3 className="text-sm font-medium text-gray-900">
+                Conversación de Teams
+              </h3>
+              <span className="text-xs text-gray-500">({messages.length})</span>
             </div>
-          )
-        })}
+            {conversationUrl && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs -mr-2"
+                onClick={() => window.open(conversationUrl, '_blank')}
+              >
+                <ExternalLink className="h-3 w-3 mr-1" />
+                Abrir en Teams
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="p-4 space-y-3 max-h-[400px] overflow-y-auto">
+          {messages.map((message, index) => {
+            const isAI = isAIMessage(message.author)
+            
+            return (
+              <div
+                key={index}
+                className="flex gap-3 group"
+              >
+                <div className="flex-shrink-0">
+                  {isAI ? (
+                    <div className="h-7 w-7 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center">
+                      <Bot className="h-3.5 w-3.5 text-blue-600" />
+                    </div>
+                  ) : (
+                    <div className="h-7 w-7 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center">
+                      <User className="h-3.5 w-3.5 text-gray-600" />
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span className="text-sm font-medium text-gray-900">
+                      {message.author}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {new Date(message.timestamp).toLocaleString('es-ES', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    {message.content}
+                  </p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
 }
+
+

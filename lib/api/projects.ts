@@ -3,6 +3,7 @@ import { Project, ProjectStatus, Database } from '../database/types'
 
 export interface ProjectWithRelations extends Project {
   owner?: Database['public']['Tables']['users']['Row']
+  initiative?: Database['public']['Tables']['initiatives']['Row'] | null
   _count?: {
     issues: number
     active_issues: number
@@ -12,11 +13,6 @@ export interface ProjectWithRelations extends Project {
     calculated: number // Progress based on completed issues
     manual: number | null // Manual progress from DB
   }
-  _initiative?: {
-    id: string
-    name: string
-    slug: string
-  } | null // Primary initiative based on most issues
 }
 
 export class ProjectsAPI {
@@ -28,19 +24,19 @@ export class ProjectsAPI {
       .from('projects')
       .select(`
         *,
-        owner:users!projects_owner_user_id_fkey(id, name, email, avatar_url, role)
+        owner:users!projects_owner_user_id_fkey(id, name, email, avatar_url, role),
+        initiative:initiatives!projects_initiative_id_fkey(id, name, slug, description)
       `)
       .eq('organization_id', this.organizationId)
       .order('created_at', { ascending: false })
 
     if (error) throw error
 
-    // Get issue counts, calculated progress, and primary initiative for each project
+    // Get issue counts and calculated progress for each project
     const projectsWithCounts = await Promise.all(
       (data || []).map(async (project) => {
         const counts = await this.getIssueCountsForProject(project.id)
         const calculatedProgress = this.calculateProgress(counts)
-        const primaryInitiative = await this.getPrimaryInitiativeForProject(project.id)
         
         return {
           ...project,
@@ -48,8 +44,7 @@ export class ProjectsAPI {
           _progress: {
             calculated: calculatedProgress,
             manual: project.progress
-          },
-          _initiative: primaryInitiative
+          }
         }
       })
     )
@@ -63,7 +58,8 @@ export class ProjectsAPI {
       .from('projects')
       .select(`
         *,
-        owner:users!projects_owner_user_id_fkey(id, name, email, avatar_url, role)
+        owner:users!projects_owner_user_id_fkey(id, name, email, avatar_url, role),
+        initiative:initiatives!projects_initiative_id_fkey(id, name, slug, description)
       `)
       .eq('organization_id', this.organizationId)
 
@@ -76,12 +72,11 @@ export class ProjectsAPI {
     const { data, error } = await query
     if (error) throw error
 
-    // Get issue counts, calculated progress, and primary initiative for each project
+    // Get issue counts and calculated progress for each project
     const projectsWithCounts = await Promise.all(
       (data || []).map(async (project) => {
         const counts = await this.getIssueCountsForProject(project.id)
         const calculatedProgress = this.calculateProgress(counts)
-        const primaryInitiative = await this.getPrimaryInitiativeForProject(project.id)
         
         return {
           ...project,
@@ -89,8 +84,7 @@ export class ProjectsAPI {
           _progress: {
             calculated: calculatedProgress,
             manual: project.progress
-          },
-          _initiative: primaryInitiative
+          }
         }
       })
     )
@@ -104,7 +98,8 @@ export class ProjectsAPI {
       .from('projects')
       .select(`
         *,
-        owner:users!projects_owner_user_id_fkey(id, name, email, avatar_url, role)
+        owner:users!projects_owner_user_id_fkey(id, name, email, avatar_url, role),
+        initiative:initiatives!projects_initiative_id_fkey(id, name, slug, description)
       `)
       .eq('id', id)
       .single()
@@ -114,7 +109,6 @@ export class ProjectsAPI {
 
     const counts = await this.getIssueCountsForProject(id)
     const calculatedProgress = this.calculateProgress(counts)
-    const primaryInitiative = await this.getPrimaryInitiativeForProject(id)
     
     return {
       ...data,
@@ -122,8 +116,7 @@ export class ProjectsAPI {
       _progress: {
         calculated: calculatedProgress,
         manual: data.progress
-      },
-      _initiative: primaryInitiative
+      }
     }
   }
 
@@ -164,48 +157,6 @@ export class ProjectsAPI {
     return this.updateProject(id, { progress })
   }
 
-  // Get project breakdown by initiatives (for roadmap view)
-  static async getProjectBreakdownByInitiatives(projectId: string) {
-    const { data, error } = await supabase
-      .from('issues')
-      .select(`
-        id,
-        state,
-        initiative:initiatives(id, name, slug)
-      `)
-      .eq('project_id', projectId)
-      .not('initiative_id', 'is', null)
-
-    if (error) throw error
-
-    // Group by initiative
-    const breakdown = (data || []).reduce((acc: any, issue) => {
-      const initiative = issue.initiative
-      if (!initiative) return acc
-
-      if (!acc[initiative.id]) {
-        acc[initiative.id] = {
-          initiative,
-          total: 0,
-          completed: 0,
-          active: 0
-        }
-      }
-
-      acc[initiative.id].total++
-      
-      if (issue.state === 'done') {
-        acc[initiative.id].completed++
-      } else if (['todo', 'in_progress', 'blocked', 'waiting_info'].includes(issue.state || '')) {
-        acc[initiative.id].active++
-      }
-
-      return acc
-    }, {})
-
-    return Object.values(breakdown)
-  }
-
   // Private helper methods
   private static async getIssueCountsForProject(projectId: string) {
     const { data: allIssues, error: allError } = await supabase
@@ -231,42 +182,6 @@ export class ProjectsAPI {
     return Math.round((counts.completed_issues / counts.issues) * 100)
   }
 
-  private static async getPrimaryInitiativeForProject(projectId: string) {
-    const { data, error } = await supabase
-      .from('issues')
-      .select(`
-        initiative:initiatives(id, name, slug)
-      `)
-      .eq('project_id', projectId)
-      .not('initiative_id', 'is', null)
-
-    if (error) throw error
-
-    if (!data || data.length === 0) return null
-
-    // Count issues by initiative
-    const initiativeCounts = data.reduce((acc: any, issue) => {
-      const initiative = issue.initiative
-      if (!initiative) return acc
-
-      const id = initiative.id
-      if (!acc[id]) {
-        acc[id] = {
-          initiative,
-          count: 0
-        }
-      }
-      acc[id].count++
-      return acc
-    }, {})
-
-    // Find initiative with most issues
-    const sortedInitiatives = Object.values(initiativeCounts)
-      .sort((a: any, b: any) => b.count - a.count)
-
-    return sortedInitiatives.length > 0 ? (sortedInitiatives[0] as any).initiative : null
-  }
-
   // Update project status
   static async updateProjectStatus(projectId: string, status: string): Promise<void> {
     const { error } = await supabase
@@ -278,12 +193,31 @@ export class ProjectsAPI {
     if (error) throw error
   }
 
-  // Update project business unit (via initiative assignment)
+  // Update project business unit (direct initiative assignment)
   static async updateProjectBusinessUnit(projectId: string, businessUnitId: string | null): Promise<void> {
-    // For now, we'll log this as it requires more complex logic to handle initiative assignments
-    console.log(`Updating project ${projectId} business unit to ${businessUnitId}`);
-    // TODO: Implement initiative assignment logic
-    // This would involve updating project issues to be assigned to initiatives from the specified BU
+    const { error } = await supabase
+      .from('projects')
+      .update({ 
+        initiative_id: businessUnitId,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', projectId)
+      .eq('organization_id', this.organizationId)
+    
+    if (error) throw error
+
+    // Also update all issues in this project to have the same initiative_id
+    // This keeps data consistent
+    const { error: issuesError } = await supabase
+      .from('issues')
+      .update({ 
+        initiative_id: businessUnitId,
+        updated_at: new Date().toISOString()
+      })
+      .eq('project_id', projectId)
+      .neq('state', 'triage') // Don't update triage issues
+    
+    if (issuesError) throw issuesError
   }
 
   // Update project owner

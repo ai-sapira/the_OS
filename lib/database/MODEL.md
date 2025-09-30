@@ -50,15 +50,21 @@ Máxima simplicidad pero completitud y lógica impecable.
 * `slug` único **por organización**
 
 ### D) **Projects** (Proyectos estratégicos)
-**Para:** iniciativas estratégicas de negocio (transversales a varias BU).
+**Para:** iniciativas estratégicas de negocio.
 
 * `id`, `organization_id`
 * `name`, `slug`, `description?`
+* `initiative_id?` *(Business Unit propietaria)* — NUEVA
 * `status` → `planned | active | paused | done`
 * `progress` *(0–100, opcional)* → manual o calculado
 * `owner_user_id?` *(sponsor; típico CEO/director área)*
 * `planned_start_at?`, `planned_end_at?`
 * `created_at`, `updated_at`
+
+**Reglas:**
+* Todo proyecto **debería** pertenecer a una BU (`initiative_id`)
+* Los issues del proyecto **heredan** el `initiative_id` del proyecto
+* La relación es **directa** (no calculada)
 
 ### E) **Issues** (Tickets)
 **Para:** unidad de trabajo; nacen en Triage y se enrutan a una BU.

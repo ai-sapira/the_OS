@@ -375,6 +375,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
+          initiative_id: string | null
           name: string
           organization_id: string
           owner_user_id: string | null
@@ -389,6 +390,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          initiative_id?: string | null
           name: string
           organization_id: string
           owner_user_id?: string | null
@@ -403,6 +405,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
+          initiative_id?: string | null
           name?: string
           organization_id?: string
           owner_user_id?: string | null
@@ -414,6 +417,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "projects_initiative_id_fkey"
+            columns: ["initiative_id"]
+            isOneToOne: false
+            referencedRelation: "initiatives"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "projects_organization_id_fkey"
             columns: ["organization_id"]

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   PlusIcon,
   Target,
@@ -37,6 +38,7 @@ function InitiativesCardList({
   globalFilter?: string,
   onDataChange?: () => void
 }) {
+  const router = useRouter();
   const [data, setData] = useState<InitiativeWithManager[]>([]);
   const [filteredData, setFilteredData] = useState<InitiativeWithManager[]>([]);
   const [loading, setLoading] = useState(true);
@@ -264,7 +266,10 @@ function InitiativesCardList({
           >
             <div className="grid grid-cols-[1fr_120px_180px_200px] gap-4 items-center">
               {/* Initiative Column */}
-              <div className="flex items-center space-x-3">
+              <div 
+                className="flex items-center space-x-3"
+                onClick={() => router.push(`/initiatives/${initiative.slug}`)}
+              >
                 <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
                   <Target className="h-4 w-4 text-gray-600" />
                 </div>

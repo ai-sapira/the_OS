@@ -1,32 +1,132 @@
 "use client"
 
 import * as React from "react"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { 
   CheckCircle, 
-  Copy, 
   XCircle, 
   Clock, 
   User, 
-  Building2, 
-  Gauge,
-  Box,
-  Link,
-  Calendar,
-  MoreHorizontal,
-  Zap,
-  Loader
+  Circle,
+  Target,
+  Hexagon,
+  ChevronDown,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  CheckCircle2
 } from "lucide-react"
 import { Modal } from "./modal"
 import { ModalToolbar } from "./modal-toolbar"
 import { ModalBody } from "./modal-body"
 import { ModalFooter } from "./modal-footer"
-import { ChipRow } from "./chip-row"
-import { ChipControl } from "./chip-control"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover-shadcn"
 import { useHotkeys } from "@/hooks/use-hotkeys"
+import { IssuesAPI } from "@/lib/api/issues"
+import { Button } from "@/components/ui/button"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+
+// PropertyChip component for dropdowns
+interface ChipOption {
+  name: string
+  label: string
+  icon?: React.ReactNode
+  avatar?: string
+}
+
+interface ChipProps {
+  icon: React.ReactNode
+  label: string
+  value: string
+  options: ChipOption[]
+  onSelect: (value: string) => void
+  loading?: boolean
+}
+
+function PropertyChip({ icon, label, value, options, onSelect, loading = false }: ChipProps) {
+  const [open, setOpen] = useState(false)
+  const [commandInput, setCommandInput] = useState("")
+  const commandInputRef = React.useRef<HTMLInputElement>(null)
+
+  const dropdownWidth = label === "Business Unit" || label === "Proyecto" ? "w-[280px]" : "w-[200px]"
+
+  return (
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          size="sm"
+          className="h-7 border-dashed bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-600 hover:text-gray-700 gap-1.5 px-3 text-xs rounded-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex-shrink-0 text-gray-500">
+            {icon}
+          </div>
+          <span className="text-gray-700 whitespace-nowrap">
+            {value}
+          </span>
+          <ChevronDown className={`h-3 w-3 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        className={`${dropdownWidth} p-1 rounded-2xl border-gray-200 shadow-lg`}
+        style={{
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)',
+          border: '1px solid rgb(229 229 229)',
+          backgroundColor: '#ffffff',
+        }}
+        onClick={(e) => e.stopPropagation()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
+        <Command className="[&_[cmdk-item][data-selected='true']]:!bg-gray-100 [&_[cmdk-item][data-selected='true']]:!text-black [&_[cmdk-item]:hover]:!bg-gray-100 [&_[cmdk-item]:hover]:!text-black [&_[cmdk-input-wrapper]]:border-0 [&_[cmdk-input-wrapper]]:px-2 [&_[cmdk-input-wrapper]]:py-1.5">
+          <CommandInput
+            placeholder="Buscar..."
+            className="h-7 border-0 focus:ring-0 text-[14px] placeholder:text-gray-400 pl-0"
+            value={commandInput}
+            onInputCapture={(e) => {
+              setCommandInput(e.currentTarget.value)
+            }}
+            ref={commandInputRef}
+          />
+          <CommandList>
+            <CommandEmpty className="text-gray-400 py-3 text-center text-xs">
+              {loading ? "Cargando..." : "No se encontraron opciones."}
+            </CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  key={option.name}
+                  value={option.label}
+                  onSelect={() => {
+                    onSelect(option.name)
+                    setOpen(false)
+                    setCommandInput("")
+                  }}
+                  className="flex items-center gap-2 px-2 py-2 text-[14px] rounded-lg cursor-pointer aria-selected:bg-gray-100 text-black"
+                >
+                  {option.avatar ? (
+                    <div className="flex-shrink-0 w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-[10px] font-semibold text-white">
+                      {option.avatar}
+                    </div>
+                  ) : (
+                    <div className="flex-shrink-0 text-gray-500">
+                      {option.icon}
+                    </div>
+                  )}
+                  <span>{option.label}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  )
+}
 
 interface Issue {
   id: string
@@ -55,7 +155,8 @@ interface AcceptIssueModalProps {
 
 interface AcceptData {
   comment: string
-  project: string
+  initiative: string  // Business Unit (OBLIGATORIO)
+  project?: string    // Proyecto estratégico (OPCIONAL)
   assignee: string
   priority?: string
   subscribeToUpdates: boolean
@@ -84,78 +185,72 @@ export function AcceptIssueModal({
 }: AcceptIssueModalProps) {
   const [action, setAction] = useState<ModalAction>('accept')
   const [comment, setComment] = useState("")
-  const [project, setProject] = useState("")
-  const [assignee, setAssignee] = useState("pablosenabre")
+  const [initiative, setInitiative] = useState("")  // Business Unit
+  const [project, setProject] = useState("")         // Proyecto estratégico (opcional)
+  const [assignee, setAssignee] = useState("")
   const [priority, setPriority] = useState("")
   const [status, setStatus] = useState("To Do")
   const [subscribeToUpdates, setSubscribeToUpdates] = useState(true)
   const [duplicateOf, setDuplicateOf] = useState("")
   
-  // Selector states
-  const [showStatusSelector, setShowStatusSelector] = useState(false)
-  const [showPrioritySelector, setShowPrioritySelector] = useState(false)
-  const [showAssigneeSelector, setShowAssigneeSelector] = useState(false)
-  const [showProjectSelector, setShowProjectSelector] = useState(false)
+  // Data loading states
+  const [availableUsers, setAvailableUsers] = useState<any[]>([])
+  const [availableProjects, setAvailableProjects] = useState<any[]>([])
+  const [availableInitiatives, setAvailableInitiatives] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
   
   const commentRef = useRef<HTMLTextAreaElement>(null)
-  const modalBodyRef = useRef<HTMLDivElement>(null)
 
-  // Reset form when modal opens/closes
-  React.useEffect(() => {
+  // Load data when modal opens
+  useEffect(() => {
     if (open) {
+      loadData()
+    }
+  }, [open])
+
+  // Reset form when modal opens/closes  
+  useEffect(() => {
+    if (open && issue) {
       setAction('accept')
       setComment("")
-      setProject("")
-      setAssignee("pablosenabre")
-      setPriority("")
-      setStatus("To Do")
+      // Pre-populate with issue values if available
+      const initiativeId = issue.initiative_id || (typeof issue.initiative === 'string' ? issue.initiative : issue.initiative?.id) || ""
+      const projectId = issue.project_id || (typeof issue.project === 'string' ? issue.project : issue.project?.id) || ""
+      const assigneeId = issue.assignee_id || (typeof issue.assignee === 'string' ? issue.assignee : issue.assignee?.id) || ""
+      
+      setInitiative(initiativeId)
+      setProject(projectId)
+      setAssignee(assigneeId)
+      setPriority(issue.priority || "")
+      setStatus("todo")  // Default to "todo" (not "triage")
       setSubscribeToUpdates(true)
       setDuplicateOf("")
-      
-      // Close all selectors
-      setShowStatusSelector(false)
-      setShowPrioritySelector(false)
-      setShowAssigneeSelector(false)
-      setShowProjectSelector(false)
       
       // Focus on textarea instead of close button
       setTimeout(() => {
         commentRef.current?.focus()
       }, 100)
     }
-  }, [open])
+  }, [open, issue])
 
-  // Debug: Log state changes
-  React.useEffect(() => {
-    console.log('States updated:', {
-      showStatusSelector,
-      showPrioritySelector,
-      showAssigneeSelector,
-      showProjectSelector
-    })
-  }, [showStatusSelector, showPrioritySelector, showAssigneeSelector, showProjectSelector])
-
-  // Close dropdowns when clicking outside
-  React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node
-      if (modalBodyRef.current && !modalBodyRef.current.contains(target)) {
-        console.log('Clicking outside, closing dropdowns')
-        setShowStatusSelector(false)
-        setShowPrioritySelector(false)
-        setShowAssigneeSelector(false)
-        setShowProjectSelector(false)
-      }
+  // Load users, projects, and initiatives
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const [users, projects, initiatives] = await Promise.all([
+        IssuesAPI.getAvailableUsers(),
+        IssuesAPI.getProjects(),
+        IssuesAPI.getInitiatives()
+      ])
+      setAvailableUsers(users)
+      setAvailableProjects(projects)
+      setAvailableInitiatives(initiatives)
+    } catch (error) {
+      console.error('Error loading modal data:', error)
+    } finally {
+      setLoading(false)
     }
-
-    if (showStatusSelector || showPrioritySelector || showAssigneeSelector || showProjectSelector) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [showStatusSelector, showPrioritySelector, showAssigneeSelector, showProjectSelector])
+  }
 
   // Hotkeys for modal actions
   useHotkeys([
@@ -167,14 +262,16 @@ export function AcceptIssueModal({
     
     switch (action) {
       case 'accept':
-        if (!project) return
+        if (!initiative) return  // Initiative (BU) es OBLIGATORIO - NO cierra modal
         onAccept({
           comment,
-          project,
+          initiative,  // Business Unit (OBLIGATORIO)
+          project,     // Proyecto estratégico (OPCIONAL)
           assignee,
           priority,
           subscribeToUpdates
         })
+        onOpenChange(false)  // Solo cierra si pasó validación
         break
       case 'decline':
         if (!comment.trim()) return
@@ -182,6 +279,7 @@ export function AcceptIssueModal({
           comment: comment.trim(),
           reason: comment.trim()
         })
+        onOpenChange(false)
         break
       case 'snooze':
         // For simplicity, snooze for 1 day
@@ -191,10 +289,9 @@ export function AcceptIssueModal({
           comment,
           until: tomorrow
         })
+        onOpenChange(false)
         break
     }
-    
-    onOpenChange(false)
   }
 
   if (!issue) return null
@@ -236,7 +333,7 @@ export function AcceptIssueModal({
 
   const isPrimaryDisabled = () => {
     switch (action) {
-      case "accept": return !project
+      case "accept": return !initiative  // Valida que haya Business Unit seleccionada
       case "decline": return !comment.trim()
       case "snooze": return false
       default: return true
@@ -253,7 +350,7 @@ export function AcceptIssueModal({
     >
 
       <ModalBody>
-        <div ref={modalBodyRef}>
+        <div>
         {/* Comment textarea */}
         <div className="relative p-1">
           <Textarea
@@ -281,206 +378,96 @@ export function AcceptIssueModal({
 
         {/* Chip row for accept action */}
         {action === 'accept' && (
-          <ChipRow className="mt-3">
-            <ChipControl 
-              kind="status" 
-              label="SAI" 
-              icon={<Zap className="w-4 h-4" />} 
-              value="Workspace"
+          <div className="mt-4 flex items-center gap-2 flex-wrap p-2 bg-gray-50 rounded-lg border border-gray-200">
+            {/* Status PropertyChip - No permitir "triage" */}
+            <PropertyChip
+              icon={status === 'todo' ? <Circle className="h-3.5 w-3.5 text-gray-400" /> :
+                    status === 'in_progress' ? <Clock className="h-3.5 w-3.5 text-blue-500" /> :
+                    status === 'done' ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> :
+                    <Circle className="h-3.5 w-3.5 text-gray-400" />}
+              label="Estado"
+              value={status === 'todo' ? 'To do' : 
+                     status === 'in_progress' ? 'In progress' :
+                     status === 'done' ? 'Done' : 'To do'}
+              options={[
+                { name: 'todo', label: 'To do', icon: <Circle className="w-2.5 h-2.5 text-gray-400" /> },
+                { name: 'in_progress', label: 'In progress', icon: <Clock className="w-2.5 h-2.5 text-blue-500" /> },
+                { name: 'done', label: 'Done', icon: <CheckCircle2 className="w-2.5 h-2.5 text-green-500" /> }
+              ]}
+              onSelect={setStatus}
+              loading={loading}
             />
-            
-            {/* Status Selector */}
-            <div className="relative">
-              <ChipControl 
-                kind="select" 
-                label="Status" 
-                value={status}
-                icon={<Loader className="w-4 h-4" />}
-                onClick={() => {
-                  console.log('Status clicked, current state:', showStatusSelector)
-                  setShowStatusSelector(!showStatusSelector)
-                }}
-              />
-              {showStatusSelector && (
-                <div 
-                  className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-[100]"
-                  style={{
-                    backgroundColor: 'var(--surface-2)',
-                    borderColor: 'var(--stroke)',
-                    zIndex: 100,
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    marginTop: '4px'
-                  }}
-                >
-                  <div className="p-2 space-y-1">
-                    {["To Do", "In Progress", "Done", "Canceled"].map((statusOption) => (
-                      <button
-                        key={statusOption}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setStatus(statusOption)
-                          setShowStatusSelector(false)
-                        }}
-                        className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-900 dark:text-white"
-                        style={{
-                          color: 'var(--foreground)',
-                          backgroundColor: 'transparent'
-                        }}
-                      >
-                        {statusOption}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {/* Priority Selector */}
-            <div className="relative">
-              <ChipControl 
-                kind="select" 
-                label="Priority" 
-                value={priority || "Set priority"} 
-                icon={<Gauge className="w-4 h-4" />} 
-                onClick={() => {
-                  console.log('Priority clicked, current state:', showPrioritySelector)
-                  setShowPrioritySelector(!showPrioritySelector)
-                }}
-                hotkey="P"
-              />
-              {showPrioritySelector && (
-                <div 
-                  className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-[100]"
-                  style={{
-                    backgroundColor: 'var(--surface-2)',
-                    borderColor: 'var(--stroke)',
-                    zIndex: 100,
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    marginTop: '4px'
-                  }}
-                >
-                  <div className="p-2 space-y-1">
-                    {["High", "Mid", "Low"].map((priorityOption) => (
-                      <button
-                        key={priorityOption}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setPriority(priorityOption)
-                          setShowPrioritySelector(false)
-                        }}
-                        className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-900 dark:text-white"
-                        style={{
-                          color: 'var(--foreground)',
-                          backgroundColor: 'transparent'
-                        }}
-                      >
-                        {priorityOption}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {/* Assignee Selector */}
-            <div className="relative">
-              <ChipControl 
-                kind="select" 
-                label={assignee} 
-                icon={<User className="w-4 h-4" />} 
-                onClick={() => {
-                  console.log('Assignee clicked, current state:', showAssigneeSelector)
-                  setShowAssigneeSelector(!showAssigneeSelector)
-                }}
-                hotkey="A"
-              />
-              {showAssigneeSelector && (
-                <div 
-                  className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-[100]"
-                  style={{
-                    backgroundColor: 'var(--surface-2)',
-                    borderColor: 'var(--stroke)',
-                    zIndex: 100,
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    marginTop: '4px'
-                  }}
-                >
-                  <div className="p-2 space-y-1">
-                    {["pablosenabre", "maría.garcía", "juan.pérez"].map((assigneeOption) => (
-                      <button
-                        key={assigneeOption}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setAssignee(assigneeOption)
-                          setShowAssigneeSelector(false)
-                        }}
-                        className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-900 dark:text-white"
-                        style={{
-                          color: 'var(--foreground)',
-                          backgroundColor: 'transparent'
-                        }}
-                      >
-                        {assigneeOption}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {/* Project Selector */}
-            <div className="relative">
-              <ChipControl 
-                kind="select" 
-                label={project || "Select project"} 
-                icon={<Box className="w-4 h-4" />} 
-                onClick={() => {
-                  console.log('Project clicked, current state:', showProjectSelector)
-                  setShowProjectSelector(!showProjectSelector)
-                }}
-              />
-              {showProjectSelector && (
-                <div 
-                  className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-[100]"
-                  style={{
-                    backgroundColor: 'var(--surface-2)',
-                    borderColor: 'var(--stroke)',
-                    zIndex: 100,
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    marginTop: '4px'
-                  }}
-                >
-                  <div className="p-2 space-y-1">
-                    {["Tecnología", "Marketing", "Ventas", "Recursos Humanos"].map((projectOption) => (
-                      <button
-                        key={projectOption}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setProject(projectOption)
-                          setShowProjectSelector(false)
-                        }}
-                        className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-900 dark:text-white"
-                        style={{
-                          color: 'var(--foreground)',
-                          backgroundColor: 'transparent'
-                        }}
-                      >
-                        {projectOption}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </ChipRow>
+
+            {/* Priority PropertyChip */}
+            <PropertyChip
+              icon={priority === 'P0' ? <ArrowUp className="h-3.5 w-3.5 text-red-500" /> :
+                    priority === 'P1' ? <ArrowUp className="h-3.5 w-3.5 text-orange-500" /> :
+                    priority === 'P2' ? <Minus className="h-3.5 w-3.5 text-yellow-500" /> :
+                    priority === 'P3' ? <ArrowDown className="h-3.5 w-3.5 text-green-500" /> :
+                    <Minus className="h-3.5 w-3.5 text-gray-400" />}
+              label="Prioridad"
+              value={priority === 'P0' ? 'Crítica' :
+                     priority === 'P1' ? 'Alta' :
+                     priority === 'P2' ? 'Media' :
+                     priority === 'P3' ? 'Baja' : 'Sin prioridad'}
+              options={[
+                { name: 'P0', label: 'Crítica', icon: <ArrowUp className="w-2.5 h-2.5 text-red-500" /> },
+                { name: 'P1', label: 'Alta', icon: <ArrowUp className="w-2.5 h-2.5 text-orange-500" /> },
+                { name: 'P2', label: 'Media', icon: <Minus className="w-2.5 h-2.5 text-yellow-500" /> },
+                { name: 'P3', label: 'Baja', icon: <ArrowDown className="w-2.5 h-2.5 text-green-500" /> }
+              ]}
+              onSelect={setPriority}
+              loading={loading}
+            />
+
+            {/* Assignee PropertyChip */}
+            <PropertyChip
+              icon={<User className="h-3.5 w-3.5 text-gray-500" />}
+              label="Asignado"
+              value={assignee ? (availableUsers.find(u => u.id === assignee)?.name || 'Sin asignar') : 'Sin asignar'}
+              options={[
+                ...availableUsers.map(user => ({
+                  name: user.id,
+                  label: user.name,
+                  avatar: user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()
+                })),
+                { name: '', label: 'Sin asignar', icon: <User className="w-2.5 h-2.5 text-gray-400" /> }
+              ]}
+              onSelect={setAssignee}
+              loading={loading}
+            />
+
+            {/* Business Unit PropertyChip - REQUIRED */}
+            <PropertyChip
+              icon={<Target className="h-3.5 w-3.5 text-gray-500" />}
+              label="Business Unit"
+              value={initiative ? (availableInitiatives.find(i => i.id === initiative)?.name || 'Sin BU *') : 'Sin BU *'}
+              options={availableInitiatives.map(init => ({
+                name: init.id,
+                label: init.name,
+                icon: <Target className="w-2.5 h-2.5 text-gray-600" />
+              }))}
+              onSelect={setInitiative}
+              loading={loading}
+            />
+
+            {/* Project PropertyChip - Optional */}
+            <PropertyChip
+              icon={<Hexagon className="h-3.5 w-3.5 text-gray-500" />}
+              label="Proyecto"
+              value={project ? (availableProjects.find(p => p.id === project)?.name || 'Sin proyecto') : 'Sin proyecto'}
+              options={[
+                ...availableProjects.map(proj => ({
+                  name: proj.id,
+                  label: proj.name,
+                  icon: <Hexagon className="w-2.5 h-2.5 text-gray-600" />
+                })),
+                { name: '', label: 'Sin proyecto', icon: <Hexagon className="w-2.5 h-2.5 text-gray-400" /> }
+              ]}
+              onSelect={setProject}
+              loading={loading}
+            />
+          </div>
         )}
         </div>
       </ModalBody>

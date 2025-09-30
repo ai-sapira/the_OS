@@ -150,3 +150,4 @@ export class ConversationManager {
     return this.messages.length >= 2 && this.getLastUserMessage().length > 0;
   }
 }
+

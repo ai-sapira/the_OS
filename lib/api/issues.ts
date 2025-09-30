@@ -162,8 +162,14 @@ export class IssuesAPI {
 
     if (error) throw error
 
-    // Create activity record
-    await this.createActivity(issueId, action.action, actorUserId, {
+    // Create activity record - map action to activity_action enum
+    const activityAction = action.action === 'accept' ? 'accepted' : 
+                          action.action === 'decline' ? 'declined' :
+                          action.action === 'duplicate' ? 'duplicated' :
+                          action.action === 'snooze' ? 'snoozed' : 
+                          action.action as any
+    
+    await this.createActivity(issueId, activityAction, actorUserId, {
       reason: action.reason,
       ...action.accept_data,
       duplicate_of_id: action.duplicate_of_id,
@@ -276,5 +282,43 @@ export class IssuesAPI {
       ...issue,
       labels
     }
+  }
+
+  // Get available users for filters (reporters and assignees)
+  static async getAvailableUsers() {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, name, email, avatar_url, role')
+      .eq('organization_id', this.organizationId)
+      .eq('active', true)
+      .order('name')
+
+    if (error) throw error
+    return data || []
+  }
+
+  // Get available projects for filters
+  static async getProjects() {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('id, name, slug')
+      .eq('organization_id', this.organizationId)
+      .order('name')
+
+    if (error) throw error
+    return data || []
+  }
+
+  // Get available initiatives for filters
+  static async getInitiatives() {
+    const { data, error } = await supabase
+      .from('initiatives')
+      .select('id, name, slug')
+      .eq('organization_id', this.organizationId)
+      .eq('active', true)
+      .order('name')
+
+    if (error) throw error
+    return data || []
   }
 }

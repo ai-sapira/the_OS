@@ -340,7 +340,8 @@ const sampleProjects: ProjectWithRelations[] = [
     id: "proj-001",
     name: "Customer Portal Redesign",
     description: "Complete overhaul of the customer-facing portal with modern UI/UX",
-      status: "active",
+    status: "active",
+    initiative_id: null,
     owner_user_id: "user-001",
     organization_id: "org-001",
     progress: 75,
@@ -374,7 +375,8 @@ const sampleProjects: ProjectWithRelations[] = [
     id: "proj-002",
     name: "Mobile App v2.0",
     description: "Next generation mobile application with enhanced features",
-      status: "active",
+    status: "active",
+    initiative_id: null,
     owner_user_id: "user-002",
     organization_id: "org-001",
     progress: 45,
@@ -409,6 +411,7 @@ const sampleProjects: ProjectWithRelations[] = [
     name: "Security Audit & Compliance",
     description: "Comprehensive security review and compliance implementation",
     status: "planned",
+    initiative_id: null,
     owner_user_id: "user-003",
     organization_id: "org-001",
     progress: 0,
@@ -501,9 +504,9 @@ function ProjectsCardList({
             case "Business Unit":
               filtered = filtered.filter(project => {
                 if (filterValue === "Unassigned") {
-                  return !project._initiative;
+                  return !project.initiative;
                 } else {
-                  return project._initiative?.name === filterValue;
+                  return project.initiative?.name === filterValue;
                 }
               });
               break;
@@ -574,13 +577,17 @@ function ProjectsCardList({
               {/* Business Unit Column */}
               <div className="flex justify-start min-w-0">
                 <EditableProjectBUDropdown
-                  currentBU={project._initiative}
+                  currentBU={project.initiative ? {
+                    id: project.initiative.id,
+                    name: project.initiative.name,
+                    description: project.initiative.description || undefined
+                  } : null}
                   projectId={project.id}
                   onBUChange={(newBU) => {
                     // Update local state immediately for optimistic UI
                     const updatedData = data.map(item => 
                       item.id === project.id 
-                        ? { ...item, _initiative: newBU as any }
+                        ? { ...item, initiative: newBU as any }
                         : item
                     );
                     setData(updatedData);

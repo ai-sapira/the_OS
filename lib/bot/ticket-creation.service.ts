@@ -13,7 +13,8 @@ export class TicketCreationService {
    */
   async createTicketFromConversation(
     conversation: ConversationManager,
-    proposal: TicketProposal
+    proposal: TicketProposal,
+    conversationReference?: any
   ): Promise<{ ticket_key: string; ticket_url: string }> {
     try {
       // Convert conversation to TeamsConversationData format
@@ -31,7 +32,15 @@ export class TicketCreationService {
           priority: proposal.priority,
           suggested_labels: proposal.suggested_labels,
           key_points: this.extractKeyPoints(conversation.getHistory())
-        }
+        },
+        conversation_reference: conversationReference ? {
+          service_url: conversationReference.serviceUrl,
+          tenant_id: conversationReference.conversation?.tenantId,
+          channel_id: conversationReference.channelId,
+          conversation: conversationReference.conversation,
+          bot: conversationReference.bot,
+          user: conversationReference.user
+        } : undefined
       };
 
       // Create the issue using TeamsIntegration
