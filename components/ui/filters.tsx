@@ -41,7 +41,7 @@ import {
 import { Dispatch, SetStateAction, useRef, useState, useEffect } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface AnimateChangeInHeightProps {
   children: React.ReactNode;
