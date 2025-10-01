@@ -312,7 +312,11 @@ export function useSupabaseData() {
         visibleInitiatives = initiatives.filter(init => employeeInitiativeIds.has(init.id))
         visibleProjects = projects.filter(project => employeeProjectIds.has(project.id))
         break
-      // SAP and CEO see everything (no filtering)
+      case 'SAP':
+      case 'CEO':
+        // SAP and CEO see everything (no filtering)
+        console.log('[useSupabaseData] SAP/CEO role - showing all projects:', projects.length)
+        break
     }
 
     return {

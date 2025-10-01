@@ -149,7 +149,7 @@ interface BoardSettings {
 }
 
 const DEFAULT_BOARD_SETTINGS: BoardSettings = {
-  showEmptyRows: false,
+  showEmptyRows: true,
   showSubIssues: true,
   showTriageIssues: false,
   columnOrder: ["todo", "in_progress", "done", "waiting_info"],
@@ -530,8 +530,16 @@ export default function IssuesPage() {
 
   // Get projects that have issues or show empty rows
   const getProjectsWithIssues = useCallback(() => {
+    console.log('[Issues Page] allProjects count:', allProjects.length)
+    console.log('[Issues Page] showEmptyRows:', boardSettings.showEmptyRows)
+    console.log('[Issues Page] filteredIssues count:', filteredIssues.length)
+    console.log('[Issues Page] allIssues count:', allIssues.length)
+    
+    // When showing all rows, use all projects; otherwise filter by issues
     const projects = boardSettings.showEmptyRows ? allProjects : 
       allProjects.filter(p => filteredIssues.some(i => i.project_id === p.id))
+    
+    console.log('[Issues Page] projects to display:', projects.length, projects.map(p => p.name))
     
     const orderedProjects = [...projects].sort((a, b) => {
       if (boardSettings.rowOrder === "name") {
@@ -544,8 +552,9 @@ export default function IssuesPage() {
       }
     })
 
-    // Add unassigned project if needed
-    if (filteredIssues.some(i => !i.project_id)) {
+    // Add unassigned project if there are any issues without a project
+    // Check in all issues, not just filtered ones
+    if (allIssues.some(i => !i.project_id)) {
     orderedProjects.push({
       id: "unassigned",
       name: "Unassigned",
@@ -564,7 +573,7 @@ export default function IssuesPage() {
   }
     
     return orderedProjects
-  }, [filteredIssues, allProjects, boardSettings]);
+  }, [filteredIssues, allProjects, allIssues, boardSettings]);
 
 
   // Handle drag start
