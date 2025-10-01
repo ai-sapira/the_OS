@@ -388,7 +388,7 @@ function AutoSaveDescription({
 
 // Metrics Section Component
 function MetricsSection({ project }: { project: ProjectWithRelations }) {
-  // Calculate metrics based on project data
+  // Calculate metrics based on real project data from database
   const totalIssues = project._count?.issues || 0;
   const completedIssues = project._count?.completed_issues || 0;
   const activeIssues = project._count?.active_issues || 0;
@@ -396,37 +396,27 @@ function MetricsSection({ project }: { project: ProjectWithRelations }) {
   const completionRate = totalIssues > 0 ? Math.round((completedIssues / totalIssues) * 100) : 0;
   const manualProgress = project.progress || 0;
   const calculatedProgress = project._progress?.calculated || 0;
-  const velocity = 6.2; // Issues per week - this would come from real data
-  const avgTimeToClose = 5.8; // Days - this would come from real data
 
   const metrics = [
     {
       label: "Manual Progress",
       value: `${manualProgress}%`,
-      change: "+8%",
-      isPositive: true,
       description: "Owner-set progress"
     },
     {
       label: "Calculated Progress",
       value: `${calculatedProgress}%`,
-      change: `${completionRate - calculatedProgress >= 0 ? '+' : ''}${completionRate - calculatedProgress}%`,
-      isPositive: completionRate - calculatedProgress >= 0,
       description: "Based on completed issues"
+    },
+    {
+      label: "Total Issues",
+      value: totalIssues.toString(),
+      description: "All issues in project"
     },
     {
       label: "Active Issues",
       value: activeIssues.toString(),
-      change: "+2",
-      isPositive: true,
       description: "Currently in progress"
-    },
-    {
-      label: "Avg. Time to Close",
-      value: `${avgTimeToClose}d`,
-      change: "-0.8d",
-      isPositive: true,
-      description: "Average resolution time"
     }
   ];
 
@@ -440,11 +430,6 @@ function MetricsSection({ project }: { project: ProjectWithRelations }) {
           <div className="flex items-baseline gap-2 mb-1">
             <div className="text-2xl font-semibold text-gray-900">
               {metric.value}
-            </div>
-            <div className={`text-xs font-medium ${
-              metric.isPositive ? 'text-green-600' : 'text-red-600'
-            }`}>
-              {metric.change}
             </div>
           </div>
           <div className="text-xs font-medium text-gray-600 mb-0.5">
@@ -465,6 +450,7 @@ function ProjectIssuesList({
 }: { 
   projectId: string 
 }) {
+  const router = useRouter();
   const [issues, setIssues] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -492,6 +478,11 @@ function ProjectIssuesList({
 
     loadIssues();
   }, [projectId]);
+
+  // Navigate to issue detail page
+  const handleIssueClick = (issueId: string) => {
+    router.push(`/issues/${issueId}`);
+  };
 
   if (loading) {
     return (
@@ -565,6 +556,7 @@ function ProjectIssuesList({
         {issues.map((issue) => (
           <div
             key={issue.id}
+            onClick={() => handleIssueClick(issue.id)}
             className="py-3 px-6 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-b-0"
           >
             <div className="grid grid-cols-[40px_1fr_120px_100px_140px] gap-4 items-center">

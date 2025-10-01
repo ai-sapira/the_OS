@@ -336,114 +336,7 @@ function ProjectsFiltersBar({
   );
 }
 
-// Sample data with projects-specific structure
-const sampleProjects: ProjectWithRelations[] = [
-  {
-    id: "proj-001",
-    name: "Customer Portal Redesign",
-    description: "Complete overhaul of the customer-facing portal with modern UI/UX",
-    status: "active",
-    initiative_id: null,
-    owner_user_id: "user-001",
-    organization_id: "org-001",
-    progress: 75,
-    planned_start_at: "2024-01-15T00:00:00Z",
-    planned_end_at: "2024-06-30T00:00:00Z",
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-20T00:00:00Z",
-    slug: "customer-portal-redesign",
-    owner: {
-      id: "user-001",
-      name: "Sarah Johnson",
-      email: "sarah@company.com",
-      avatar_url: null,
-      role: "SAP",
-      organization_id: "org-001",
-      active: true,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-    },
-    _count: {
-      issues: 24,
-      active_issues: 8,
-      completed_issues: 16,
-    },
-    _progress: {
-      calculated: 67,
-      manual: 75,
-    },
-  },
-  {
-    id: "proj-002",
-    name: "Mobile App v2.0",
-    description: "Next generation mobile application with enhanced features",
-    status: "active",
-    initiative_id: null,
-    owner_user_id: "user-002",
-    organization_id: "org-001",
-    progress: 45,
-    planned_start_at: "2024-02-01T00:00:00Z",
-    planned_end_at: "2024-08-31T00:00:00Z",
-    created_at: "2024-01-15T00:00:00Z",
-    updated_at: "2024-01-25T00:00:00Z",
-    slug: "mobile-app-v2",
-    owner: {
-      id: "user-002",
-      name: "Michael Chen",
-      email: "michael@company.com",
-      avatar_url: null,
-      role: "CEO",
-      organization_id: "org-001",
-      active: true,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-    },
-    _count: {
-      issues: 31,
-      active_issues: 18,
-      completed_issues: 13,
-    },
-    _progress: {
-      calculated: 42,
-      manual: 45,
-    },
-  },
-  {
-    id: "proj-003",
-    name: "Security Audit & Compliance",
-    description: "Comprehensive security review and compliance implementation",
-    status: "planned",
-    initiative_id: null,
-    owner_user_id: "user-003",
-    organization_id: "org-001",
-    progress: 0,
-    planned_start_at: "2024-04-01T00:00:00Z",
-    planned_end_at: "2024-09-30T00:00:00Z",
-    created_at: "2024-01-10T00:00:00Z",
-    updated_at: "2024-01-20T00:00:00Z",
-    slug: "security-audit-compliance",
-    owner: {
-      id: "user-003",
-      name: "Emma Rodriguez",
-      email: "emma@company.com",
-      avatar_url: null,
-      role: "BU",
-      organization_id: "org-001",
-      active: true,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-    },
-    _count: {
-      issues: 12,
-      active_issues: 0,
-      completed_issues: 0,
-    },
-    _progress: {
-      calculated: 0,
-      manual: 0,
-    },
-  },
-];
+// No more sample data - all data comes from the database via ProjectsAPI
 
 // Projects Card List Component  
 function ProjectsCardList({ 
@@ -469,8 +362,8 @@ function ProjectsCardList({
         setData(projects);
       } catch (error) {
         console.error('Error loading projects:', error);
-        // Use sample data as fallback
-        setData(sampleProjects);
+        // Show empty state on error instead of mock data
+        setData([]);
       } finally {
         setLoading(false);
       }
