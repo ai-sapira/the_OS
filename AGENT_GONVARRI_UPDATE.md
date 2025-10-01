@@ -212,3 +212,4 @@ El agente Sapira ahora:
 2. **Refinamiento**: Ajustar prompts basado en feedback
 3. **Ejemplos**: Agregar más ejemplos de initiatives en `gonvarri-examples.json`
 4. **Documentación**: Actualizar docs del bot para usuarios finales
+

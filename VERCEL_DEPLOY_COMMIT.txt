@@ -49,3 +49,4 @@ TESTING:
 - ✅ Modal de aceptación funciona
 
 Co-authored-by: Sapira AI Agent
+

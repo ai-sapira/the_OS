@@ -307,3 +307,4 @@ Una vez completados ambos deploys, el sistema completo estará funcionando con l
 - Vercel: https://vercel.com/dashboard
 - Render: https://dashboard.render.com
 - Supabase: https://supabase.com/dashboard
+
