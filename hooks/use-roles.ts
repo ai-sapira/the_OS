@@ -35,11 +35,14 @@ const PERMISSIONS: Record<Role, string[]> = {
     "view.metrics",
     "view.sapira-mode",
     "view.settings",
+    "view.surveys",
     "action.triage.accept",
     "action.triage.decline", 
     "action.triage.duplicate",
     "action.triage.snooze",
     "action.create-issue",
+    "action.create-survey",
+    "action.view-survey-results",
     "filter.none", // No filters applied
   ],
   CEO: [
@@ -52,11 +55,14 @@ const PERMISSIONS: Record<Role, string[]> = {
     "view.roadmap",
     "view.metrics", 
     "view.ceo-dashboard",
+    "view.surveys",
     "action.triage.accept", // optional
     "action.triage.decline", // optional
     "action.triage.duplicate", // optional
     "action.triage.snooze", // optional
     "action.create-issue",
+    "action.create-survey",
+    "action.view-survey-results",
     "filter.none", // No filters applied
   ],
   BU: [
@@ -67,18 +73,23 @@ const PERMISSIONS: Record<Role, string[]> = {
     "view.all-departments",
     "view.metrics",
     "view.my-business-unit",
+    "view.surveys",
     "action.triage.accept", // optional
     "action.triage.decline", // optional
     "action.triage.duplicate", // optional
     "action.triage.snooze", // optional
     "action.create-issue",
+    "action.create-survey", // Can create surveys for their BU
+    "action.view-survey-results", // Can view results of their own surveys
     "filter.my-bu", // Filter to own BU
   ],
   EMP: [
     "view.my-issues",
     "view.issues",
     "view.me",
+    "view.surveys", // Can view and respond to surveys
     "action.create-issue",
+    "action.respond-survey", // Can respond to surveys
     "filter.mine", // Filter to own issues
   ],
 }
@@ -146,6 +157,14 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
   },
   // Context presets
   {
+    id: "surveys",
+    label: "Surveys",
+    icon: "ClipboardList",
+    href: "/surveys",
+    roles: ["SAP", "CEO", "BU", "EMP"],
+    section: "context",
+  },
+  {
     id: "sapira-mode",
     label: "Sapira mode",
     icon: "Shield",
@@ -179,16 +198,10 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
   },
   // Footer
   {
-    id: "new-issue",
-    label: "New issue",
-    icon: "Plus",
-    roles: ["SAP", "CEO", "BU", "EMP"],
-    section: "footer",
-  },
-  {
-    id: "shortcuts",
-    label: "Keyboard shortcuts",
-    icon: "Keyboard",
+    id: "your-profile",
+    label: "Your profile",
+    icon: "User",
+    href: "/profile",
     roles: ["SAP", "CEO", "BU", "EMP"],
     section: "footer",
   },

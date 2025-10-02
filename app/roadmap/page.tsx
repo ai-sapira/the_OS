@@ -2,21 +2,11 @@
 
 import { useState, useEffect } from "react"
 import { Sidebar } from "@/components/sidebar"
-import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from '@/components/ui/context-menu'
 import {
   GanttProvider,
   GanttSidebar,
   GanttSidebarGroup,
-  GanttSidebarItem,
   GanttTimeline,
   GanttHeader,
   GanttInitiativeList,
@@ -24,49 +14,17 @@ import {
   GanttInitiativeItem,
   GanttMarker,
   GanttToday,
-  GanttCreateMarkerTrigger,
   type GanttInitiative,
 } from '@/components/ui/gantt'
 import {
-  Calendar,
-  Users,
-  Target,
-  TrendingUp,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
-  MoreHorizontal,
-  EyeIcon,
-  LinkIcon,
-  TrashIcon,
-  BarChart3,
   ChevronRight,
   ChevronDown,
 } from "lucide-react"
 import { ProjectsAPI, type ProjectWithRelations } from "@/lib/api/projects"
 import { IssuesAPI, type IssueWithRelations } from "@/lib/api/issues"
-import { InitiativesAPI } from "@/lib/api/initiatives"
 
-// Types for expanded projects and issues
-interface ProjectItem {
-  type: 'project'
-  project: ProjectWithRelations
-  expanded: boolean
-}
-
-interface IssueItem {
-  type: 'issue'
-  issue: IssueWithRelations
-  projectId: string
-}
-
-type RoadmapItem = ProjectItem | IssueItem
-
-type ZoomLevel = 'week' | 'month' | 'quarter' | 'year'
 
 export default function RoadmapPage() {
-  const [viewMode, setViewMode] = useState<"cards" | "gantt">("gantt")
-  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('month')
   const [projects, setProjects] = useState<ProjectWithRelations[]>([])
   const [issues, setIssues] = useState<IssueWithRelations[]>([])
   const [loading, setLoading] = useState(true)
@@ -106,99 +64,6 @@ export default function RoadmapPage() {
     })
   }
 
-  // Convert ZoomLevel to Gantt range and zoom percentage
-  const getGanttConfig = (level: ZoomLevel): { range: 'daily' | 'monthly' | 'quarterly', zoom: number } => {
-    switch (level) {
-      case 'week':
-        // Week view: show days with detailed zoom
-        return { range: 'daily', zoom: 200 }
-      case 'month':
-        // Month view: show months with medium zoom
-        return { range: 'monthly', zoom: 120 }
-      case 'quarter':
-        // Quarter view: show months with less zoom to see more context
-        return { range: 'monthly', zoom: 70 }
-      case 'year':
-        // Year view: show quarters
-        return { range: 'quarterly', zoom: 100 }
-    }
-  }
-
-  const getZoomLabel = (level: ZoomLevel): string => {
-    switch (level) {
-      case 'week':
-        return 'Semana'
-      case 'month':
-        return 'Mes'
-      case 'quarter':
-        return 'Trimestre'
-      case 'year':
-        return 'Año'
-    }
-  }
-
-  const getStatusColor = (status: string | null) => {
-    switch (status) {
-      case "done":
-        return "bg-green-500/10 text-green-500 border-green-500/20"
-      case "active":
-        return "bg-blue-500/10 text-blue-500 border-blue-500/20"
-      case "planned":
-        return "bg-orange-500/10 text-orange-500 border-orange-500/20"
-      case "paused":
-        return "bg-red-500/10 text-red-500 border-red-500/20"
-      default:
-        return "bg-muted text-muted-foreground border-border"
-    }
-  }
-
-  const getStatusLabel = (status: string | null) => {
-    switch (status) {
-      case "done":
-        return "Completado"
-      case "active":
-        return "Activo"
-      case "planned":
-        return "Planificado"
-      case "paused":
-        return "Pausado"
-      default:
-        return status || "Sin estado"
-    }
-  }
-
-  const getIssueStateLabel = (state: string | null) => {
-    switch (state) {
-      case "todo":
-        return "Por hacer"
-      case "in_progress":
-        return "En progreso"
-      case "done":
-        return "Completado"
-      case "blocked":
-        return "Bloqueado"
-      case "waiting_info":
-        return "Esperando info"
-      case "canceled":
-        return "Cancelado"
-      default:
-        return state || "Sin estado"
-    }
-  }
-
-  const getPriorityColor = (priority: string | null) => {
-    switch (priority) {
-      case "P0":
-      case "P1":
-        return "text-red-500"
-      case "P2":
-        return "text-orange-500"
-      case "P3":
-        return "text-green-500"
-      default:
-        return "text-muted-foreground"
-    }
-  }
 
   // Helper function to convert ISO date strings to Date objects
   const convertToDate = (dateString: string | null): Date => {
@@ -273,51 +138,6 @@ export default function RoadmapPage() {
     )
   )
 
-  // Gantt event handlers
-  const handleViewProject = (id: string) => {
-    // Check if it's a project or issue
-    const project = projects.find(p => p.id === id)
-    if (project) {
-      // Toggle project expansion
-      toggleProjectExpansion(id)
-    } else {
-      // It's an issue, open issue detail
-      console.log(`Issue selected: ${id}`)
-      // TODO: Open issue detail modal
-    }
-  }
-
-  const handleCopyLink = (id: string) => {
-    console.log(`Copy link: ${id}`)
-    // TODO: Copy project/issue link to clipboard
-  }
-
-  const handleRemoveItem = (id: string) => {
-    console.log(`Remove item: ${id}`)
-    // TODO: Remove project/issue from roadmap
-  }
-
-  const handleRemoveMarker = (id: string) => {
-    console.log(`Remove marker: ${id}`)
-    // TODO: Remove marker
-  }
-
-  const handleCreateMarker = (date: Date) => {
-    console.log(`Create marker: ${date.toISOString()}`)
-    // TODO: Create new marker
-  }
-
-  const handleMoveItem = (id: string, startAt: Date, endAt: Date | null) => {
-    if (!endAt) return;
-    
-    console.log(`Move item: ${id} from ${startAt} to ${endAt}`)
-    // TODO: Update project/issue dates
-  }
-
-  const handleAddProject = (date: Date) => {
-    console.log(`Add project: ${date.toISOString()}`)
-    // TODO: Create new project
-  }
 
   // Sample markers for the Gantt
   const exampleMarkers = [
@@ -349,74 +169,11 @@ export default function RoadmapPage() {
       <div className="bg-white h-full flex flex-col overflow-hidden">
         {/* Page Header */}
         <div className="px-6 py-6 flex-shrink-0 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Roadmap</h1>
-              <p className="text-gray-600 text-sm mt-1">
-                Iniciativas estratégicas y proyectos transversales
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              {/* View Mode Toggle */}
-              <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
-                <Button
-                  variant={viewMode === "gantt" ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-8"
-                  onClick={() => setViewMode("gantt")}
-                >
-                  <BarChart3 className="h-4 w-4 mr-1" />
-                  Gantt
-                </Button>
-                <Button
-                  variant={viewMode === "cards" ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-8"
-                  onClick={() => setViewMode("cards")}
-                >
-                  <Target className="h-4 w-4 mr-1" />
-                  Tarjetas
-                </Button>
-              </div>
-              
-              {/* Zoom Controls (only show in Gantt mode) */}
-              {viewMode === "gantt" && (
-                <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
-                  <Button
-                    variant={zoomLevel === 'week' ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-8 px-3"
-                    onClick={() => setZoomLevel('week')}
-                  >
-                    Semana
-                  </Button>
-                  <Button
-                    variant={zoomLevel === 'month' ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-8 px-3"
-                    onClick={() => setZoomLevel('month')}
-                  >
-                    Mes
-                  </Button>
-                  <Button
-                    variant={zoomLevel === 'quarter' ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-8 px-3"
-                    onClick={() => setZoomLevel('quarter')}
-                  >
-                    Trimestre
-                  </Button>
-                  <Button
-                    variant={zoomLevel === 'year' ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-8 px-3"
-                    onClick={() => setZoomLevel('year')}
-                  >
-                    Año
-                  </Button>
-                </div>
-              )}
-            </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Roadmap</h1>
+            <p className="text-gray-600 text-sm mt-1">
+              Iniciativas estratégicas y proyectos transversales
+            </p>
           </div>
         </div>
 
@@ -429,13 +186,12 @@ export default function RoadmapPage() {
                 <p className="text-muted-foreground">Cargando roadmap...</p>
               </div>
             </Card>
-          ) : viewMode === "gantt" ? (
-            // Gantt View - Full height without metrics
+          ) : (
+            // Gantt View - Visual only (no editing)
             <Card className="h-full overflow-hidden">
                 <GanttProvider 
-                  onAddItem={handleAddProject} 
-                  range={getGanttConfig(zoomLevel).range} 
-                  zoom={getGanttConfig(zoomLevel).zoom}
+                  range="monthly" 
+                  zoom={120}
                 >
                   <GanttSidebar>
                     {Object.entries(sortedGroupedByBU).map(([buName, buProjects]) => (
@@ -473,9 +229,8 @@ export default function RoadmapPage() {
                               {isExpanded && projectIssues.map((issue) => (
                                 <div 
                                   key={issue.id}
-                                  className="relative flex items-center gap-2.5 p-2.5 pl-8 text-xs hover:bg-accent/50 cursor-pointer"
+                                  className="relative flex items-center gap-2.5 p-2.5 pl-8 text-xs hover:bg-accent/50"
                                   style={{ height: 'var(--gantt-row-height)' }}
-                                  onClick={() => handleViewProject(issue.id)}
                                 >
                                   <div className="pointer-events-none h-2 w-2 shrink-0 rounded-full bg-gray-400" />
                                   <p className="pointer-events-none flex-1 truncate text-left">
@@ -506,43 +261,15 @@ export default function RoadmapPage() {
                               <div key={project.id}>
                                 {/* Project Bar */}
                                 <div className="flex">
-                                  <ContextMenu>
-                                    <ContextMenuTrigger asChild>
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleProjectExpansion(project.id)}
-                                        className="w-full"
-                                      >
-                                        <GanttInitiativeItem
-                                          onMove={handleMoveItem}
-                                          {...projectGanttItem}
-                                        />
-                                      </button>
-                                    </ContextMenuTrigger>
-                                    <ContextMenuContent>
-                                      <ContextMenuItem
-                                        className="flex items-center gap-2"
-                                        onClick={() => handleViewProject(project.id)}
-                                      >
-                                        <EyeIcon size={16} className="text-muted-foreground" />
-                                        Ver proyecto
-                                      </ContextMenuItem>
-                                      <ContextMenuItem
-                                        className="flex items-center gap-2"
-                                        onClick={() => handleCopyLink(project.id)}
-                                      >
-                                        <LinkIcon size={16} className="text-muted-foreground" />
-                                        Copiar enlace
-                                      </ContextMenuItem>
-                                      <ContextMenuItem
-                                        className="flex items-center gap-2 text-destructive"
-                                        onClick={() => handleRemoveItem(project.id)}
-                                      >
-                                        <TrashIcon size={16} />
-                                        Eliminar del roadmap
-                                      </ContextMenuItem>
-                                    </ContextMenuContent>
-                                  </ContextMenu>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleProjectExpansion(project.id)}
+                                    className="w-full"
+                                  >
+                                    <GanttInitiativeItem
+                                      {...projectGanttItem}
+                                    />
+                                  </button>
                                 </div>
                                 
                                 {/* Issue Bars (if expanded) - Each in its own row */}
@@ -558,37 +285,11 @@ export default function RoadmapPage() {
                                         minHeight: 'var(--gantt-row-height)'
                                       }}
                                     >
-                                      <ContextMenu>
-                                        <ContextMenuTrigger asChild>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleViewProject(issue.id)}
-                                            className="w-full relative"
-                                            style={{ height: '100%' }}
-                                          >
-                                            <GanttInitiativeItem
-                                              onMove={handleMoveItem}
-                                              {...issueGanttItem}
-                                            />
-                                          </button>
-                                        </ContextMenuTrigger>
-                                        <ContextMenuContent>
-                                          <ContextMenuItem
-                                            className="flex items-center gap-2"
-                                            onClick={() => handleViewProject(issue.id)}
-                                          >
-                                            <EyeIcon size={16} className="text-muted-foreground" />
-                                            Ver issue
-                                          </ContextMenuItem>
-                                          <ContextMenuItem
-                                            className="flex items-center gap-2"
-                                            onClick={() => handleCopyLink(issue.id)}
-                                          >
-                                            <LinkIcon size={16} className="text-muted-foreground" />
-                                            Copiar enlace
-                                          </ContextMenuItem>
-                                        </ContextMenuContent>
-                                      </ContextMenu>
+                                      <div className="w-full relative" style={{ height: '100%' }}>
+                                        <GanttInitiativeItem
+                                          {...issueGanttItem}
+                                        />
+                                      </div>
                                     </div>
                                   )
                                 })}
@@ -602,98 +303,12 @@ export default function RoadmapPage() {
                       <GanttMarker
                         key={marker.id}
                         {...marker}
-                        onRemove={handleRemoveMarker}
                       />
                     ))}
                     <GanttToday />
-                    <GanttCreateMarkerTrigger onCreateMarker={handleCreateMarker} />
                   </GanttTimeline>
                 </GanttProvider>
               </Card>
-          ) : (
-            // Cards View - Simple list without metrics
-            <div className="h-full overflow-y-auto">
-              <div className="space-y-6">
-                {Object.entries(sortedGroupedByBU).map(([buName, buProjects]) => (
-                  <div key={buName}>
-                    <h3 className="text-lg font-semibold mb-4 text-foreground">{buName}</h3>
-                    <div className="space-y-4">
-                      {buProjects.map((project) => {
-                        const projectIssues = getProjectIssues(project.id)
-                        const completedIssues = projectIssues.filter(i => i.state === 'done').length
-                        const progress = project._progress?.manual || project._progress?.calculated || 0
-                        
-                        return (
-                          <Card key={project.id} className="p-6 hover:bg-accent/50 transition-colors cursor-pointer">
-                            <div className="space-y-4">
-                              {/* Header */}
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-start gap-4 flex-1">
-                                  <Target className="h-5 w-5 text-blue-500 mt-1" />
-
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-3 mb-2">
-                                      <h3 className="text-lg font-semibold text-foreground">{project.name}</h3>
-                                      <Badge className={`${getStatusColor(project.status)} border`}>
-                                        {getStatusLabel(project.status)}
-                                      </Badge>
-                                    </div>
-
-                                    {project.description && (
-                                      <p className="text-muted-foreground mb-3 text-pretty">{project.description}</p>
-                                    )}
-
-                                    <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                                      <div className="flex items-center gap-2">
-                                        <Calendar className="h-4 w-4" />
-                                        <span>
-                                          {project.planned_start_at ? new Date(project.planned_start_at).toLocaleDateString() : 'Sin fecha'} - {project.planned_end_at ? new Date(project.planned_end_at).toLocaleDateString() : 'Sin fecha'}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <Users className="h-4 w-4" />
-                                        <span>{project.owner?.name || 'Sin asignar'}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <Target className="h-4 w-4" />
-                                        <span>
-                                          {completedIssues}/{projectIssues.length} issues completados
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </div>
-
-                              {/* Progress */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-muted-foreground">Progreso</span>
-                                  <span className="font-medium">{Math.round(progress)}%</span>
-                                </div>
-                                <Progress value={progress} className="h-2" />
-                              </div>
-
-                              {/* BU */}
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-muted-foreground">Business Unit:</span>
-                                <Badge variant="secondary" className="text-xs">
-                                  {project.initiative?.name || 'Sin BU'}
-                                </Badge>
-                              </div>
-                            </div>
-                          </Card>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           )}
         </div>
       </div>

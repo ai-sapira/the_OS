@@ -1,33 +1,40 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { List, Kanban, Calendar } from "lucide-react"
+import { List, Kanban } from "lucide-react"
 
 interface ViewSwitcherProps {
-  currentView: "list" | "board" | "timeline"
-  onViewChange: (view: "list" | "board" | "timeline") => void
+  currentView: "list" | "board"
+  onViewChange: (view: "list" | "board") => void
 }
 
 export function ViewSwitcher({ currentView, onViewChange }: ViewSwitcherProps) {
   const views = [
     { id: "list" as const, label: "Lista", icon: List },
     { id: "board" as const, label: "Board", icon: Kanban },
-    { id: "timeline" as const, label: "Timeline", icon: Calendar },
   ]
 
   return (
-    <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
-      {views.map((view) => (
-        <Button
+    <div className="inline-flex items-center gap-0 h-7 rounded-lg border-dashed border border-gray-200 bg-gray-50">
+      {views.map((view, index) => (
+        <button
           key={view.id}
-          variant={currentView === view.id ? "secondary" : "ghost"}
-          size="sm"
-          className="gap-2 h-8"
+          className={`h-full px-3 text-xs transition-colors inline-flex items-center gap-1.5 whitespace-nowrap ${
+            index > 0 ? 'border-l border-gray-200' : ''
+          } ${
+            index === 0 ? 'rounded-l-lg' : ''
+          } ${
+            index === views.length - 1 ? 'rounded-r-lg' : ''
+          } ${
+            currentView === view.id 
+              ? "bg-gray-100 text-gray-900 font-medium" 
+              : "text-gray-600 hover:text-gray-700 hover:bg-gray-100 bg-gray-50"
+          }`}
           onClick={() => onViewChange(view.id)}
         >
-          <view.icon className="h-4 w-4" />
-          {view.label}
-        </Button>
+          <view.icon className="h-3 w-3 text-gray-500 flex-shrink-0" />
+          <span className="flex-shrink-0">{view.label}</span>
+        </button>
       ))}
     </div>
   )

@@ -6,13 +6,11 @@ import { Sidebar } from "@/components/sidebar"
 interface AppShellProps {
   children: ReactNode
   onOpenCommandPalette?: () => void
-  onOpenCreateIssue?: () => void
 }
 
 export function AppShell({ 
   children, 
-  onOpenCommandPalette, 
-  onOpenCreateIssue 
+  onOpenCommandPalette
 }: AppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
@@ -32,7 +30,6 @@ export function AppShell({
       >
         <Sidebar 
           onOpenCommandPalette={onOpenCommandPalette}
-          onOpenCreateIssue={onOpenCreateIssue}
           isCollapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />

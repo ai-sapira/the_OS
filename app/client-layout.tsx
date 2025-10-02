@@ -4,8 +4,6 @@ import type React from "react"
 
 import { useState, Suspense } from "react"
 import { CommandPalette } from "@/components/command-palette"
-import { KeyboardShortcuts } from "@/components/keyboard-shortcuts"
-import { NewIssueModal } from "@/components/new-issue-modal"
 
 export default function ClientLayout({
   children,
@@ -13,7 +11,6 @@ export default function ClientLayout({
   children: React.ReactNode
 }>) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
-  const [createIssueOpen, setCreateIssueOpen] = useState(false)
 
   return (
     <>
@@ -28,14 +25,6 @@ export default function ClientLayout({
       </Suspense>
 
       <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
-
-      <NewIssueModal open={createIssueOpen} onOpenChange={setCreateIssueOpen} />
-
-      {/* Global Keyboard Shortcuts */}
-      <KeyboardShortcuts
-        onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-        onOpenCreateIssue={() => setCreateIssueOpen(true)}
-      />
     </>
   )
 }

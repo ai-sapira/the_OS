@@ -571,7 +571,6 @@ export default function ProjectsPage() {
   return (
     <ResizableAppShell
       onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-      onOpenCreateIssue={() => setShowCreateModal(true)}
     >
       <ResizablePageSheet
         header={

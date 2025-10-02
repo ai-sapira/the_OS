@@ -292,6 +292,9 @@ export function useSupabaseData() {
     
     let visibleInitiatives = initiatives
     let visibleProjects = projects
+    
+    // Combine triage issues with role issues for complete list
+    const allIssues = [...triageIssues, ...roleIssues]
 
     // Apply role-based filtering
     switch (activeRole) {
@@ -316,6 +319,7 @@ export function useSupabaseData() {
       case 'CEO':
         // SAP and CEO see everything (no filtering)
         console.log('[useSupabaseData] SAP/CEO role - showing all projects:', projects.length)
+        console.log('[useSupabaseData] All issues (triage + role):', allIssues.length)
         break
     }
 
@@ -324,6 +328,7 @@ export function useSupabaseData() {
       projects: visibleProjects,
       triageIssues,
       roleIssues,
+      allIssues, // Combined list with triage + role issues
       triageCount: triageIssues.length
     }
   }, [activeRole, getCurrentUser, initiatives, projects, triageIssues, roleIssues])

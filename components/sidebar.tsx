@@ -29,12 +29,12 @@ import {
   Keyboard,
   HelpCircle,
   Circle,
+  ClipboardList,
 } from "lucide-react"
 
 interface SidebarProps {
   className?: string
   onOpenCommandPalette?: () => void
-  onOpenCreateIssue?: () => void
   isCollapsed?: boolean
   onToggleCollapse?: () => void
 }
@@ -56,12 +56,12 @@ const iconMap: Record<string, React.ComponentType<any>> = {
   Settings,
   Keyboard,
   HelpCircle,
+  ClipboardList,
 }
 
 export function Sidebar({ 
   className, 
   onOpenCommandPalette, 
-  onOpenCreateIssue, 
   isCollapsed = false,
   onToggleCollapse 
 }: SidebarProps) {
@@ -152,6 +152,34 @@ export function Sidebar({
       )
     }
 
+    // Special handling for Your Profile with badge
+    if (item.id === "your-profile") {
+      return (
+        <Link key={item.id} href={item.href || "#"}>
+          <Button
+            variant={isActive ? "secondary" : "ghost"}
+            className={cn(
+              "w-full justify-start h-8 px-2",
+              isCollapsed ? "px-2" : "px-2",
+              isActive
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            )}
+          >
+            <Icon className="h-4 w-4 mr-2 shrink-0" />
+            {!isCollapsed && (
+              <>
+                <span className="flex-1 text-left">{item.label}</span>
+                <Badge variant="outline" className="h-5 px-1.5 text-xs">
+                  Active
+                </Badge>
+              </>
+            )}
+          </Button>
+        </Link>
+      )
+    }
+
     // Regular items
     if (item.href) {
       return (
@@ -174,37 +202,8 @@ export function Sidebar({
       )
     }
 
-    // Action items (like new issue)
-    return (
-      <Button
-        key={item.id}
-        variant="ghost"
-        className={cn(
-          "w-full justify-start h-8 px-2",
-          isCollapsed ? "px-2" : "px-2",
-          "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        )}
-        onClick={() => {
-          if (item.id === "new-issue") onOpenCreateIssue?.()
-          if (item.id === "shortcuts") {
-            // Handle keyboard shortcuts modal
-          }
-        }}
-      >
-        <Icon className="h-4 w-4 mr-2 shrink-0" />
-        {!isCollapsed && (
-          <>
-            <span className="flex-1 text-left">{item.label}</span>
-            {item.id === "new-issue" && (
-              <kbd className="ml-auto text-xs bg-muted px-1.5 py-0.5 rounded">N</kbd>
-            )}
-            {item.id === "shortcuts" && (
-              <kbd className="ml-auto text-xs bg-muted px-1.5 py-0.5 rounded">?</kbd>
-            )}
-          </>
-        )}
-      </Button>
-    )
+    // Fallback for items without href
+    return null
   }
 
   const renderSectionHeader = (title: string, isCollapsed: boolean) => {

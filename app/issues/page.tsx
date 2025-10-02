@@ -23,6 +23,11 @@ import {
   ResizableAppShell, 
   ResizablePageSheet
 } from "@/components/layout"
+import { ViewSwitcher } from "@/components/view-switcher"
+import { EditableIssueStateDropdown } from "@/components/ui/editable-issue-state-dropdown"
+import { EditableIssuePriorityDropdown } from "@/components/ui/editable-issue-priority-dropdown"
+import { EditableIssueAssigneeDropdown } from "@/components/ui/editable-issue-assignee-dropdown"
+import { EditableIssueProjectDropdown } from "@/components/ui/editable-issue-project-dropdown"
 import {
   DndContext,
   DragEndEvent,
@@ -421,14 +426,6 @@ function IssuesFiltersBar({
           </PopoverContent>
         </Popover>
       </div>
-
-      {/* Display Settings */}
-      <div className="flex items-center space-x-2">
-        <Button variant="outline" size="sm" className="h-7 bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-600 hover:text-gray-700 border-dashed px-3 text-xs rounded-lg">
-          <SettingsIcon className="mr-1.5 h-3.5 w-3.5 text-gray-500" />
-          Display
-        </Button>
-      </div>
     </div>
   );
 }
@@ -439,6 +436,9 @@ export default function IssuesPage() {
   const [displayProperties, setDisplayProperties] = useState<DisplayProperties>(DEFAULT_DISPLAY_PROPERTIES)
   const [boardSettings, setBoardSettings] = useState<BoardSettings>(DEFAULT_BOARD_SETTINGS)
   const [displayPopoverOpen, setDisplayPopoverOpen] = useState(false)
+  
+  // View state
+  const [currentView, setCurrentView] = useState<"list" | "board">("board")
   
   // Drag and drop state
   const [activeIssue, setActiveIssue] = useState<IssueWithRelations | null>(null)
@@ -455,7 +455,7 @@ export default function IssuesPage() {
   
   // Load data
   const { 
-    roleIssues: allIssues, 
+    allIssues, 
     projects: allProjects, 
     initiatives: allInitiatives,
     updateIssue
@@ -491,8 +491,9 @@ export default function IssuesPage() {
 
   // Filter issues based on current filters and board settings
   const filteredIssues = allIssues.filter(issue => {
-    // Exclude triage issues unless enabled
-    if (!boardSettings.showTriageIssues && issue.state === "triage") return false
+    // For list view, show ALL issues including triage
+    // For board view, exclude triage issues unless enabled
+    if (currentView === "board" && !boardSettings.showTriageIssues && issue.state === "triage") return false
     
     // Search filter
     if (filters.search && !issue.title.toLowerCase().includes(filters.search.toLowerCase()) && 
@@ -725,7 +726,6 @@ export default function IssuesPage() {
   return (
     <ResizableAppShell
         onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-        onOpenCreateIssue={() => setCreateIssueOpen(true)}
     >
       <ResizablePageSheet
         header={
@@ -755,22 +755,57 @@ export default function IssuesPage() {
         toolbar={
           <div className="bg-white border-b border-stroke" style={{ height: 'var(--header-h)' }}>
             <div className="flex items-center justify-between h-full" style={{ paddingLeft: '18px', paddingRight: '20px', paddingTop: 'var(--header-padding-y)', paddingBottom: 'var(--header-padding-y)' }}>
-              <IssuesFiltersBar onFiltersChange={handleFiltersChange} />
+              <div className="min-w-0 flex-1">
+                <IssuesFiltersBar onFiltersChange={handleFiltersChange} />
+              </div>
+              <div className="shrink-0 ml-2">
+                <ViewSwitcher currentView={currentView} onViewChange={setCurrentView} />
+              </div>
       </div>
           </div>
         }
       >
-        {/* Container that goes to edges */}
-        <div className="-mx-5 -mt-4 -mb-5 h-[calc(100vh-var(--header-h)*2)]">
-          {/* Main Content */}
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCorners}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
-            {/* Mobile State Selector */}
-      {isMobile && (
+        {/* List View */}
+        {currentView === "list" && (
+          <div className="-mx-5 -mt-4 h-full flex flex-col">
+            {/* Column Headers - Sticky */}
+            <div className="flex-shrink-0 py-2.5 border-b border-stroke bg-gray-50/30" style={{ paddingLeft: '28px', paddingRight: '20px' }}>
+              <div className="grid grid-cols-[1fr_160px_200px_140px_200px] gap-6">
+                <div className="text-[13px] font-medium text-gray-500 pr-4">Issue</div>
+                <div className="text-[13px] font-medium text-gray-500">State</div>
+                <div className="text-[13px] font-medium text-gray-500">Assignee</div>
+                <div className="text-[13px] font-medium text-gray-500">Priority</div>
+                <div className="text-[13px] font-medium text-gray-500">Project</div>
+              </div>
+            </div>
+
+            {/* Issues List - Scrollable */}
+            <div className="flex-1 overflow-y-auto bg-white" style={{ paddingLeft: '28px', paddingRight: '20px' }}>
+              <IssuesListView
+                issues={filteredIssues}
+                projects={allProjects}
+                onIssueClick={handleIssueClick}
+                onDataChange={() => {
+                  // Optionally refresh data
+                  console.log('Issue data updated');
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Board View */}
+        {currentView === "board" && (
+          <div className="-mx-5 -mt-4 -mb-5 h-[calc(100vh-var(--header-h)*2)]">
+            {/* Main Content */}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              {/* Mobile State Selector */}
+        {isMobile && (
               <div className="px-4 py-2 bg-background border-b border-border">
           <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
             <SelectTrigger className="w-full">
@@ -901,27 +936,154 @@ export default function IssuesPage() {
               </div>
             </div>
 
-            {/* Drag Overlay */}
-            <DragOverlay>
-              {dragOverlay ? (
-                <IssueCard
-                  issue={dragOverlay}
-                  displayProperties={displayProperties}
-                  onClick={() => {}}
-                  isDragging={true}
-                />
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-      </div>
+              {/* Drag Overlay */}
+              <DragOverlay>
+                {dragOverlay ? (
+                  <IssueCard
+                    issue={dragOverlay}
+                    displayProperties={displayProperties}
+                    onClick={() => {}}
+                    isDragging={true}
+                  />
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </div>
+        )}
 
-      {/* Create Issue Modal */}
-      <NewIssueModal 
-        open={createIssueOpen} 
-        onOpenChange={setCreateIssueOpen} 
-      />
+        {/* Create Issue Modal */}
+        <NewIssueModal 
+          open={createIssueOpen} 
+          onOpenChange={setCreateIssueOpen} 
+        />
       </ResizablePageSheet>
     </ResizableAppShell>
+  )
+}
+
+// Issues List View Component (similar to projects/initiatives)
+interface IssuesListViewProps {
+  issues: IssueWithRelations[]
+  projects: ProjectWithRelations[]
+  onIssueClick: (issue: IssueWithRelations) => void
+  onDataChange?: () => void
+}
+
+function IssuesListView({ issues, projects, onIssueClick, onDataChange }: IssuesListViewProps) {
+  const [localIssues, setLocalIssues] = React.useState<IssueWithRelations[]>(issues)
+  
+  React.useEffect(() => {
+    setLocalIssues(issues)
+  }, [issues])
+
+  return (
+    <div>
+      {localIssues.length > 0 ? (
+        localIssues.map((issue) => {
+          const project = projects.find(p => p.id === issue.project_id)
+          
+          return (
+            <div
+              key={issue.id}
+              className="group py-3.5 hover:bg-gray-50/50 transition-colors border-b border-stroke last:border-b-0"
+            >
+              <div className="grid grid-cols-[1fr_160px_200px_140px_200px] gap-6 items-center">
+                {/* Issue Column */}
+                <div 
+                  className="flex items-start space-x-3 min-w-0 cursor-pointer pr-4"
+                  onClick={() => onIssueClick(issue)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-mono text-gray-500">{issue.key}</span>
+                      {issue.core_technology && (
+                        <Badge className="bg-purple-100 text-purple-800 border-purple-200 font-medium text-xs h-5 px-1.5 border">
+                          {issue.core_technology}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-sm font-medium text-gray-900 truncate mb-0.5">{issue.title}</div>
+                    {issue.short_description && (
+                      <div className="text-xs text-gray-500 line-clamp-1">
+                        {issue.short_description}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* State Column */}
+                <div className="flex justify-start items-center" onClick={(e) => e.stopPropagation()}>
+                  {issue.state && (
+                    <EditableIssueStateDropdown
+                      currentState={issue.state}
+                      issueId={issue.id}
+                      onStateChange={(newState) => {
+                        const updatedIssues = localIssues.map(i =>
+                          i.id === issue.id ? { ...i, state: newState } : i
+                        )
+                        setLocalIssues(updatedIssues)
+                        onDataChange?.()
+                      }}
+                    />
+                  )}
+                </div>
+
+                {/* Assignee Column */}
+                <div className="flex justify-start items-center" onClick={(e) => e.stopPropagation()}>
+                  <EditableIssueAssigneeDropdown
+                    currentAssignee={issue.assignee}
+                    issueId={issue.id}
+                    onAssigneeChange={(newAssignee) => {
+                      const updatedIssues = localIssues.map(i =>
+                        i.id === issue.id ? { ...i, assignee: newAssignee || undefined } : i
+                      )
+                      setLocalIssues(updatedIssues)
+                      onDataChange?.()
+                    }}
+                  />
+                </div>
+
+                {/* Priority Column */}
+                <div className="flex justify-start items-center" onClick={(e) => e.stopPropagation()}>
+                  <EditableIssuePriorityDropdown
+                    currentPriority={issue.priority}
+                    issueId={issue.id}
+                    onPriorityChange={(newPriority) => {
+                      const updatedIssues = localIssues.map(i =>
+                        i.id === issue.id ? { ...i, priority: newPriority } : i
+                      )
+                      setLocalIssues(updatedIssues)
+                      onDataChange?.()
+                    }}
+                  />
+                </div>
+
+                {/* Project Column */}
+                <div className="flex justify-start items-center min-w-0" onClick={(e) => e.stopPropagation()}>
+                  <EditableIssueProjectDropdown
+                    currentProject={project}
+                    issueId={issue.id}
+                    onProjectChange={(newProject) => {
+                      const updatedIssues = localIssues.map(i =>
+                        i.id === issue.id ? { ...i, project_id: newProject?.id || null, project: newProject || undefined } : i
+                      )
+                      setLocalIssues(updatedIssues)
+                      onDataChange?.()
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )
+        })
+      ) : (
+        <div className="py-12 text-center text-gray-500">
+          <Circle className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+          <p>No issues found</p>
+          <p className="text-sm">Try adjusting your filters</p>
+        </div>
+      )}
+    </div>
   )
 }
 

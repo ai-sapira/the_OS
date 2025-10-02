@@ -228,6 +228,40 @@ export class IssuesAPI {
     return data
   }
 
+  // Update issue assignee
+  static async updateIssueAssignee(issueId: string, assigneeId: string | null): Promise<Issue> {
+    const { data, error } = await supabase
+      .from('issues')
+      .update({ assignee_id: assigneeId })
+      .eq('id', issueId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  }
+
+  // Delete issue by ID
+  static async deleteIssue(issueId: string): Promise<void> {
+    const { error } = await supabase
+      .from('issues')
+      .delete()
+      .eq('id', issueId)
+
+    if (error) throw error
+  }
+
+  // Delete issue by key (e.g., "SAP-1")
+  static async deleteIssueByKey(key: string): Promise<void> {
+    const { error } = await supabase
+      .from('issues')
+      .delete()
+      .eq('key', key)
+      .eq('organization_id', this.organizationId)
+
+    if (error) throw error
+  }
+
   // Get issue by ID with full relations
   static async getIssueById(issueId: string): Promise<IssueWithRelations | null> {
     const { data, error } = await supabase

@@ -211,6 +211,10 @@ export type Database = {
           short_description: string | null
           impact: string | null
           core_technology: string | null
+          sla_due_date: string | null
+          estimated_hours: number | null
+          blocker_reason: string | null
+          blocked_by_issue_id: string | null
         }
         Insert: {
           assignee_id?: string | null
@@ -237,6 +241,10 @@ export type Database = {
           short_description?: string | null
           impact?: string | null
           core_technology?: string | null
+          sla_due_date?: string | null
+          estimated_hours?: number | null
+          blocker_reason?: string | null
+          blocked_by_issue_id?: string | null
         }
         Update: {
           assignee_id?: string | null
@@ -263,6 +271,10 @@ export type Database = {
           short_description?: string | null
           impact?: string | null
           core_technology?: string | null
+          sla_due_date?: string | null
+          estimated_hours?: number | null
+          blocker_reason?: string | null
+          blocked_by_issue_id?: string | null
         }
         Relationships: [
           {
@@ -270,6 +282,13 @@ export type Database = {
             columns: ["assignee_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issues_blocked_by_issue_id_fkey"
+            columns: ["blocked_by_issue_id"]
+            isOneToOne: false
+            referencedRelation: "issues"
             referencedColumns: ["id"]
           },
           {
@@ -654,3 +673,57 @@ export type IssueOrigin = Database['public']['Enums']['issue_origin']
 export type ProjectStatus = Database['public']['Enums']['project_status']
 export type ActivityAction = Database['public']['Enums']['activity_action']
 export type LinkProvider = Database['public']['Enums']['link_provider']
+
+// Survey types
+export type SurveyStatus = 'draft' | 'active' | 'closed' | 'archived'
+export type SurveyAudience = 'all' | 'bu_specific' | 'role_specific'
+export type QuestionType = 'multiple_choice' | 'rating' | 'text' | 'yes_no'
+
+export type Survey = {
+  id: string
+  organization_id: string
+  title: string
+  description: string | null
+  creator_user_id: string
+  target_audience: SurveyAudience
+  target_bu_id: string | null
+  target_roles: string[] | null
+  status: SurveyStatus
+  starts_at: string | null
+  ends_at: string | null
+  allow_anonymous: boolean
+  allow_multiple_responses: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type SurveyQuestion = {
+  id: string
+  survey_id: string
+  question_text: string
+  question_type: QuestionType
+  options: string[] | null
+  is_required: boolean
+  order_index: number
+  created_at: string
+}
+
+export type SurveyResponse = {
+  id: string
+  survey_id: string
+  question_id: string
+  responder_user_id: string | null
+  response_value: string | null
+  response_data: any | null
+  created_at: string
+}
+
+// Survey with relations (for API responses)
+export type SurveyWithRelations = Survey & {
+  creator?: User
+  target_bu?: Initiative
+  questions?: SurveyQuestion[]
+  response_count?: number
+  my_response_status?: 'pending' | 'completed'
+  completion_rate?: number
+}

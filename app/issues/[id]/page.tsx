@@ -52,6 +52,232 @@ import {
 import { TeamsConversation } from "@/components/teams-conversation"
 import { IssuesAPI } from "@/lib/api/issues"
 
+// Timeline Calendar Component
+interface TimelineCalendarProps {
+  startDate: Date | null
+  dueDate: Date | null
+  slaDate: Date | null
+  onUpdateDates?: (newStart: Date | null, newDue: Date | null) => void
+}
+
+function TimelineCalendar({ startDate, dueDate, slaDate, onUpdateDates }: TimelineCalendarProps) {
+  // Determine the range to show in the calendar
+  const dates = [startDate, dueDate, slaDate].filter(Boolean) as Date[]
+  if (dates.length === 0) return null
+  
+  const minDate = new Date(Math.min(...dates.map(d => d.getTime())))
+  const maxDate = new Date(Math.max(...dates.map(d => d.getTime())))
+  
+  // Add padding: show 1 month before and 1 month after
+  const startMonth = new Date(minDate.getFullYear(), minDate.getMonth() - 1, 1)
+  const endMonth = new Date(maxDate.getFullYear(), maxDate.getMonth() + 2, 0)
+  
+  // Generate months to display
+  const months: { name: string; year: number; month: number; days: number; startDay: number }[] = []
+  let currentDate = new Date(startMonth)
+  
+  while (currentDate <= endMonth) {
+    const month = currentDate.getMonth()
+    const year = currentDate.getFullYear()
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    const firstDay = new Date(year, month, 1).getDay()
+    
+    months.push({
+      name: currentDate.toLocaleDateString('es-ES', { month: 'long' }),
+      year,
+      month,
+      days: daysInMonth,
+      startDay: firstDay === 0 ? 6 : firstDay - 1 // Convert Sunday (0) to 6, Monday (1) to 0
+    })
+    
+    currentDate.setMonth(currentDate.getMonth() + 1)
+  }
+  
+  // Helper to check if two dates are the same day
+  const isSameDay = (date1: Date | null, date2: Date) => {
+    if (!date1) return false
+    return date1.getFullYear() === date2.getFullYear() &&
+           date1.getMonth() === date2.getMonth() &&
+           date1.getDate() === date2.getDate()
+  }
+  
+  // Helper to check if date is in range
+  const isInRange = (date: Date) => {
+    if (!startDate || !dueDate) return false
+    return date >= startDate && date <= dueDate
+  }
+  
+  // Handle day click
+  const handleDayClick = (date: Date) => {
+    if (!onUpdateDates) return
+    
+    // If no dates set, set as start
+    if (!startDate && !dueDate) {
+      onUpdateDates(date, null)
+      return
+    }
+    
+    // If only start is set, set as due (if after start)
+    if (startDate && !dueDate) {
+      if (date > startDate) {
+        onUpdateDates(startDate, date)
+      } else {
+        onUpdateDates(date, null)
+      }
+      return
+    }
+    
+    // If both are set, determine which one to update based on proximity
+    if (startDate && dueDate) {
+      const distToStart = Math.abs(date.getTime() - startDate.getTime())
+      const distToDue = Math.abs(date.getTime() - dueDate.getTime())
+      
+      if (distToStart < distToDue) {
+        // Closer to start, update start (but keep it before due)
+        if (date < dueDate) {
+          onUpdateDates(date, dueDate)
+        }
+      } else {
+        // Closer to due, update due (but keep it after start)
+        if (date > startDate) {
+          onUpdateDates(startDate, date)
+        }
+      }
+    }
+  }
+  
+  // Day names
+  const dayNames = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+  
+  return (
+    <div className="space-y-4">
+      {/* Calendar grid - horizontal scroll */}
+      <div className="overflow-x-auto overflow-y-hidden pb-3 -mx-5 px-5" style={{ scrollbarWidth: 'thin' }}>
+        <div className="flex gap-6 min-w-full w-max">
+          {months.map((monthData, monthIdx) => (
+            <div key={`${monthData.year}-${monthIdx}`} className="flex-shrink-0">
+              {/* Month header */}
+              <div className="text-sm font-semibold text-gray-900 mb-3 capitalize">
+                {monthData.name} {monthData.year}
+              </div>
+              
+              {/* Day names */}
+              <div className="grid grid-cols-7 gap-1 mb-1">
+                {dayNames.map(dayName => (
+                  <div key={dayName} className="w-7 h-6 flex items-center justify-center text-[10px] font-medium text-gray-500 uppercase">
+                    {dayName}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Days grid */}
+              <div className="grid grid-cols-7 gap-1">
+                {/* Empty cells for days before month starts */}
+                {Array.from({ length: monthData.startDay }).map((_, i) => (
+                  <div key={`empty-${i}`} className="w-7 h-7" />
+                ))}
+                
+                {/* Days of the month */}
+                {Array.from({ length: monthData.days }).map((_, dayIdx) => {
+                  const day = dayIdx + 1
+                  const currentDate = new Date(monthData.year, monthData.month, day)
+                  
+                  const isStart = isSameDay(startDate, currentDate)
+                  const isDue = isSameDay(dueDate, currentDate)
+                  const isSLA = isSameDay(slaDate, currentDate)
+                  const inRange = isInRange(currentDate)
+                  const isToday = isSameDay(new Date(), currentDate)
+                  
+                  let bgColor = 'bg-white hover:bg-gray-50'
+                  let borderColor = 'border-gray-200'
+                  let textColor = 'text-gray-700'
+                  let ringColor = 'hover:ring-gray-300'
+                  
+                  if (isStart) {
+                    bgColor = 'bg-blue-500 hover:bg-blue-600'
+                    textColor = 'text-white'
+                    borderColor = 'border-blue-500'
+                    ringColor = 'hover:ring-blue-400'
+                  } else if (isDue) {
+                    bgColor = 'bg-purple-500 hover:bg-purple-600'
+                    textColor = 'text-white'
+                    borderColor = 'border-purple-500'
+                    ringColor = 'hover:ring-purple-400'
+                  } else if (isSLA) {
+                    bgColor = 'bg-orange-500 hover:bg-orange-600'
+                    textColor = 'text-white'
+                    borderColor = 'border-orange-500'
+                    ringColor = 'hover:ring-orange-400'
+                  } else if (inRange) {
+                    bgColor = 'bg-blue-50 hover:bg-blue-100'
+                    borderColor = 'border-blue-200'
+                    textColor = 'text-blue-900'
+                    ringColor = 'hover:ring-blue-300'
+                  }
+                  
+                  return (
+                    <button
+                      key={day}
+                      onClick={() => handleDayClick(currentDate)}
+                      className={`w-7 h-7 flex items-center justify-center text-xs font-medium border ${bgColor} ${borderColor} ${textColor} rounded transition-all hover:ring-1 ${ringColor} cursor-pointer relative ${isToday && !isStart && !isDue && !isSLA ? 'ring-1 ring-gray-400' : ''}`}
+                      title={currentDate.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    >
+                      {day}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      {/* Legend and info */}
+      <div className="space-y-3 pt-3 border-t border-gray-100">
+        {/* Compact legend */}
+        <div className="flex items-center gap-4 text-xs">
+          {startDate && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded bg-blue-500" />
+              <span className="text-gray-600">Inicio</span>
+            </div>
+          )}
+          {dueDate && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded bg-purple-500" />
+              <span className="text-gray-600">Vencimiento</span>
+            </div>
+          )}
+          {slaDate && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded bg-orange-500" />
+              <span className="text-gray-600">SLA</span>
+            </div>
+          )}
+        </div>
+        
+        {/* Duration with nice formatting - centered */}
+        {startDate && dueDate && (
+          <div className="flex justify-center">
+            <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-gray-50 border border-dashed border-gray-300">
+              <Clock className="h-3.5 w-3.5 text-gray-600" />
+              <span className="text-sm font-medium text-gray-900">
+                Del {startDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })} al {dueDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+                <span className="text-gray-600 ml-1.5">({Math.ceil((dueDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))} días)</span>
+              </span>
+            </div>
+          </div>
+        )}
+        
+        {/* Helper text */}
+        <div className="text-xs text-gray-500 italic text-center">
+          Click en los días para ajustar las fechas • Usa el scroll para navegar entre meses
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Individual chip component with Command dropdown (like Projects filters)
 interface ChipProps {
   icon: React.ReactNode
@@ -394,91 +620,13 @@ export default function IssueDetailPage() {
         }
       >
         <div className="flex flex-col h-full">
-          {/* Sección de chips de propiedades */}
-          <div className="flex-shrink-0 border-b bg-white relative" style={{ borderColor: 'var(--stroke)' }}>
-            <div className="flex items-center gap-2 flex-wrap px-6 py-2">
-              <PropertyChip
-                icon={getStateIcon(localIssue.state).icon}
-                label="Estado"
-                value={getStateIcon(localIssue.state).label}
-                options={[
-                  { name: 'triage', label: 'Triage', icon: <Circle className="w-2.5 h-2.5 text-purple-500" /> },
-                  { name: 'todo', label: 'To do', icon: <Circle className="w-2.5 h-2.5 text-gray-400" /> },
-                  { name: 'in_progress', label: 'In progress', icon: <Clock className="w-2.5 h-2.5 text-blue-500" /> },
-                  { name: 'blocked', label: 'Blocked', icon: <AlertCircle className="w-2.5 h-2.5 text-red-500" /> },
-                  { name: 'done', label: 'Done', icon: <CheckCircle2 className="w-2.5 h-2.5 text-green-500" /> }
-                ]}
-                onSelect={updateIssueState}
-                loading={loading}
-              />
-              
-              <PropertyChip
-                icon={getPriorityIcon(localIssue.priority).icon}
-                label="Prioridad"
-                value={getPriorityIcon(localIssue.priority).label}
-                options={[
-                  { name: 'P0', label: 'Crítica', icon: <ArrowUp className="w-2.5 h-2.5 text-red-500" /> },
-                  { name: 'P1', label: 'Alta', icon: <ArrowUp className="w-2.5 h-2.5 text-orange-500" /> },
-                  { name: 'P2', label: 'Media', icon: <Minus className="w-2.5 h-2.5 text-yellow-500" /> },
-                  { name: 'P3', label: 'Baja', icon: <ArrowDown className="w-2.5 h-2.5 text-green-500" /> }
-                ]}
-                onSelect={updateIssuePriority}
-                loading={loading}
-              />
-              
-              <PropertyChip
-                icon={<User className="h-3.5 w-3.5 text-gray-500" />}
-                label="Asignado"
-                value={localIssue.assignee?.name || 'Sin asignar'}
-                options={[
-                  ...availableUsers.map(user => ({
-                    name: user.id,
-                    label: user.name,
-                    avatar: user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()
-                  })),
-                  { name: 'unassigned', label: 'Sin asignar', icon: <User className="w-2.5 h-2.5 text-gray-400" /> }
-                ]}
-                onSelect={updateIssueAssignee}
-                loading={loading}
-              />
-              
-              <PropertyChip
-                icon={<Hexagon className="h-3.5 w-3.5 text-gray-500" />}
-                label="Proyecto"
-                value={localIssue.project?.name || 'Sin proyecto'}
-                options={[
-                  ...availableProjects.map(project => ({
-                    name: project.id,
-                    label: project.name,
-                    icon: <Hexagon className="w-2.5 h-2.5 text-gray-600" />
-                  })),
-                  { name: 'unassigned', label: 'Sin proyecto', icon: <Hexagon className="w-2.5 h-2.5 text-gray-400" /> }
-                ]}
-                onSelect={updateIssueProject}
-                loading={loading}
-              />
-              
-              <PropertyChip
-                icon={<Target className="h-3.5 w-3.5 text-gray-500" />}
-                label="Business Unit"
-                value={localIssue.initiative?.name || 'Sin BU'}
-                options={[
-                  ...availableInitiatives.map(initiative => ({
-                    name: initiative.id,
-                    label: initiative.name,
-                    icon: <Target className="w-2.5 h-2.5 text-gray-600" />
-                  })),
-                  { name: 'unassigned', label: 'Sin BU', icon: <Target className="w-2.5 h-2.5 text-gray-400" /> }
-                ]}
-                onSelect={updateIssueInitiative}
-                loading={loading}
-              />
-            </div>
-          </div>
 
-          {/* Área de contenido principal */}
+          {/* Área de contenido principal - Layout 2 columnas */}
           <div className="flex-1 overflow-y-auto">
-            <div className="p-6 space-y-5">
+            <div className="p-6">
+              <div className="grid grid-cols-[1fr_320px] gap-6">
+                {/* COLUMNA PRINCIPAL (Izquierda) */}
+                <div className="space-y-5">
               {/* Header con título del issue */}
               <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
                 <div className="p-4">
@@ -578,6 +726,35 @@ export default function IssueDetailPage() {
                 />
               )}
 
+              {/* Timeline/Calendario visual */}
+              {(localIssue.planned_start_at || localIssue.due_at || localIssue.sla_due_date) && (
+                <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                  <div className="p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Timeline</h3>
+                    </div>
+                    
+                    <TimelineCalendar
+                      startDate={localIssue.planned_start_at ? new Date(localIssue.planned_start_at) : null}
+                      dueDate={localIssue.due_at ? new Date(localIssue.due_at) : null}
+                      slaDate={localIssue.sla_due_date ? new Date(localIssue.sla_due_date) : null}
+                      onUpdateDates={(newStart, newDue) => {
+                        IssuesAPI.updateIssue(localIssue.id, { 
+                          planned_start_at: newStart?.toISOString() || null,
+                          due_at: newDue?.toISOString() || null
+                        })
+                        setLocalIssue({ 
+                          ...localIssue, 
+                          planned_start_at: newStart?.toISOString() || null,
+                          due_at: newDue?.toISOString() || null
+                        })
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Notas internas */}
               <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
                 <div className="p-5">
@@ -595,6 +772,249 @@ export default function IssueDetailPage() {
                       <Save className="h-3 w-3" />
                       <span>Guardar</span>
                     </button>
+                  </div>
+                </div>
+              </div>
+                </div>
+
+                {/* SIDEBAR DE PROPIEDADES (Derecha) */}
+                <div className="space-y-4">
+                  {/* Propiedades principales (chips funcionales) */}
+                  <div className="border border-gray-200 rounded-lg overflow-hidden bg-white p-5">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Propiedades</h3>
+                    <div className="space-y-3">
+                      {/* Estado */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] text-gray-600">Estado</span>
+                        <PropertyChip
+                          icon={getStateIcon(localIssue.state).icon}
+                          label="Estado"
+                          value={getStateIcon(localIssue.state).label}
+                          options={[
+                            { name: 'triage', label: 'Triage', icon: <Circle className="w-2.5 h-2.5 text-purple-500" /> },
+                            { name: 'todo', label: 'To do', icon: <Circle className="w-2.5 h-2.5 text-gray-400" /> },
+                            { name: 'in_progress', label: 'In progress', icon: <Clock className="w-2.5 h-2.5 text-blue-500" /> },
+                            { name: 'blocked', label: 'Blocked', icon: <AlertCircle className="w-2.5 h-2.5 text-red-500" /> },
+                            { name: 'done', label: 'Done', icon: <CheckCircle2 className="w-2.5 h-2.5 text-green-500" /> }
+                          ]}
+                          onSelect={updateIssueState}
+                          loading={loading}
+                        />
+                      </div>
+                      
+                      {/* Prioridad */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] text-gray-600">Prioridad</span>
+                        <PropertyChip
+                          icon={getPriorityIcon(localIssue.priority).icon}
+                          label="Prioridad"
+                          value={getPriorityIcon(localIssue.priority).label}
+                          options={[
+                            { name: 'P0', label: 'Crítica', icon: <ArrowUp className="w-2.5 h-2.5 text-red-500" /> },
+                            { name: 'P1', label: 'Alta', icon: <ArrowUp className="w-2.5 h-2.5 text-orange-500" /> },
+                            { name: 'P2', label: 'Media', icon: <Minus className="w-2.5 h-2.5 text-yellow-500" /> },
+                            { name: 'P3', label: 'Baja', icon: <ArrowDown className="w-2.5 h-2.5 text-green-500" /> }
+                          ]}
+                          onSelect={updateIssuePriority}
+                          loading={loading}
+                        />
+                      </div>
+                      
+                      {/* Asignado */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] text-gray-600">Asignado</span>
+                        <PropertyChip
+                          icon={<User className="h-3.5 w-3.5 text-gray-500" />}
+                          label="Asignado"
+                          value={localIssue.assignee?.name || 'Sin asignar'}
+                          options={[
+                            ...availableUsers.map(user => ({
+                              name: user.id,
+                              label: user.name,
+                              avatar: user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()
+                            })),
+                            { name: 'unassigned', label: 'Sin asignar', icon: <User className="w-2.5 h-2.5 text-gray-400" /> }
+                          ]}
+                          onSelect={updateIssueAssignee}
+                          loading={loading}
+                        />
+                      </div>
+                      
+                      {/* Proyecto */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] text-gray-600">Proyecto</span>
+                        <PropertyChip
+                          icon={<Hexagon className="h-3.5 w-3.5 text-gray-500" />}
+                          label="Proyecto"
+                          value={localIssue.project?.name || 'Sin proyecto'}
+                          options={[
+                            ...availableProjects.map(project => ({
+                              name: project.id,
+                              label: project.name,
+                              icon: <Hexagon className="w-2.5 h-2.5 text-gray-600" />
+                            })),
+                            { name: 'unassigned', label: 'Sin proyecto', icon: <Hexagon className="w-2.5 h-2.5 text-gray-400" /> }
+                          ]}
+                          onSelect={updateIssueProject}
+                          loading={loading}
+                        />
+                      </div>
+                      
+                      {/* Business Unit */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] text-gray-600">Business Unit</span>
+                        <PropertyChip
+                          icon={<Target className="h-3.5 w-3.5 text-gray-500" />}
+                          label="Business Unit"
+                          value={localIssue.initiative?.name || 'Sin BU'}
+                          options={[
+                            ...availableInitiatives.map(initiative => ({
+                              name: initiative.id,
+                              label: initiative.name,
+                              icon: <Target className="w-2.5 h-2.5 text-gray-600" />
+                            })),
+                            { name: 'unassigned', label: 'Sin BU', icon: <Target className="w-2.5 h-2.5 text-gray-400" /> }
+                          ]}
+                          onSelect={updateIssueInitiative}
+                          loading={loading}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Fechas & SLA */}
+                  <div className="border border-gray-200 rounded-lg overflow-hidden bg-white p-5">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Fechas & SLA</h3>
+                    <div className="space-y-3">
+                      {/* Fecha inicio */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] text-gray-600">Fecha inicio</span>
+                        <input 
+                          type="date" 
+                          value={localIssue.planned_start_at ? new Date(localIssue.planned_start_at).toISOString().split('T')[0] : ''}
+                          onChange={(e) => {
+                            const newDate = e.target.value ? new Date(e.target.value).toISOString() : null
+                            IssuesAPI.updateIssue(localIssue.id, { planned_start_at: newDate })
+                            setLocalIssue({ ...localIssue, planned_start_at: newDate })
+                          }}
+                          className="px-2.5 py-1.5 text-[13px] border border-dashed border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300 text-gray-700"
+                        />
+                      </div>
+                      
+                      {/* Fecha vencimiento */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] text-gray-600">Fecha vencimiento</span>
+                        <input 
+                          type="date" 
+                          value={localIssue.due_at ? new Date(localIssue.due_at).toISOString().split('T')[0] : ''}
+                          onChange={(e) => {
+                            const newDate = e.target.value ? new Date(e.target.value).toISOString() : null
+                            IssuesAPI.updateIssue(localIssue.id, { due_at: newDate })
+                            setLocalIssue({ ...localIssue, due_at: newDate })
+                          }}
+                          className="px-2.5 py-1.5 text-[13px] border border-dashed border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300 text-gray-700"
+                        />
+                      </div>
+                      
+                      {/* SLA límite */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] text-gray-600">SLA límite</span>
+                        <input 
+                          type="date" 
+                          value={localIssue.sla_due_date ? new Date(localIssue.sla_due_date).toISOString().split('T')[0] : ''}
+                          onChange={(e) => {
+                            const newDate = e.target.value ? new Date(e.target.value).toISOString() : null
+                            IssuesAPI.updateIssue(localIssue.id, { sla_due_date: newDate })
+                            setLocalIssue({ ...localIssue, sla_due_date: newDate })
+                          }}
+                          className="px-2.5 py-1.5 text-[13px] border border-dashed border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300 text-gray-700"
+                        />
+                      </div>
+                      
+                      {/* Estado SLA (visual indicator) */}
+                      {localIssue.sla_due_date && (
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-[13px] text-gray-600">Estado SLA</span>
+                          {(() => {
+                            const now = new Date()
+                            const slaDate = new Date(localIssue.sla_due_date)
+                            const daysRemaining = Math.ceil((slaDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                            
+                            let statusColor = 'bg-green-50 border-green-200 text-green-700'
+                            let statusText = 'En plazo'
+                            let statusIcon = '✓'
+                            
+                            if (daysRemaining < 0) {
+                              statusColor = 'bg-red-50 border-red-200 text-red-700'
+                              statusText = 'Incumplido'
+                              statusIcon = '✗'
+                            } else if (daysRemaining <= 2) {
+                              statusColor = 'bg-orange-50 border-orange-200 text-orange-700'
+                              statusText = 'En riesgo'
+                              statusIcon = '⚠'
+                            }
+                            
+                            return (
+                              <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium border border-dashed ${statusColor}`}>
+                                <span>{statusIcon}</span>
+                                <span>{statusText}</span>
+                                {daysRemaining >= 0 && (
+                                  <span className="text-[11px] opacity-75">({daysRemaining}d)</span>
+                                )}
+                              </div>
+                            )
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Origen e información */}
+                  <div className="border border-gray-200 rounded-lg overflow-hidden bg-white p-5">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Información</h3>
+                    <div className="space-y-3">
+                      {/* Origen */}
+                      {localIssue.origin && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[13px] text-gray-600">Origen</span>
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium bg-gray-50 border border-dashed border-gray-300 text-gray-700 capitalize">
+                            {localIssue.origin}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Reporter */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] text-gray-600">Reportado por</span>
+                        <span className="text-[13px] text-gray-700">{localIssue.reporter?.name || 'Desconocido'}</span>
+                      </div>
+                      
+                      {/* Creado */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] text-gray-600">Creado</span>
+                        <span className="text-[13px] text-gray-700">
+                          {localIssue.created_at ? new Date(localIssue.created_at).toLocaleDateString('es-ES', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                          }) : 'Sin fecha'}
+                        </span>
+                      </div>
+                      
+                      {/* Actualizado */}
+                      {localIssue.updated_at && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[13px] text-gray-600">Actualizado</span>
+                          <span className="text-[13px] text-gray-700">
+                            {new Date(localIssue.updated_at).toLocaleDateString('es-ES', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

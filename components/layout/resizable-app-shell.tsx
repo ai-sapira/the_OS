@@ -9,14 +9,12 @@ import { ResizableProvider } from "./resizable-context"
 interface ResizableAppShellProps {
   children: ReactNode
   onOpenCommandPalette?: () => void
-  onOpenCreateIssue?: () => void
   debugInfo?: boolean
 }
 
 export function ResizableAppShell({ 
   children, 
-  onOpenCommandPalette, 
-  onOpenCreateIssue,
+  onOpenCommandPalette,
   debugInfo = false
 }: ResizableAppShellProps) {
   const {
@@ -50,7 +48,6 @@ export function ResizableAppShell({
         >
           <Sidebar 
             onOpenCommandPalette={onOpenCommandPalette}
-            onOpenCreateIssue={onOpenCreateIssue}
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={toggleSidebarCollapse}
           />

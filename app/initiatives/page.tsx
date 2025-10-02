@@ -371,7 +371,6 @@ export default function InitiativesPage() {
   return (
     <ResizableAppShell
       onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-      onOpenCreateIssue={() => setShowCreateModal(true)}
     >
       <ResizablePageSheet
         header={
