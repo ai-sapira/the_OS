@@ -67,6 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const loadUserOrganizations = async (authUserId: string) => {
+    console.log('[AuthProvider] Loading organizations for user:', authUserId)
+    
     try {
       // Note: user_organizations table may not be in the generated types yet
       // We use 'any' cast temporarily until we regenerate types
@@ -80,8 +82,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('auth_user_id', authUserId)
         .eq('active', true)
 
+      console.log('[AuthProvider] Query result:', { data, error })
+
       if (error) {
-        console.error('Error loading organizations:', error)
+        console.error('[AuthProvider] Error loading organizations:', error)
+        setUserOrgs([])
+        setCurrentOrg(null)
+        setLoading(false)
+        return
+      }
+
+      if (!data || data.length === 0) {
+        console.warn('[AuthProvider] No organizations found for user')
+        setUserOrgs([])
+        setCurrentOrg(null)
         setLoading(false)
         return
       }
@@ -92,24 +106,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         initiative_id: item.initiative_id
       }))
 
+      console.log('[AuthProvider] Mapped organizations:', orgs)
       setUserOrgs(orgs)
 
       // Try to restore previously selected org from localStorage
       const savedOrgId = localStorage.getItem('sapira.currentOrg')
-      const savedOrg = orgs.find(o => o.organization.id === savedOrgId)
+      const savedOrg = orgs.find(o => o.organization?.id === savedOrgId)
 
       if (savedOrg) {
+        console.log('[AuthProvider] Restored saved org:', savedOrg.organization.name)
         setCurrentOrg(savedOrg)
       } else if (orgs.length === 1) {
         // Auto-select if user only has one organization
+        console.log('[AuthProvider] Auto-selecting single org:', orgs[0].organization.name)
         setCurrentOrg(orgs[0])
         localStorage.setItem('sapira.currentOrg', orgs[0].organization.id)
+      } else {
+        console.log('[AuthProvider] Multiple orgs, waiting for user selection')
       }
-      // If multiple orgs and no saved org, user will need to select one
 
     } catch (err) {
-      console.error('Unexpected error loading organizations:', err)
+      console.error('[AuthProvider] Unexpected error loading organizations:', err)
+      setUserOrgs([])
+      setCurrentOrg(null)
     } finally {
+      console.log('[AuthProvider] Setting loading to false')
       setLoading(false)
     }
   }
