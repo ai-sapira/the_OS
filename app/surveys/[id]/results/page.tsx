@@ -135,7 +135,7 @@ export default function SurveyResultsPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => router.push("/surveys")}
-                  className="h-8 gap-2 text-gray-600"
+                  className="h-8 gap-2 text-gray-600 hover:text-gray-700 hover:bg-gray-100"
                 >
                   <ArrowLeft className="h-4 w-4" />
                   Surveys
@@ -325,7 +325,9 @@ export default function SurveyResultsPage() {
                     {question.question_type === "yes_no" && (
                       <div className="space-y-3 pt-2">
                         {["Yes", "No"].map((option, idx) => {
-                          const count = responses.filter(r => r.response_value === option).length
+                          const count = responses.filter(r => 
+                            r.response_value?.toLowerCase() === option.toLowerCase()
+                          ).length
                           const percentage = responses.length > 0 ? Math.round((count / responses.length) * 100) : 0
                           
                           return (

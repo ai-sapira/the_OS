@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   SearchIcon,
@@ -41,6 +41,7 @@ import {
 // API and Types
 import { ProjectsAPI, ProjectWithRelations } from "@/lib/api/projects";
 import { cn } from "@/lib/utils";
+import { useSupabaseData } from "@/hooks/use-supabase-data";
 
 // Editable Components
 import { EditableProjectStatusDropdown } from "@/components/ui/editable-project-status-dropdown";
@@ -65,11 +66,12 @@ function ProjectsFiltersBar({
   const [loadingData, setLoadingData] = useState(false);
 
   // Notify parent when filters change
-  React.useEffect(() => {
-    if (onFiltersChange) {
-      onFiltersChange(filters, globalFilter);
-    }
-  }, [filters, globalFilter, onFiltersChange]);
+  // REMOVED: This was causing infinite loop
+  // React.useEffect(() => {
+  //   if (onFiltersChange) {
+  //     onFiltersChange(filters, globalFilter);
+  //   }
+  // }, [filters, globalFilter, onFiltersChange]);
 
 
   // Handle global filter changes
@@ -341,36 +343,17 @@ function ProjectsFiltersBar({
 // Projects Card List Component  
 function ProjectsCardList({ 
   filters, 
-  globalFilter,
-  onDataChange
+  globalFilter
 }: { 
   filters?: any[], 
-  globalFilter?: string,
-  onDataChange?: () => void
+  globalFilter?: string
 }) {
   const router = useRouter();
-  const [data, setData] = useState<ProjectWithRelations[]>([]);
+  
+  // Use the hook that filters by role
+  const { projects: data, loading } = useSupabaseData();
+  
   const [filteredData, setFilteredData] = useState<ProjectWithRelations[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Load projects data
-  useEffect(() => {
-    const loadProjects = async () => {
-      try {
-        setLoading(true);
-        const projects = await ProjectsAPI.getProjects();
-        setData(projects);
-      } catch (error) {
-        console.error('Error loading projects:', error);
-        // Show empty state on error instead of mock data
-        setData([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadProjects();
-  }, []);
 
   // Apply filters when data, filters, or globalFilter changes
   useEffect(() => {
@@ -458,15 +441,9 @@ function ProjectsCardList({
                   projectId={project.id}
                   onStatusChange={(newStatus) => {
                     // Update local state immediately for optimistic UI
-                    const updatedData = data.map(item => 
-                      item.id === project.id 
-                        ? { ...item, status: newStatus }
-                        : item
-                    );
-                    setData(updatedData);
-                    
-                    // Call parent refresh if needed
-                    onDataChange?.();
+                    // Data now comes from useSupabaseData hook
+                    // It will auto-refresh when role changes
+                    // No need to manually update - useSupabaseData will handle refreshes
                   }}
                 />
               </div>
@@ -481,16 +458,8 @@ function ProjectsCardList({
                   } : null}
                   projectId={project.id}
                   onBUChange={(newBU) => {
-                    // Update local state immediately for optimistic UI
-                    const updatedData = data.map(item => 
-                      item.id === project.id 
-                        ? { ...item, initiative: newBU as any }
-                        : item
-                    );
-                    setData(updatedData);
-                    
-                    // Call parent refresh if needed
-                    onDataChange?.();
+                    // Data now comes from useSupabaseData hook
+                    // No need to manually update - useSupabaseData will handle refreshes
                   }}
                 />
               </div>
@@ -501,16 +470,8 @@ function ProjectsCardList({
                   currentOwner={project.owner}
                   projectId={project.id}
                   onOwnerChange={(newOwner) => {
-                    // Update local state immediately for optimistic UI
-                    const updatedData = data.map(item => 
-                      item.id === project.id 
-                        ? { ...item, owner: newOwner as any }
-                        : item
-                    );
-                    setData(updatedData);
-                    
-                    // Call parent refresh if needed
-                    onDataChange?.();
+                    // Data now comes from useSupabaseData hook
+                    // No need to manually update - useSupabaseData will handle refreshes
                   }}
                 />
               </div>
@@ -553,19 +514,20 @@ function ProjectsCardList({
 }
 
 export default function ProjectsPage() {
+  const router = useRouter()
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [filters, setFilters] = useState<any[]>([])
   const [globalFilter, setGlobalFilter] = useState("")
-  const [dataVersion, setDataVersion] = useState(0)
 
-  const handleFiltersChange = (newFilters: any[], newGlobalFilter: string) => {
+  const handleFiltersChange = useCallback((newFilters: any[], newGlobalFilter: string) => {
     setFilters(newFilters)
     setGlobalFilter(newGlobalFilter)
-  }
+  }, [])
 
   const handleProjectCreated = () => {
-    setDataVersion(v => v + 1) // Force refresh
+    // Reload the page to show the new project
+    router.refresh()
   }
 
   return (
@@ -623,10 +585,6 @@ export default function ProjectsPage() {
             <ProjectsCardList 
               filters={filters} 
               globalFilter={globalFilter}
-              onDataChange={() => {
-                // Refresh data if needed
-                console.log('Project data updated, could refresh here');
-              }}
             />
           </div>
         </div>

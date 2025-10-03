@@ -51,70 +51,16 @@ export function EditableManagerDropdown({
   const [loading, setLoading] = useState(false);
 
   // Mock managers data - En producción esto vendría de la API
-  const mockManagers: Manager[] = [
-    {
-      id: "1",
-      name: "Ana Martínez",
-      email: "ana.martinez@company.com",
-      avatar_url: null,
-      role: "BU",
-      organization_id: "01234567-8901-2345-6789-012345678901",
-      active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: "2", 
-      name: "Laura García",
-      email: "laura.garcia@company.com",
-      avatar_url: null,
-      role: "BU",
-      organization_id: "01234567-8901-2345-6789-012345678901",
-      active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: "3",
-      name: "Carlos Rodríguez", 
-      email: "carlos.rodriguez@company.com",
-      avatar_url: null,
-      role: "BU",
-      organization_id: "01234567-8901-2345-6789-012345678901",
-      active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: "4",
-      name: "Miguel López",
-      email: "miguel.lopez@company.com", 
-      avatar_url: null,
-      role: "BU",
-      organization_id: "01234567-8901-2345-6789-012345678901",
-      active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    },
-    {
-      id: "5",
-      name: "Isabel Fernández",
-      email: "isabel.fernandez@company.com",
-      avatar_url: null,
-      role: "CEO",
-      organization_id: "01234567-8901-2345-6789-012345678901",
-      active: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-  ];
+  // AUROVITAS: Organización vacía, sin managers por defecto
+  const mockManagers: Manager[] = [];
 
   useEffect(() => {
     const loadManagers = async () => {
       try {
         setLoading(true);
         const availableManagers = await InitiativesAPI.getAvailableManagers();
-        setManagers((availableManagers || []).filter(Boolean));
+        const validManagers = (availableManagers || []).filter((m): m is NonNullable<typeof m> => m !== null && m !== undefined);
+        setManagers(validManagers as Manager[]);
       } catch (error) {
         console.error('Error loading managers:', error);
         // Fallback to mock data if API fails

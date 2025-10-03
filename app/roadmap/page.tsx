@@ -93,6 +93,7 @@ export default function RoadmapPage() {
       owner: project.owner?.name || 'Sin asignar',
       projects: project.initiative?.name ? [project.initiative.name] : [],
       priority: "medium",
+      itemType: "project" as const,
     }
   }
 
@@ -118,6 +119,7 @@ export default function RoadmapPage() {
       owner: issue.assignee?.name || 'Sin asignar',
       projects: [],
       priority: issue.priority === 'P0' || issue.priority === 'P1' ? 'high' : issue.priority === 'P2' ? 'medium' : 'low',
+      itemType: "issue" as const,
     }
   }
 
@@ -215,7 +217,7 @@ export default function RoadmapPage() {
                                 )}
                                 {projectIssues.length === 0 && <div className="w-3" />}
                                 <div
-                                  className="pointer-events-none h-2 w-2 shrink-0 rounded-full bg-blue-500"
+                                  className="pointer-events-none h-2 w-2 shrink-0 rounded-full bg-purple-500"
                                 />
                                 <p className="pointer-events-none flex-1 truncate text-left font-medium">
                                   {project.name}
@@ -232,7 +234,7 @@ export default function RoadmapPage() {
                                   className="relative flex items-center gap-2.5 p-2.5 pl-8 text-xs hover:bg-accent/50"
                                   style={{ height: 'var(--gantt-row-height)' }}
                                 >
-                                  <div className="pointer-events-none h-2 w-2 shrink-0 rounded-full bg-gray-400" />
+                                  <div className="pointer-events-none h-2 w-2 shrink-0 rounded-full bg-slate-400" />
                                   <p className="pointer-events-none flex-1 truncate text-left">
                                     {issue.title}
                                   </p>

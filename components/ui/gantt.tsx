@@ -77,6 +77,7 @@ export type GanttInitiative = {
   priority: "high" | "medium" | "low";
   budget?: string;
   roi?: string;
+  itemType?: "project" | "issue";
 };
 
 export type GanttMarkerProps = {
@@ -429,6 +430,15 @@ export const GanttSidebarItem: FC<GanttSidebarItemProps> = ({
   };
 
   const getStatusColor = () => {
+    // Differentiate by item type first (project vs issue)
+    if (initiative.itemType === "project") {
+      return "#A855F7" // purple-500
+    }
+    if (initiative.itemType === "issue") {
+      return "#94A3B8" // slate-400
+    }
+    
+    // Fallback to status-based colors
     switch (initiative.status) {
       case "completed":
         return "#10B981"
@@ -847,6 +857,15 @@ export const GanttInitiativeItem: FC<GanttInitiativeItemProps> = ({
   };
 
   const getStatusColor = () => {
+    // Differentiate by item type first (project vs issue)
+    if (initiative.itemType === "project") {
+      return "#A855F7" // purple-500
+    }
+    if (initiative.itemType === "issue") {
+      return "#94A3B8" // slate-400
+    }
+    
+    // Fallback to status-based colors
     switch (initiative.status) {
       case "completed":
         return "#10B981"

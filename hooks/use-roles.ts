@@ -133,7 +133,7 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
   },
   {
     id: "issues",
-    label: "Tickets",
+    label: "Initiatives",
     icon: "Archive",
     href: "/issues",
     roles: ["SAP", "CEO", "BU", "EMP"],
@@ -153,6 +153,14 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
     icon: "BarChart3",
     href: "/metrics",
     roles: ["SAP", "CEO", "BU"],
+    section: "workspace",
+  },
+  {
+    id: "organization",
+    label: "Organization",
+    icon: "Network",
+    href: "/organization",
+    roles: ["SAP", "CEO"],
     section: "workspace",
   },
   // Context presets
@@ -196,10 +204,18 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
     roles: ["EMP"],
     section: "context",
   },
+  {
+    id: "my-sapira-relationship",
+    label: "My Sapira Relationship",
+    icon: "Handshake",
+    href: "/my-sapira",
+    roles: ["BU", "EMP", "CEO"],
+    section: "context",
+  },
   // Footer
   {
     id: "your-profile",
-    label: "Your profile",
+    label: "Gerardo Dueso",
     icon: "User",
     href: "/profile",
     roles: ["SAP", "CEO", "BU", "EMP"],
@@ -213,6 +229,8 @@ export function useRoles() {
   const searchParams = useSearchParams()
 
   // Initialize role from localStorage and URL params
+  // DEMO MODE: Permite cambiar de rol y VER DATOS DIFERENTES
+  // En producción, puedes bloquear esto y usar solo currentOrg.role
   useEffect(() => {
     if (typeof window === "undefined") return
 
@@ -235,6 +253,8 @@ export function useRoles() {
   }, [searchParams])
 
   // Switch role and persist to localStorage
+  // DEMO MODE: Cambiar rol cambia TANTO la UI como los DATOS que se ven
+  // Para producción: Comentar switchRole o hacerlo read-only desde currentOrg.role
   const switchRole = (role: Role) => {
     setActiveRole(role)
     localStorage.setItem("os.activeRole", role)

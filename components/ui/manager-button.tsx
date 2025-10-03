@@ -7,10 +7,11 @@ interface ManagerButtonProps {
   imageUrl?: string | null;
   className?: string;
   onClick?: () => void;
+  disabled?: boolean;
 }
 
 const ManagerButton = React.forwardRef<HTMLButtonElement, ManagerButtonProps>(
-  ({ name, initials, imageUrl, className, onClick, ...props }, ref) => {
+  ({ name, initials, imageUrl, className, onClick, disabled, ...props }, ref) => {
     // Generate a placeholder avatar from Unsplash if no imageUrl provided
     const avatarUrl = imageUrl || `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face&auto=format&q=80`;
 
@@ -20,6 +21,7 @@ const ManagerButton = React.forwardRef<HTMLButtonElement, ManagerButtonProps>(
         variant="ghost" 
         className={`rounded-full py-0 ps-0 h-8 bg-white hover:bg-gray-50 border border-gray-200 ${className}`}
         onClick={onClick}
+        disabled={disabled}
         {...props}
       >
         <div className="me-0.5 flex aspect-square h-full p-1">

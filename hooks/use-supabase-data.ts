@@ -2,27 +2,31 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRoles, type Role } from './use-roles'
+import { useAuth } from '@/lib/context/auth-context'
 import { IssuesAPI, type IssueWithRelations } from '@/lib/api/issues'
 import { InitiativesAPI, type InitiativeWithManager } from '@/lib/api/initiatives'
 import { ProjectsAPI, type ProjectWithRelations } from '@/lib/api/projects'
 
-// Mock user context - en producción esto vendría de auth
+// Mock user context - GONVARRI DEMO
+// Mapeo de roles a usuarios reales de Gonvarri
 const MOCK_USERS = {
-  'SAP': '11111111-1111-1111-1111-111111111111',
-  'CEO': '22222222-2222-2222-2222-222222222222',
-  'BU': '33333333-3333-3333-3333-333333333333', // Tech BU Manager
-  'EMP': '77777777-7777-7777-7777-777777777777'
+  'SAP': '11111111-1111-1111-1111-111111111111',  // Pablo Senabre (super admin)
+  'CEO': '22222222-2222-2222-2222-222222222222',  // CEO Director (ve todo)
+  'BU': '55555555-5555-5555-5555-555555555555',   // Miguel López (Finance Manager)
+  'EMP': '77777777-7777-7777-7777-777777777777'   // Juan Pérez (empleado)
 }
 
+// Mapeo de BU managers a sus Business Units
 const MOCK_BU_INITIATIVES = {
-  '33333333-3333-3333-3333-333333333333': 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', // Tech
-  '44444444-4444-4444-4444-444444444444': 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', // Marketing
-  '55555555-5555-5555-5555-555555555555': 'cccccccc-cccc-cccc-cccc-cccccccccccc', // Sales
-  '66666666-6666-6666-6666-666666666666': 'dddddddd-dddd-dddd-dddd-dddddddddddd', // HR
+  '55555555-5555-5555-5555-555555555555': '10000000-0000-0000-0000-000000000001', // Miguel → Finance
+  '44444444-4444-4444-4444-444444444444': '10000000-0000-0000-0000-000000000006', // Ana → All Departments
+  '66666666-6666-6666-6666-666666666666': '10000000-0000-0000-0000-000000000004', // Laura → HR
+  '33333333-3333-3333-3333-333333333333': '10000000-0000-0000-0000-000000000002', // Carlos → Sales
 }
 
 export function useSupabaseData() {
   const { activeRole } = useRoles()
+  const { currentOrg } = useAuth() // Get current organization from auth context
   const [triageIssues, setTriageIssues] = useState<IssueWithRelations[]>([])
   const [roleIssues, setRoleIssues] = useState<IssueWithRelations[]>([])
   const [initiatives, setInitiatives] = useState<InitiativeWithManager[]>([])
@@ -33,10 +37,16 @@ export function useSupabaseData() {
   // Get current user info based on active role
   const getCurrentUser = useCallback(() => {
     const userId = MOCK_USERS[activeRole]
-    const initiativeId = activeRole === 'BU' ? MOCK_BU_INITIATIVES[userId] : undefined
+    const initiativeId = activeRole === 'BU' && userId ? MOCK_BU_INITIATIVES[userId as keyof typeof MOCK_BU_INITIATIVES] : undefined
     
     return { userId, initiativeId }
   }, [activeRole])
+
+  // Get organization ID from context or fallback to Aurovitas for demo mode
+  const getOrganizationId = useCallback(() => {
+    // MODO DEMO: Siempre usar Aurovitas (organización vacía) si no hay auth
+    return currentOrg?.organization.id || '22222222-2222-2222-2222-222222222222'  // Aurovitas (vacía)
+  }, [currentOrg])
 
   // Load triage issues (only for SAP, CEO, BU roles)
   const loadTriageIssues = useCallback(async () => {
@@ -66,27 +76,54 @@ export function useSupabaseData() {
     }
   }, [activeRole, getCurrentUser])
 
-  // Load initiatives
+  // Load initiatives (filtered by role)
   const loadInitiatives = useCallback(async () => {
     try {
-      const allInitiatives = await InitiativesAPI.getInitiatives()
-      setInitiatives(allInitiatives)
+      const { userId, initiativeId } = getCurrentUser()
+      let filteredInitiatives = await InitiativesAPI.getInitiatives()
+      
+      if (activeRole === 'BU' && initiativeId) {
+        // BU only sees their own initiative
+        filteredInitiatives = filteredInitiatives.filter(i => i.id === initiativeId)
+      } else if (activeRole === 'EMP') {
+        // EMP doesn't see initiatives
+        filteredInitiatives = []
+      }
+      // SAP and CEO see all initiatives
+      
+      setInitiatives(filteredInitiatives)
     } catch (err) {
       console.error('Error loading initiatives:', err)
       setError('Error loading initiatives')
     }
-  }, [])
+  }, [activeRole, getCurrentUser])
 
-  // Load projects
+  // Load projects (filtered by role)
   const loadProjects = useCallback(async () => {
     try {
-      const allProjects = await ProjectsAPI.getProjects()
-      setProjects(allProjects)
+      const { userId, initiativeId } = getCurrentUser()
+      
+      // Filter projects by role
+      let filteredProjects = await ProjectsAPI.getProjects()
+      
+      if (activeRole === 'BU' && initiativeId) {
+        // BU only sees projects from their initiative
+        // Note: API returns initiative as nested object, not initiative_id
+        filteredProjects = filteredProjects.filter(p => 
+          p.initiative?.id === initiativeId || p.initiative_id === initiativeId
+        )
+      } else if (activeRole === 'EMP') {
+        // EMP might see projects where they have issues (or none)
+        filteredProjects = [] // Or filter by projects with their issues
+      }
+      // SAP and CEO see all projects
+      
+      setProjects(filteredProjects)
     } catch (err) {
       console.error('Error loading projects:', err)
       setError('Error loading projects')
     }
-  }, [])
+  }, [activeRole, getCurrentUser])
 
   // Load all data
   const loadData = useCallback(async () => {
@@ -110,8 +147,55 @@ export function useSupabaseData() {
 
   // Reload data when role changes
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    console.log('[useSupabaseData] useEffect triggered with activeRole:', activeRole)
+    
+    async function fetchData() {
+      setLoading(true)
+      setError(null)
+
+      try {
+        // Load triage issues (only for SAP, CEO, BU roles)
+        if (['SAP', 'CEO', 'BU'].includes(activeRole)) {
+          const issues = await IssuesAPI.getTriageIssues()
+          setTriageIssues(issues)
+        } else {
+          setTriageIssues([])
+        }
+
+        // Load role-filtered issues
+        const { userId, initiativeId } = getCurrentUser()
+        const issues = await IssuesAPI.getIssuesByRole(activeRole, userId, initiativeId)
+        setRoleIssues(issues)
+
+        // Load initiatives (filtered by role)
+        let filteredInitiatives = await InitiativesAPI.getInitiatives()
+        if (activeRole === 'BU' && initiativeId) {
+          filteredInitiatives = filteredInitiatives.filter(i => i.id === initiativeId)
+        } else if (activeRole === 'EMP') {
+          filteredInitiatives = []
+        }
+        setInitiatives(filteredInitiatives)
+
+        // Load projects (filtered by role)
+        let filteredProjects = await ProjectsAPI.getProjects()
+        if (activeRole === 'BU' && initiativeId) {
+          filteredProjects = filteredProjects.filter(p => 
+            p.initiative?.id === initiativeId || p.initiative_id === initiativeId
+          )
+        } else if (activeRole === 'EMP') {
+          filteredProjects = []
+        }
+        setProjects(filteredProjects)
+      } catch (err) {
+        console.error('Error loading data:', err)
+        setError('Error loading data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [activeRole])  // Only depend on activeRole, not on callbacks
 
   // Helper: Send notification to Teams if issue has Teams context
   const sendTeamsNotification = useCallback(async (
@@ -273,7 +357,14 @@ export function useSupabaseData() {
   // Update issue (for drag & drop and other updates)
   const updateIssue = useCallback(async (issueId: string, updateData: Parameters<typeof IssuesAPI.updateIssue>[1]) => {
     try {
-      await IssuesAPI.updateIssue(issueId, updateData)
+      const updatedIssue = await IssuesAPI.updateIssue(issueId, updateData)
+      console.log('[useSupabaseData] Issue updated:', {
+        id: updatedIssue.id,
+        key: updatedIssue.key,
+        assignee_id: updatedIssue.assignee_id,
+        assignee: updatedIssue.assignee,
+        changes: updateData
+      });
       
       // Reload both triage and role data to reflect changes
       await Promise.all([loadTriageIssues(), loadRoleIssues()])

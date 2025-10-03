@@ -3,7 +3,6 @@
 import * as React from "react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ManagerButton } from "@/components/ui/manager-button";
 import {
   Command,
   CommandEmpty,
@@ -49,6 +48,11 @@ export function EditableIssueAssigneeDropdown({
   const [open, setOpen] = useState(false);
   const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Debug: Log current assignee
+  React.useEffect(() => {
+    console.log('[AssigneeDropdown] Current assignee for issue', issueId, ':', currentAssignee);
+  }, [currentAssignee, issueId]);
 
   useEffect(() => {
     if (open && assignees.length === 0) {
@@ -71,48 +75,70 @@ export function EditableIssueAssigneeDropdown({
 
   const handleAssigneeSelect = async (assignee: Assignee) => {
     try {
-      await IssuesAPI.updateIssueAssignee(issueId, assignee.id);
-      onAssigneeChange(assignee);
+      console.log('[AssigneeDropdown] Updating assignee to:', assignee.name, 'for issue:', issueId);
+      const updatedIssue = await IssuesAPI.updateIssueAssignee(issueId, assignee.id);
+      console.log('[AssigneeDropdown] Assignee updated successfully, returned data:', {
+        assignee_id: updatedIssue.assignee_id,
+        assignee: updatedIssue.assignee,
+        assignee_name: updatedIssue.assignee?.name
+      });
+      onAssigneeChange(updatedIssue.assignee || null);
       setOpen(false);
     } catch (error) {
-      console.error('Error updating issue assignee:', error);
+      console.error('[AssigneeDropdown] Error updating issue assignee:', error);
       // TODO: Show error toast
     }
   };
 
   const handleRemoveAssignee = async () => {
     try {
-      await IssuesAPI.updateIssueAssignee(issueId, null);
-      onAssigneeChange(null);
+      console.log('[AssigneeDropdown] Removing assignee for issue:', issueId);
+      const updatedIssue = await IssuesAPI.updateIssueAssignee(issueId, null);
+      console.log('[AssigneeDropdown] Assignee removed successfully');
+      onAssigneeChange(updatedIssue.assignee || null);
       setOpen(false);
     } catch (error) {
-      console.error('Error removing issue assignee:', error);
+      console.error('[AssigneeDropdown] Error removing issue assignee:', error);
       // TODO: Show error toast
     }
   };
 
+  // Generate avatar URL
+  const avatarUrl = currentAssignee?.avatar_url || `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face&auto=format&q=80`;
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
+        <button
           className={cn(
-            "h-auto p-0 hover:bg-gray-100 rounded-lg transition-colors justify-start",
+            "rounded-full py-0 ps-0 h-8 bg-white hover:bg-gray-50 border border-gray-200 inline-flex items-center transition-colors",
             disabled && "cursor-not-allowed opacity-50"
           )}
           disabled={disabled}
+          type="button"
         >
           {currentAssignee ? (
-            <ManagerButton 
-              name={currentAssignee.name}
-              initials={currentAssignee.name.split(" ").map(n => n[0]).join("")}
-              imageUrl={currentAssignee.avatar_url}
-              onClick={() => {}} // Handled by popover trigger
-            />
+            <>
+              <div className="me-0.5 flex aspect-square h-full p-1">
+                <img
+                  className="h-auto w-full rounded-full object-cover"
+                  src={avatarUrl}
+                  alt={`${currentAssignee.name} profile image`}
+                  width={24}
+                  height={24}
+                  aria-hidden="true"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = `https://images.unsplash.com/photo-1494790108755-2616c0763c81?w=40&h=40&fit=crop&crop=face&auto=format&q=80`;
+                  }}
+                />
+              </div>
+              <span className="text-sm font-medium text-gray-900 pr-3">{currentAssignee.name}</span>
+            </>
           ) : (
-            <span className="text-gray-500 text-sm">Unassigned</span>
+            <span className="text-gray-500 text-sm px-3">Unassigned</span>
           )}
-        </Button>
+        </button>
       </PopoverTrigger>
       
       <PopoverContent 

@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -30,6 +31,7 @@ import {
   HelpCircle,
   Circle,
   ClipboardList,
+  Handshake,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -57,6 +59,7 @@ const iconMap: Record<string, React.ComponentType<any>> = {
   Keyboard,
   HelpCircle,
   ClipboardList,
+  Handshake,
 }
 
 export function Sidebar({ 
@@ -242,6 +245,22 @@ export function Sidebar({
           </div>
         </div>
       )}
+      {/* Aurovitas Logo and Name - Above Role Selector */}
+      {!isCollapsed && (
+        <div className="flex items-center px-4 py-4 border-b border-border gap-3">
+          <Image 
+            src="/aurovitas-logo.jpg" 
+            alt="Aurovitas Logo" 
+            width={32} 
+            height={32}
+            className="object-contain rounded-md"
+          />
+          <span className="text-base font-bold text-black">
+            Aurovitas
+          </span>
+        </div>
+      )}
+      
       {/* Header - Más compacto y cohesivo */}
       <div className="flex h-12 items-center justify-between px-3 py-2">
         {!isCollapsed ? (

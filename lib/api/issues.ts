@@ -38,7 +38,7 @@ export interface TriageAction {
 }
 
 export class IssuesAPI {
-  private static organizationId = '01234567-8901-2345-6789-012345678901' // TODO: Get from context
+  private static organizationId = '22222222-2222-2222-2222-222222222222' // Aurovitas (vacía) - TODO: Get from context
 
   // Get issues for triage (state=triage, not snoozed)
   static async getTriageIssues(): Promise<IssueWithRelations[]> {
@@ -216,29 +216,43 @@ export class IssuesAPI {
   }
 
   // Update issue (general update function for drag & drop and other updates)
-  static async updateIssue(issueId: string, updateData: Partial<Issue>): Promise<Issue> {
+  static async updateIssue(issueId: string, updateData: Partial<Issue>): Promise<IssueWithRelations> {
     const { data, error } = await supabase
       .from('issues')
       .update(updateData)
       .eq('id', issueId)
-      .select()
+      .select(`
+        *,
+        initiative:initiatives(*),
+        project:projects(*),
+        assignee:users!issues_assignee_id_fkey(id, name, email, avatar_url),
+        reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url),
+        labels:issue_labels(label_id, labels(*))
+      `)
       .single()
 
     if (error) throw error
-    return data
+    return this.transformIssueWithLabels(data)
   }
 
   // Update issue assignee
-  static async updateIssueAssignee(issueId: string, assigneeId: string | null): Promise<Issue> {
+  static async updateIssueAssignee(issueId: string, assigneeId: string | null): Promise<IssueWithRelations> {
     const { data, error } = await supabase
       .from('issues')
       .update({ assignee_id: assigneeId })
       .eq('id', issueId)
-      .select()
+      .select(`
+        *,
+        initiative:initiatives(*),
+        project:projects(*),
+        assignee:users!issues_assignee_id_fkey(id, name, email, avatar_url),
+        reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url),
+        labels:issue_labels(label_id, labels(*))
+      `)
       .single()
 
     if (error) throw error
-    return data
+    return this.transformIssueWithLabels(data)
   }
 
   // Delete issue by ID

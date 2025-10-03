@@ -388,35 +388,28 @@ function AutoSaveDescription({
 
 // Metrics Section Component
 function MetricsSection({ project }: { project: ProjectWithRelations }) {
-  // Calculate metrics based on real project data from database
-  const totalIssues = project._count?.issues || 0;
-  const completedIssues = project._count?.completed_issues || 0;
-  const activeIssues = project._count?.active_issues || 0;
-  
-  const completionRate = totalIssues > 0 ? Math.round((completedIssues / totalIssues) * 100) : 0;
-  const manualProgress = project.progress || 0;
-  const calculatedProgress = project._progress?.calculated || 0;
-
+  // Mock data - Different for each project
+  // These would come from actual data in a real implementation
   const metrics = [
     {
-      label: "Manual Progress",
-      value: `${manualProgress}%`,
-      description: "Owner-set progress"
+      label: "Response time",
+      value: "3.2h",
+      description: "Average first response"
     },
     {
-      label: "Calculated Progress",
-      value: `${calculatedProgress}%`,
-      description: "Based on completed issues"
+      label: "Time to first meeting",
+      value: "18.5h",
+      description: "From request to first meeting"
     },
     {
-      label: "Total Issues",
-      value: totalIssues.toString(),
-      description: "All issues in project"
+      label: "Time to proposal",
+      value: "5.8d",
+      description: "From kickoff to proposal"
     },
     {
-      label: "Active Issues",
-      value: activeIssues.toString(),
-      description: "Currently in progress"
+      label: "Time to delivery",
+      value: "23d",
+      description: "From start to completion"
     }
   ];
 
@@ -608,6 +601,7 @@ function ProjectIssuesList({
 
 export default function ProjectDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.slug as string;
   
   const [project, setProject] = useState<ProjectWithRelations | null>(null);
@@ -666,7 +660,12 @@ export default function ProjectDetailPage() {
             <div className="flex items-center gap-2">
               <span className="text-[14px] text-gray-500">Workspace</span>
               <span className="text-[14px] text-gray-400">›</span>
-              <span className="text-[14px] text-gray-500">Projects</span>
+              <span 
+                onClick={() => router.push('/projects')} 
+                className="text-[14px] text-gray-500 hover:text-gray-900 cursor-pointer transition-colors"
+              >
+                Projects
+              </span>
               <span className="text-[14px] text-gray-400">›</span>
               <span className="text-[14px] font-medium">{project.name}</span>
             </div>

@@ -56,7 +56,7 @@ export default function SurveysPage() {
   // Filter surveys based on active tab
   const filteredSurveys = surveys.filter(survey => {
     // TODO: Get actual user ID from auth context
-    const currentUserId = '11111111-1111-1111-1111-111111111111' // Pablo Senabre (SAP)
+    const currentUserId = '11111111-aaaa-2222-2222-222222222222' // María García (SAP - Aurovitas)
     
     if (activeTab === "active") {
       return survey.status === "active"
@@ -194,7 +194,7 @@ export default function SurveysPage() {
               {filteredSurveys.map((survey) => (
                 <Card
                   key={survey.id}
-                  className="group relative p-5 hover:shadow-md transition-all duration-200 cursor-pointer border border-gray-200"
+                  className="group relative bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm transition-all duration-200 cursor-pointer overflow-hidden"
                   onClick={() => {
                     // Navigate based on context
                     if (activeTab === "my-surveys" && canViewResults) {
@@ -212,52 +212,53 @@ export default function SurveysPage() {
                     }
                   }}
                 >
-                  {/* Status Badge */}
-                  <div className="absolute top-4 right-4">
-                    {getStatusBadge(survey.status)}
+                  {/* Header con status badge */}
+                  <div className="px-5 pt-5 pb-3 border-b border-gray-100">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-base font-semibold text-gray-900 line-clamp-2 mb-1">
+                          {survey.title}
+                        </h3>
+                        {survey.description && (
+                          <p className="text-sm text-gray-500 line-clamp-1">
+                            {survey.description}
+                          </p>
+                        )}
+                      </div>
+                      {getStatusBadge(survey.status)}
+                    </div>
                   </div>
 
-                  <div className="space-y-3">
-                    {/* Title */}
-                    <h3 className="text-base font-semibold text-gray-900 pr-20 line-clamp-2">
-                      {survey.title}
-                    </h3>
-
-                    {/* Description */}
-                    {survey.description && (
-                      <p className="text-sm text-gray-600 line-clamp-2">
-                        {survey.description}
-                      </p>
-                    )}
-
+                  {/* Body */}
+                  <div className="px-5 py-4 space-y-3">
                     {/* Creator & BU */}
-                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {survey.creator && (
-                        <div className="flex items-center gap-1.5">
-                          <div className="h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center">
-                            <span className="text-[10px] font-medium text-blue-700">
+                        <div className="h-6 px-2.5 rounded-md border border-dashed border-gray-300 bg-gray-50 flex items-center gap-1.5">
+                          <div className="h-4 w-4 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                            <span className="text-[9px] font-medium text-gray-700">
                               {survey.creator.name.charAt(0).toUpperCase()}
                             </span>
                           </div>
-                          <span>{survey.creator.name}</span>
+                          <span className="text-xs text-gray-700 truncate max-w-[120px]">{survey.creator.name}</span>
                         </div>
                       )}
                       {survey.target_bu && (
-                        <div className="flex items-center gap-1">
-                          <Target className="h-3 w-3" />
-                          <span>{survey.target_bu.name}</span>
+                        <div className="h-6 px-2.5 rounded-md border border-dashed border-gray-300 bg-gray-50 flex items-center gap-1.5">
+                          <Target className="h-3 w-3 text-gray-600 flex-shrink-0" />
+                          <span className="text-xs text-gray-700 truncate max-w-[120px]">{survey.target_bu.name}</span>
                         </div>
                       )}
                     </div>
 
                     {/* Stats */}
-                    <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
-                      <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
                         <Users className="h-3.5 w-3.5" />
-                        <span>{survey.response_count || 0} responses</span>
+                        <span>{survey.response_count || 0}</span>
                       </div>
                       {survey.questions && (
-                        <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500">
                           <ClipboardList className="h-3.5 w-3.5" />
                           <span>{survey.questions.length} questions</span>
                         </div>
@@ -266,26 +267,11 @@ export default function SurveysPage() {
 
                     {/* Response Status */}
                     {survey.my_response_status === "completed" && (
-                      <div className="flex items-center gap-1.5 text-xs text-green-600 font-medium pt-2">
+                      <div className="flex items-center gap-1.5 text-xs text-green-600 font-medium pt-1">
                         <CheckCircle2 className="h-3.5 w-3.5" />
-                        <span>You've responded</span>
+                        <span>Completed</span>
                       </div>
                     )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        // TODO: Open actions menu
-                      }}
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
                   </div>
                 </Card>
               ))}

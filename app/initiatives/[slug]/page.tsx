@@ -279,43 +279,28 @@ function AutoSaveDescription({
 
 // Metrics Section Component - Simplified
 function MetricsSection({ initiative }: { initiative: InitiativeWithManager }) {
-  // Calculate metrics based on initiative data
-  const totalIssues = initiative._count?.issues || 0;
-  const completedIssues = initiative._count?.completed_issues || 0;
-  const activeIssues = initiative._count?.active_issues || 0;
-  
-  const completionRate = totalIssues > 0 ? Math.round((completedIssues / totalIssues) * 100) : 0;
-  const velocity = 8.5; // Issues per week - this would come from real data
-  const avgTimeToClose = 4.2; // Days - this would come from real data
-
+  // Mock data - Different for each BU
+  // These would come from actual data in a real implementation
   const metrics = [
     {
-      label: "Completion Rate",
-      value: `${completionRate}%`,
-      change: "+12%",
-      isPositive: true,
-      description: "Issues completed vs total"
+      label: "Response time",
+      value: "2.1h",
+      description: "Average first response"
     },
     {
-      label: "Active Issues",
-      value: activeIssues.toString(),
-      change: "+3",
-      isPositive: true,
-      description: "Currently in progress"
+      label: "Time to first meeting",
+      value: "12.3h",
+      description: "From request to first meeting"
     },
     {
-      label: "Avg. Time to Close",
-      value: `${avgTimeToClose}d`,
-      change: "-1.2d",
-      isPositive: true,
-      description: "Average resolution time"
+      label: "Time to proposal",
+      value: "4.2d",
+      description: "From kickoff to proposal"
     },
     {
-      label: "Weekly Velocity",
-      value: velocity.toString(),
-      change: "+0.8",
-      isPositive: true,
-      description: "Issues closed per week"
+      label: "Time to delivery",
+      value: "18d",
+      description: "From start to completion"
     }
   ];
 
@@ -329,11 +314,6 @@ function MetricsSection({ initiative }: { initiative: InitiativeWithManager }) {
           <div className="flex items-baseline gap-2 mb-1">
             <div className="text-2xl font-semibold text-gray-900">
               {metric.value}
-            </div>
-            <div className={`text-xs font-medium ${
-              metric.isPositive ? 'text-green-600' : 'text-red-600'
-            }`}>
-              {metric.change}
             </div>
           </div>
           <div className="text-xs font-medium text-gray-600 mb-0.5">
@@ -496,6 +476,7 @@ function InitiativeProjectsList({
 
 export default function InitiativeDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.slug as string;
   
   const [initiative, setInitiative] = useState<InitiativeWithManager | null>(null);
@@ -554,7 +535,12 @@ export default function InitiativeDetailPage() {
             <div className="flex items-center gap-2">
               <span className="text-[14px] text-gray-500">Workspace</span>
               <span className="text-[14px] text-gray-400">›</span>
-              <span className="text-[14px] text-gray-500">Business Units</span>
+              <span 
+                onClick={() => router.push('/initiatives')} 
+                className="text-[14px] text-gray-500 hover:text-gray-900 cursor-pointer transition-colors"
+              >
+                Business Units
+              </span>
               <span className="text-[14px] text-gray-400">›</span>
               <span className="text-[14px] font-medium">{initiative.name}</span>
             </div>

@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { 
   ResizableAppShell, 
   ResizablePageSheet, 
@@ -61,6 +61,8 @@ interface TimelineCalendarProps {
 }
 
 function TimelineCalendar({ startDate, dueDate, slaDate, onUpdateDates }: TimelineCalendarProps) {
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null)
+  
   // Determine the range to show in the calendar
   const dates = [startDate, dueDate, slaDate].filter(Boolean) as Date[]
   if (dates.length === 0) return null
@@ -68,9 +70,9 @@ function TimelineCalendar({ startDate, dueDate, slaDate, onUpdateDates }: Timeli
   const minDate = new Date(Math.min(...dates.map(d => d.getTime())))
   const maxDate = new Date(Math.max(...dates.map(d => d.getTime())))
   
-  // Add padding: show 1 month before and 1 month after
-  const startMonth = new Date(minDate.getFullYear(), minDate.getMonth() - 1, 1)
-  const endMonth = new Date(maxDate.getFullYear(), maxDate.getMonth() + 2, 0)
+  // Generate many months: 6 months before to 6 months after the range
+  const startMonth = new Date(minDate.getFullYear(), minDate.getMonth() - 6, 1)
+  const endMonth = new Date(maxDate.getFullYear(), maxDate.getMonth() + 7, 0)
   
   // Generate months to display
   const months: { name: string; year: number; month: number; days: number; startDay: number }[] = []
@@ -149,11 +151,51 @@ function TimelineCalendar({ startDate, dueDate, slaDate, onUpdateDates }: Timeli
   // Day names
   const dayNames = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
   
+  // Width calculation: Each month is ~220px (7 days * 28px + gaps), show 3 months
+  const monthWidth = 220
+  const visibleMonths = 3
+  const containerWidth = monthWidth * visibleMonths
+  
+  // Auto-scroll to the start date on mount
+  React.useEffect(() => {
+    if (scrollContainerRef.current && startDate) {
+      // Calculate which month index contains the start date
+      const startDateMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
+      const monthsFromStart = Math.floor((startDateMonth.getTime() - startMonth.getTime()) / (1000 * 60 * 60 * 24 * 30))
+      
+      // Scroll to show that month as the first visible month
+      // Each month is ~220px wide + 24px gap = 244px
+      const scrollPosition = monthsFromStart * 244
+      
+      scrollContainerRef.current.scrollLeft = scrollPosition
+    }
+  }, [startDate]) // Only run when startDate changes
+  
   return (
     <div className="space-y-4">
-      {/* Calendar grid - horizontal scroll */}
-      <div className="overflow-x-auto overflow-y-hidden pb-3 -mx-5 px-5" style={{ scrollbarWidth: 'thin' }}>
-        <div className="flex gap-6 min-w-full w-max">
+      {/* Duration with nice formatting - at the top */}
+      {startDate && dueDate && (
+        <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-gray-50 border border-dashed border-gray-300">
+          <Clock className="h-3.5 w-3.5 text-gray-600" />
+          <span className="text-sm font-medium text-gray-900">
+            Del {startDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })} al {dueDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+            <span className="text-gray-600 ml-1.5">({Math.ceil((dueDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))} días)</span>
+          </span>
+        </div>
+      )}
+      
+      {/* Calendar grid - horizontal scroll (always show 3 months) */}
+      <div 
+        ref={scrollContainerRef}
+        className="overflow-x-scroll overflow-y-visible pb-3" 
+        style={{ 
+          scrollbarWidth: 'thin', 
+          scrollBehavior: 'smooth',
+          maxWidth: `${containerWidth}px`,
+          width: '100%'
+        }}
+      >
+        <div className="flex gap-6">
           {months.map((monthData, monthIdx) => (
             <div key={`${monthData.year}-${monthIdx}`} className="flex-shrink-0">
               {/* Month header */}
@@ -232,47 +274,26 @@ function TimelineCalendar({ startDate, dueDate, slaDate, onUpdateDates }: Timeli
         </div>
       </div>
       
-      {/* Legend and info */}
-      <div className="space-y-3 pt-3 border-t border-gray-100">
-        {/* Compact legend */}
-        <div className="flex items-center gap-4 text-xs">
-          {startDate && (
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded bg-blue-500" />
-              <span className="text-gray-600">Inicio</span>
-            </div>
-          )}
-          {dueDate && (
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded bg-purple-500" />
-              <span className="text-gray-600">Vencimiento</span>
-            </div>
-          )}
-          {slaDate && (
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded bg-orange-500" />
-              <span className="text-gray-600">SLA</span>
-            </div>
-          )}
-        </div>
-        
-        {/* Duration with nice formatting - centered */}
-        {startDate && dueDate && (
-          <div className="flex justify-center">
-            <div className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-gray-50 border border-dashed border-gray-300">
-              <Clock className="h-3.5 w-3.5 text-gray-600" />
-              <span className="text-sm font-medium text-gray-900">
-                Del {startDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })} al {dueDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
-                <span className="text-gray-600 ml-1.5">({Math.ceil((dueDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))} días)</span>
-              </span>
-            </div>
+      {/* Compact legend at the bottom */}
+      <div className="flex items-center gap-4 text-xs pt-3 border-t border-gray-100">
+        {startDate && (
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded bg-blue-500" />
+            <span className="text-gray-600">Inicio</span>
           </div>
         )}
-        
-        {/* Helper text */}
-        <div className="text-xs text-gray-500 italic text-center">
-          Click en los días para ajustar las fechas • Usa el scroll para navegar entre meses
-        </div>
+        {dueDate && (
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded bg-purple-500" />
+            <span className="text-gray-600">Vencimiento</span>
+          </div>
+        )}
+        {slaDate && (
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded bg-orange-500" />
+            <span className="text-gray-600">SLA</span>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -375,6 +396,7 @@ function PropertyChip({ icon, label, value, options, onSelect, loading = false }
 
 export default function IssueDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const issueId = params.id as string
   
   const [issue, setIssue] = useState<any | null>(null)
@@ -471,9 +493,12 @@ export default function IssueDetailPage() {
     if (!localIssue) return
     try {
       const actualAssigneeId = assigneeId === 'unassigned' ? null : assigneeId
-      await IssuesAPI.updateIssue(localIssue.id, { assignee_id: actualAssigneeId })
-      const newAssignee = actualAssigneeId ? availableUsers.find(u => u.id === actualAssigneeId) : null
-      const updatedIssue = { ...localIssue, assignee: newAssignee, assignee_id: actualAssigneeId }
+      const updatedIssue = await IssuesAPI.updateIssue(localIssue.id, { assignee_id: actualAssigneeId })
+      console.log('[Issue Detail] Assignee updated, new data:', {
+        assignee_id: updatedIssue.assignee_id,
+        assignee: updatedIssue.assignee,
+        assignee_name: updatedIssue.assignee?.name
+      });
       setLocalIssue(updatedIssue)
       setIssue(updatedIssue)
     } catch (error) {
@@ -485,9 +510,8 @@ export default function IssueDetailPage() {
     if (!localIssue) return
     try {
       const actualProjectId = projectId === 'unassigned' ? null : projectId
-      await IssuesAPI.updateIssue(localIssue.id, { project_id: actualProjectId })
-      const newProject = actualProjectId ? availableProjects.find(p => p.id === actualProjectId) : null
-      const updatedIssue = { ...localIssue, project: newProject, project_id: actualProjectId }
+      const updatedIssue = await IssuesAPI.updateIssue(localIssue.id, { project_id: actualProjectId })
+      console.log('[Issue Detail] Project updated, new data:', updatedIssue.project);
       setLocalIssue(updatedIssue)
       setIssue(updatedIssue)
     } catch (error) {
@@ -499,9 +523,8 @@ export default function IssueDetailPage() {
     if (!localIssue) return
     try {
       const actualInitiativeId = initiativeId === 'unassigned' ? null : initiativeId
-      await IssuesAPI.updateIssue(localIssue.id, { initiative_id: actualInitiativeId })
-      const newInitiative = actualInitiativeId ? availableInitiatives.find(i => i.id === actualInitiativeId) : null
-      const updatedIssue = { ...localIssue, initiative: newInitiative, initiative_id: actualInitiativeId }
+      const updatedIssue = await IssuesAPI.updateIssue(localIssue.id, { initiative_id: actualInitiativeId })
+      console.log('[Issue Detail] Initiative updated, new data:', updatedIssue.initiative);
       setLocalIssue(updatedIssue)
       setIssue(updatedIssue)
     } catch (error) {
@@ -598,7 +621,12 @@ export default function IssueDetailPage() {
             <div className="flex items-center justify-between w-full h-full">
               {/* Breadcrumb */}
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">Issues</span>
+                <span 
+                  onClick={() => router.push('/issues')} 
+                  className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer transition-colors"
+                >
+                  Issues
+                </span>
                 <span className="text-sm text-gray-400">›</span>
                 <span className="text-sm font-medium">{localIssue.key}</span>
               </div>
@@ -977,8 +1005,12 @@ export default function IssueDetailPage() {
                       {localIssue.origin && (
                         <div className="flex items-center justify-between">
                           <span className="text-[13px] text-gray-600">Origen</span>
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium bg-gray-50 border border-dashed border-gray-300 text-gray-700 capitalize">
-                            {localIssue.origin}
+                          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium border border-dashed ${
+                            localIssue.origin === 'api' || localIssue.origin === 'teams'
+                              ? 'bg-purple-50 border-purple-300 text-purple-700'
+                              : 'bg-gray-50 border-gray-300 text-gray-700'
+                          }`}>
+                            {localIssue.origin === 'api' ? 'Teams' : localIssue.origin === 'teams' ? 'Teams' : localIssue.origin}
                           </div>
                         </div>
                       )}

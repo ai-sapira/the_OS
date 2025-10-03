@@ -27,16 +27,19 @@ import { InitiativesFiltersBar } from "@/components/ui/initiatives-filters";
 // Editable Components
 import { EditableManagerDropdown } from "@/components/ui/editable-manager-dropdown";
 import { EditableStatusDropdown } from "@/components/ui/editable-status-dropdown";
+import { NewInitiativeModal } from "@/components/new-initiative-modal";
 
 // Card List Component  
 function InitiativesCardList({ 
   filters, 
   globalFilter,
-  onDataChange
+  onDataChange,
+  refreshKey
 }: { 
   filters?: any[], 
   globalFilter?: string,
-  onDataChange?: () => void
+  onDataChange?: () => void,
+  refreshKey?: number
 }) {
   const router = useRouter();
   const [data, setData] = useState<InitiativeWithManager[]>([]);
@@ -186,7 +189,7 @@ function InitiativesCardList({
     };
 
     loadInitiatives();
-  }, []);
+  }, [refreshKey]);
 
   // Apply filters when data, filters, or globalFilter changes
   useEffect(() => {
@@ -362,10 +365,16 @@ export default function InitiativesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [filters, setFilters] = useState<any[]>([])
   const [globalFilter, setGlobalFilter] = useState("")
+  const [dataVersion, setDataVersion] = useState(0)
 
   const handleFiltersChange = (newFilters: any[], newGlobalFilter: string) => {
     setFilters(newFilters)
     setGlobalFilter(newGlobalFilter)
+  }
+
+  const handleInitiativeCreated = () => {
+    // Force refresh by incrementing data version
+    setDataVersion(v => v + 1)
   }
 
   return (
@@ -385,7 +394,12 @@ export default function InitiativesPage() {
               
               {/* Actions */}
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 w-8 p-0 hover:bg-gray-100"
+                  onClick={() => setShowCreateModal(true)}
+                >
                   <PlusIcon className="h-4 w-4" />
                 </Button>
               </div>
@@ -417,6 +431,7 @@ export default function InitiativesPage() {
             <InitiativesCardList 
               filters={filters} 
               globalFilter={globalFilter}
+              refreshKey={dataVersion}
               onDataChange={() => {
                 // Refresh data if needed
                 console.log('Data updated, could refresh here');
@@ -425,6 +440,13 @@ export default function InitiativesPage() {
           </div>
         </div>
       </ResizablePageSheet>
+
+      {/* Create Initiative Modal */}
+      <NewInitiativeModal 
+        open={showCreateModal} 
+        onOpenChange={setShowCreateModal}
+        onCreateInitiative={handleInitiativeCreated}
+      />
     </ResizableAppShell>
   );
 }

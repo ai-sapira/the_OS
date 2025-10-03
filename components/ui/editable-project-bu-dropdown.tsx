@@ -43,15 +43,8 @@ export function EditableProjectBUDropdown({
   const [businessUnits, setBusinessUnits] = useState<BusinessUnit[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Sample business units - in real app, this would come from API
-  const sampleBusinessUnits: BusinessUnit[] = [
-    { id: "1", name: "Tecnología", description: "Development and infrastructure" },
-    { id: "2", name: "Marketing", description: "Brand strategy and acquisition" },
-    { id: "3", name: "Recursos Humanos", description: "Talent and culture management" },
-    { id: "4", name: "Ventas", description: "Sales and business development" },
-    { id: "5", name: "Finanzas", description: "Financial operations and control" },
-  ];
-
+  // AUROVITAS: Sin datos mock - Organización vacía
+  
   useEffect(() => {
     if (open && businessUnits.length === 0) {
       loadBusinessUnits();
@@ -62,11 +55,11 @@ export function EditableProjectBUDropdown({
     try {
       setLoading(true);
       const data = await ProjectsAPI.getBusinessUnits();
-      setBusinessUnits(data);
+      setBusinessUnits(data || []);
     } catch (error) {
       console.error('Error loading business units:', error);
-      // Use sample data as fallback
-      setBusinessUnits(sampleBusinessUnits);
+      // AUROVITAS: No fallback, mostrar vacío
+      setBusinessUnits([]);
     } finally {
       setLoading(false);
     }

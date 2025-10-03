@@ -6,8 +6,19 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { RoleSwitcher } from "@/components/role-switcher"
-import { Bell, Search, Filter, MoreHorizontal, Sun, Moon } from "lucide-react"
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Bell, Search, Filter, MoreHorizontal, Sun, Moon, Building2, LogOut } from "lucide-react"
 import { useState } from "react"
+import { useAuth } from "@/lib/context/auth-context"
+import { useRouter } from "next/navigation"
+import Image from "next/image"
 
 interface HeaderProps {
   title: string
@@ -17,10 +28,22 @@ interface HeaderProps {
 
 export function Header({ title, subtitle, actions }: HeaderProps) {
   const [isDark, setIsDark] = useState(true)
+  const { currentOrg, signOut, user } = useAuth()
+  const router = useRouter()
 
   const toggleTheme = () => {
     setIsDark(!isDark)
     document.documentElement.classList.toggle("dark")
+  }
+
+  const handleLogout = async () => {
+    await signOut()
+    router.push('/login')
+  }
+
+  const getUserInitials = () => {
+    if (!user?.email) return 'AV'  // Aurovitas en modo demo
+    return user.email.substring(0, 2).toUpperCase()
   }
 
   return (
@@ -33,6 +56,20 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Aurovitas Logo and Name */}
+        <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md bg-white border border-gray-200">
+          <Image 
+            src="/aurovitas-logo.jpg" 
+            alt="Aurovitas Logo" 
+            width={18} 
+            height={18}
+            className="object-contain"
+          />
+          <span className="text-[11px] font-normal text-black">
+            {currentOrg?.organization.name || 'Aurovitas'}
+          </span>
+        </div>
+        
         <RoleSwitcher />
         
         {actions}
@@ -54,14 +91,36 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
           <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs">3</Badge>
         </Button>
 
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-
-        <Avatar className="h-7 w-7">
-          <AvatarImage src="/diverse-user-avatars.png" />
-          <AvatarFallback className="text-xs">JD</AvatarFallback>
-        </Avatar>
+        {/* Avatar - MODO DEMO: Funciona con o sin autenticación */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <Avatar className="h-7 w-7">
+                <AvatarImage src="/diverse-user-avatars.png" />
+                <AvatarFallback className="text-xs">{getUserInitials()}</AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">
+                  {user?.email || 'Modo Demo'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {currentOrg?.organization.name || 'Aurovitas'}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {user && (
+              <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 cursor-pointer">
+                <LogOut className="mr-2 h-4 w-4" />
+                Cerrar sesión
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   )

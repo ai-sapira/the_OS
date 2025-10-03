@@ -461,6 +461,18 @@ export default function IssuesPage() {
     updateIssue
   } = useSupabaseData()
   
+  // Debug: Log issues data
+  React.useEffect(() => {
+    console.log('[Issues Page] Total issues loaded:', allIssues.length);
+    console.log('[Issues Page] Sample issues:', allIssues.slice(0, 3).map(i => ({
+      key: i.key,
+      title: i.title,
+      assignee_id: i.assignee_id,
+      assignee: i.assignee,
+      assignee_name: i.assignee?.name
+    })));
+  }, [allIssues]);
+  
   // Extract all available labels from issues for filtering
   const allLabels = React.useMemo(() => {
     const labelMap = new Map()
@@ -1603,6 +1615,13 @@ interface IssueCardProps {
 }
 
 function IssueCard({ issue, displayProperties, onClick, isDragging = false, dragListeners, isFullyDraggable = false }: IssueCardProps) {
+  const [localIssue, setLocalIssue] = useState(issue);
+  
+  // Update local issue when prop changes
+  React.useEffect(() => {
+    setLocalIssue(issue);
+  }, [issue]);
+
   const getPriorityColor = (priority: string | null) => {
     switch (priority) {
       case "P0": return "bg-red-500"
@@ -1633,7 +1652,7 @@ function IssueCard({ issue, displayProperties, onClick, isDragging = false, drag
     }
   }
 
-  const isDisabled = issue.state === 'canceled' || issue.state === 'duplicate'
+  const isDisabled = localIssue.state === 'canceled' || localIssue.state === 'duplicate'
 
   return (
     <Card
@@ -1647,63 +1666,63 @@ function IssueCard({ issue, displayProperties, onClick, isDragging = false, drag
       <div className="flex items-start justify-between gap-2 mb-2">
         {/* Title */}
         <h4 className="text-sm font-medium line-clamp-1 flex-1">
-          {issue.title}
+          {localIssue.title}
         </h4>
 
         {/* Key */}
         <span className="text-xs font-mono text-muted-foreground flex-shrink-0">
-          {issue.key}
+          {localIssue.key}
         </span>
       </div>
 
       {/* Middle Row: Short description (if exists) - more compact */}
-      {issue.short_description && (
+      {localIssue.short_description && (
         <div className="mb-2">
           <p className="text-xs text-muted-foreground line-clamp-1 leading-snug">
-            {issue.short_description}
+            {localIssue.short_description}
           </p>
         </div>
       )}
 
       {/* Technology Badge (if exists) - inline with bottom row if possible */}
-      {issue.core_technology && (
+      {localIssue.core_technology && (
         <div className="mb-1.5">
           <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 border border-purple-200">
-            <span className="text-[10px] font-medium text-purple-700">{issue.core_technology}</span>
+            <span className="text-[10px] font-medium text-purple-700">{localIssue.core_technology}</span>
           </div>
         </div>
       )}
 
-      {/* Bottom Row: Owner (left) + Priority (right) */}
+      {/* Bottom Row: Owner (left) + Priority (right) - NOW EDITABLE */}
       <div className="flex items-center justify-between gap-2">
-        {/* Owner with name */}
-        {displayProperties.showAssignee && issue.assignee ? (
-          <div className="flex items-center gap-1.5">
-            <div className="h-4 w-4 bg-muted rounded-full flex items-center justify-center" title={issue.assignee.name}>
-              {issue.assignee.avatar_url ? (
-                <img src={issue.assignee.avatar_url} alt={issue.assignee.name} className="h-4 w-4 rounded-full" />
-              ) : (
-                <span className="text-[10px] font-medium">{issue.assignee.name.charAt(0).toUpperCase()}</span>
-              )}
-            </div>
-            <span className="text-xs text-muted-foreground truncate max-w-[100px]">
-              {issue.assignee.name}
-            </span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1.5">
-            <div className="h-4 w-4 bg-muted rounded-full flex items-center justify-center">
-              <UserIcon className="h-2.5 w-2.5 text-muted-foreground" />
-            </div>
-            <span className="text-xs text-muted-foreground">Unassigned</span>
+        {/* Owner - Editable Assignee */}
+        {displayProperties.showAssignee && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <EditableIssueAssigneeDropdown
+              currentAssignee={localIssue.assignee}
+              issueId={localIssue.id}
+              onAssigneeChange={(newAssignee) => {
+                console.log('[IssueCard] Assignee changed:', newAssignee);
+                setLocalIssue({ ...localIssue, assignee: newAssignee || undefined });
+                // Note: The EditableIssueAssigneeDropdown already saves to DB
+                // We just update local state for immediate UI feedback
+              }}
+            />
           </div>
         )}
 
-        {/* Priority */}
-        {displayProperties.showPriority && issue.priority && (
-          <Badge className={`text-[10px] px-1.5 py-0 ${getPriorityColor(issue.priority)} text-white flex-shrink-0`}>
-            {issue.priority}
-          </Badge>
+        {/* Priority - Editable */}
+        {displayProperties.showPriority && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <EditableIssuePriorityDropdown
+              currentPriority={localIssue.priority}
+              issueId={localIssue.id}
+              onPriorityChange={(newPriority) => {
+                console.log('[IssueCard] Priority changed:', newPriority);
+                setLocalIssue({ ...localIssue, priority: newPriority });
+              }}
+            />
+          </div>
         )}
       </div>
 
