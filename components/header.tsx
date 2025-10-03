@@ -28,7 +28,7 @@ interface HeaderProps {
 
 export function Header({ title, subtitle, actions }: HeaderProps) {
   const [isDark, setIsDark] = useState(true)
-  const { currentOrg, signOut, user } = useAuth()
+  const { currentOrg, signOut, user, isSAPUser } = useAuth()
   const router = useRouter()
 
   const toggleTheme = () => {
@@ -70,7 +70,8 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
           </span>
         </div>
         
-        <RoleSwitcher />
+        {/* RoleSwitcher only visible for SAP users (for demo purposes) */}
+        {isSAPUser && <RoleSwitcher />}
         
         {actions}
 

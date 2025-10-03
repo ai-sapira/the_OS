@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
+import { useAuth } from "@/lib/context/auth-context"
 
 export type Role = "SAP" | "CEO" | "BU" | "EMP"
 
@@ -186,40 +187,55 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
 ]
 
 export function useRoles() {
-  const [activeRole, setActiveRole] = useState<Role>("SAP")
+  const [demoRole, setDemoRole] = useState<Role | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
   const searchParams = useSearchParams()
+  
+  // Get auth context - we need this to check if user is SAP and get their real role
+  const { currentOrg, isSAPUser } = useAuth()
 
-  // Initialize role from localStorage and URL params
-  // DEMO MODE: Permite cambiar de rol y VER DATOS DIFERENTES
-  // En producción, puedes bloquear esto y usar solo currentOrg.role
+  // Active role logic:
+  // - SAP users can switch roles (demo mode) when demoRole is set
+  // - Non-SAP users OR SAP users without demoRole always see their real role
+  const activeRole = isSAPUser && demoRole 
+    ? demoRole 
+    : (currentOrg?.role || 'EMP')
+
+  // Initialize role from localStorage (only for SAP users)
   useEffect(() => {
     if (typeof window === "undefined") return
-
-    // Check URL param first
-    const roleParam = searchParams?.get("role") as Role
-    if (roleParam && ["SAP", "CEO", "BU", "EMP"].includes(roleParam)) {
-      setActiveRole(roleParam)
-      localStorage.setItem("os.activeRole", roleParam)
-      setIsInitialized(true)
-      return
-    }
-
-    // Then check localStorage
-    const storedRole = localStorage.getItem("os.activeRole") as Role
-    if (storedRole && ["SAP", "CEO", "BU", "EMP"].includes(storedRole)) {
-      setActiveRole(storedRole)
+    
+    // Only restore demo role if user is SAP
+    if (isSAPUser && currentOrg) {
+      const orgId = currentOrg.organization.id
+      const storedRole = localStorage.getItem(`os.demoRole.${orgId}`) as Role
+      
+      if (storedRole && ["SAP", "CEO", "BU", "EMP"].includes(storedRole)) {
+        setDemoRole(storedRole)
+      }
+    } else {
+      // Non-SAP users: clear any demo role
+      setDemoRole(null)
     }
     
     setIsInitialized(true)
-  }, [searchParams])
+  }, [isSAPUser, currentOrg])
 
-  // Switch role and persist to localStorage
-  // DEMO MODE: Cambiar rol cambia TANTO la UI como los DATOS que se ven
-  // Para producción: Comentar switchRole o hacerlo read-only desde currentOrg.role
+  // Switch role - only allowed for SAP users
   const switchRole = (role: Role) => {
-    setActiveRole(role)
-    localStorage.setItem("os.activeRole", role)
+    if (!isSAPUser) {
+      console.warn('Role switching is only available for SAP users')
+      return
+    }
+    
+    if (!currentOrg) {
+      console.warn('No organization selected')
+      return
+    }
+    
+    setDemoRole(role)
+    // Persist demo role per organization
+    localStorage.setItem(`os.demoRole.${currentOrg.organization.id}`, role)
   }
 
   // Check if user has permission
@@ -265,6 +281,7 @@ export function useRoles() {
     getRoleLabel,
     getFilterPreset,
     isInitialized,
+    isSAPUser, // Expose whether current user is SAP
     allRoles: ["SAP", "CEO", "BU", "EMP"] as Role[],
   }
 }

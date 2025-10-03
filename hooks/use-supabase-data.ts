@@ -7,26 +7,49 @@ import { IssuesAPI, type IssueWithRelations } from '@/lib/api/issues'
 import { InitiativesAPI, type InitiativeWithManager } from '@/lib/api/initiatives'
 import { ProjectsAPI, type ProjectWithRelations } from '@/lib/api/projects'
 
-// Mock user context - GONVARRI DEMO
-// Mapeo de roles a usuarios reales de Gonvarri
-const MOCK_USERS = {
-  'SAP': '11111111-1111-1111-1111-111111111111',  // Pablo Senabre (super admin)
-  'CEO': '22222222-2222-2222-2222-222222222222',  // CEO Director (ve todo)
+// =====================================================
+// DEMO MODE: Mock Users for SAP Role Switching
+// =====================================================
+// When a SAP user switches roles, we simulate them as specific users
+// from the organization to show realistic filtered data.
+//
+// These are REAL user IDs from the database (table: users)
+// To verify/update these IDs, run: scripts/verify-gonvarri-users.sql
+//
+// ⚠️ IMPORTANT: These IDs must match actual users in the database!
+// =====================================================
+
+// Gonvarri mock users (organization: Gonvarri)
+const GONVARRI_MOCK_USERS = {
+  'SAP': '11111111-1111-1111-1111-111111111111',  // Pablo Senabre (Sapira admin)
+  'CEO': '22222222-2222-2222-2222-222222222222',  // CEO Director (sees everything)
   'BU': '55555555-5555-5555-5555-555555555555',   // Miguel López (Finance Manager)
-  'EMP': '77777777-7777-7777-7777-777777777777'   // Juan Pérez (empleado)
+  'EMP': '33333333-3333-3333-3333-333333333333'   // Carlos Rodríguez (Employee - 3 issues reales)
 }
 
-// Mapeo de BU managers a sus Business Units
-const MOCK_BU_INITIATIVES = {
+// Map BU managers to their Business Units (initiatives)
+const GONVARRI_BU_INITIATIVES = {
   '55555555-5555-5555-5555-555555555555': '10000000-0000-0000-0000-000000000001', // Miguel → Finance
   '44444444-4444-4444-4444-444444444444': '10000000-0000-0000-0000-000000000006', // Ana → All Departments
   '66666666-6666-6666-6666-666666666666': '10000000-0000-0000-0000-000000000004', // Laura → HR
   '33333333-3333-3333-3333-333333333333': '10000000-0000-0000-0000-000000000002', // Carlos → Sales
 }
 
+// Map organizations to their mock users (for multi-org support)
+const MOCK_USERS_BY_ORG: Record<string, Record<Role, string>> = {
+  'gonvarri': GONVARRI_MOCK_USERS,
+  // Add more organizations here as needed
+  // 'aurovitas': AUROVITAS_MOCK_USERS,
+}
+
+const MOCK_BU_BY_ORG: Record<string, Record<string, string>> = {
+  'gonvarri': GONVARRI_BU_INITIATIVES,
+  // Add more organizations here as needed
+}
+
 export function useSupabaseData() {
-  const { activeRole } = useRoles()
-  const { currentOrg } = useAuth() // Get current organization from auth context
+  const { activeRole, isSAPUser } = useRoles()
+  const { currentOrg, user } = useAuth() // Get current organization and user from auth context
   const [triageIssues, setTriageIssues] = useState<IssueWithRelations[]>([])
   const [roleIssues, setRoleIssues] = useState<IssueWithRelations[]>([])
   const [initiatives, setInitiatives] = useState<InitiativeWithManager[]>([])
@@ -35,12 +58,31 @@ export function useSupabaseData() {
   const [error, setError] = useState<string | null>(null)
 
   // Get current user info based on active role
+  // If SAP user is in demo mode (switching roles), return mock user ID
+  // Otherwise, return real authenticated user ID
   const getCurrentUser = useCallback(() => {
-    const userId = MOCK_USERS[activeRole]
-    const initiativeId = activeRole === 'BU' && userId ? MOCK_BU_INITIATIVES[userId as keyof typeof MOCK_BU_INITIATIVES] : undefined
+    // SAP users in demo mode: use mock users based on selected role
+    if (isSAPUser && activeRole !== 'SAP' && currentOrg) {
+      const orgSlug = currentOrg.organization.slug
+      const mockUsers = MOCK_USERS_BY_ORG[orgSlug]
+      const mockBUs = MOCK_BU_BY_ORG[orgSlug]
+      
+      if (mockUsers && mockUsers[activeRole]) {
+        const userId = mockUsers[activeRole]
+        const initiativeId = activeRole === 'BU' && mockBUs 
+          ? mockBUs[userId] 
+          : undefined
+        
+        return { userId, initiativeId }
+      }
+    }
     
-    return { userId, initiativeId }
-  }, [activeRole])
+    // Non-SAP users OR SAP viewing as SAP: use real authenticated user
+    return { 
+      userId: user?.id,
+      initiativeId: currentOrg?.initiative_id 
+    }
+  }, [activeRole, currentOrg, isSAPUser, user])
 
   // Get organization ID from context or fallback to Aurovitas for demo mode
   const getOrganizationId = useCallback(() => {
@@ -68,7 +110,7 @@ export function useSupabaseData() {
   const loadRoleIssues = useCallback(async () => {
     try {
       const { userId, initiativeId } = getCurrentUser()
-      const issues = await IssuesAPI.getIssuesByRole(activeRole, userId, initiativeId)
+      const issues = await IssuesAPI.getIssuesByRole(activeRole, userId || undefined, initiativeId || undefined)
       setRoleIssues(issues)
     } catch (err) {
       console.error('Error loading role issues:', err)
@@ -164,7 +206,7 @@ export function useSupabaseData() {
 
         // Load role-filtered issues
         const { userId, initiativeId } = getCurrentUser()
-        const issues = await IssuesAPI.getIssuesByRole(activeRole, userId, initiativeId)
+        const issues = await IssuesAPI.getIssuesByRole(activeRole, userId || undefined, initiativeId || undefined)
         setRoleIssues(issues)
 
         // Load initiatives (filtered by role)
@@ -232,6 +274,12 @@ export function useSupabaseData() {
     try {
       const { userId } = getCurrentUser()
       
+      if (!userId) {
+        console.error('Cannot accept issue: user ID not available')
+        setError('User ID not available')
+        return false
+      }
+      
       // Accept the issue
       await IssuesAPI.triageIssue(issueId, {
         action: 'accept',
@@ -260,6 +308,12 @@ export function useSupabaseData() {
     try {
       const { userId } = getCurrentUser()
       
+      if (!userId) {
+        console.error('Cannot decline issue: user ID not available')
+        setError('User ID not available')
+        return false
+      }
+      
       // Decline the issue
       await IssuesAPI.triageIssue(issueId, {
         action: 'decline',
@@ -286,6 +340,13 @@ export function useSupabaseData() {
   const duplicateIssue = useCallback(async (issueId: string, duplicateOfId: string, reason?: string) => {
     try {
       const { userId } = getCurrentUser()
+      
+      if (!userId) {
+        console.error('Cannot duplicate issue: user ID not available')
+        setError('User ID not available')
+        return false
+      }
+      
       await IssuesAPI.triageIssue(issueId, {
         action: 'duplicate',
         duplicate_of_id: duplicateOfId,
@@ -306,6 +367,12 @@ export function useSupabaseData() {
   const snoozeIssue = useCallback(async (issueId: string, snoozeUntil: string, reason?: string) => {
     try {
       const { userId } = getCurrentUser()
+      
+      if (!userId) {
+        console.error('Cannot snooze issue: user ID not available')
+        setError('User ID not available')
+        return false
+      }
       
       // Snooze the issue
       await IssuesAPI.triageIssue(issueId, {

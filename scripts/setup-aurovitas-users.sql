@@ -221,3 +221,4 @@ ORDER BY
 -- 3. NO pueden hacer login (a menos que crees sus cuentas en Supabase Auth)
 -- 4. Solo el usuario gerardo@aurovitas.com tiene auth real (si lo creaste antes)
 
+

@@ -67,19 +67,17 @@ export async function middleware(req: NextRequest) {
   const isAuthPage = req.nextUrl.pathname.startsWith('/login') || 
                      req.nextUrl.pathname.startsWith('/select-org')
 
-  // MODO DEMO: Autenticación desactivada - Permitir acceso sin login
-  
-  // // If not authenticated and trying to access protected route
-  // if (!session && !isAuthPage) {
-  //   const redirectUrl = new URL('/login', req.url)
-  //   return NextResponse.redirect(redirectUrl)
-  // }
+  // If not authenticated and trying to access protected route
+  if (!session && !isAuthPage) {
+    const redirectUrl = new URL('/login', req.url)
+    return NextResponse.redirect(redirectUrl)
+  }
 
-  // // If authenticated and on login page, redirect to app
-  // if (session && req.nextUrl.pathname === '/login') {
-  //   const redirectUrl = new URL('/', req.url)
-  //   return NextResponse.redirect(redirectUrl)
-  // }
+  // If authenticated and on login page, redirect to app
+  if (session && req.nextUrl.pathname === '/login') {
+    const redirectUrl = new URL('/', req.url)
+    return NextResponse.redirect(redirectUrl)
+  }
 
   // Check if user has selected an organization (except for select-org page itself)
   if (session && !isAuthPage && req.nextUrl.pathname !== '/select-org') {

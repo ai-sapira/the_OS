@@ -98,3 +98,5 @@ Después del fix:
 
 **🎉 ¡Listo! Tu app debería funcionar en Vercel después del próximo deploy.**
 
+
+

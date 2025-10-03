@@ -22,6 +22,7 @@ interface AuthContextType {
   currentOrg: UserOrganization | null
   userOrgs: UserOrganization[]
   loading: boolean
+  isSAPUser: boolean // True if current user has SAP role in current org
   selectOrganization: (orgId: string) => void
   signOut: () => Promise<void>
 }
@@ -67,8 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadUserOrganizations = async (authUserId: string) => {
     try {
+      // Note: user_organizations table may not be in the generated types yet
+      // We use 'any' cast temporarily until we regenerate types
       const { data, error } = await supabase
-        .from('user_organizations')
+        .from('user_organizations' as any)
         .select(`
           role,
           initiative_id,
@@ -83,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      const orgs = (data || []).map(item => ({
+      const orgs = (data || []).map((item: any) => ({
         organization: item.organization as Organization,
         role: item.role as Role,
         initiative_id: item.initiative_id
@@ -126,6 +129,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('sapira.currentOrg')
   }
 
+  // Check if current user has SAP role in current organization
+  const isSAPUser = currentOrg?.role === 'SAP'
+
   return (
     <AuthContext.Provider
       value={{
@@ -133,6 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         currentOrg,
         userOrgs,
         loading,
+        isSAPUser,
         selectOrganization,
         signOut,
       }}
