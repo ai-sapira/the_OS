@@ -266,7 +266,7 @@ export function Sidebar({
         {!isCollapsed ? (
           <div className="flex items-center flex-1 ml-1">
             <Select value={activeRole} onValueChange={handleRoleChange} disabled={isRefreshing}>
-              <SelectTrigger className="border-none bg-transparent p-0 h-8 focus:ring-0 font-semibold text-sidebar-foreground hover:bg-sidebar-accent rounded-md px-2 flex items-center gap-2 justify-start">
+              <SelectTrigger className="border-none bg-transparent p-0 h-8 focus:ring-0 font-semibold text-sidebar-foreground hover:bg-gray-100 rounded-md px-2 flex items-center gap-2 justify-start">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="start">

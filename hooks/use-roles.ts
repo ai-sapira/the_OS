@@ -26,7 +26,6 @@ export interface SidebarItem {
 const PERMISSIONS: Record<Role, string[]> = {
   SAP: [
     "view.triage",
-    "view.my-issues",
     "view.issues",
     "view.projects",
     "view.all-departments",
@@ -47,14 +46,12 @@ const PERMISSIONS: Record<Role, string[]> = {
   ],
   CEO: [
     "view.triage", // optional
-    "view.my-issues",
     "view.issues",
     "view.projects",
     "view.all-departments",
     "view.initiatives",
     "view.roadmap",
     "view.metrics", 
-    "view.ceo-dashboard",
     "view.surveys",
     "action.triage.accept", // optional
     "action.triage.decline", // optional
@@ -67,12 +64,10 @@ const PERMISSIONS: Record<Role, string[]> = {
   ],
   BU: [
     "view.triage", // optional
-    "view.my-issues",
     "view.issues",
     "view.projects",
     "view.all-departments",
     "view.metrics",
-    "view.my-business-unit",
     "view.surveys",
     "action.triage.accept", // optional
     "action.triage.decline", // optional
@@ -84,7 +79,6 @@ const PERMISSIONS: Record<Role, string[]> = {
     "filter.my-bu", // Filter to own BU
   ],
   EMP: [
-    "view.my-issues",
     "view.issues",
     "view.me",
     "view.surveys", // Can view and respond to surveys
@@ -104,14 +98,6 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
     href: "/triage-new",
     count: 12,
     roles: ["SAP", "CEO", "BU"], // Optional for CEO/BU
-    section: "global",
-  },
-  {
-    id: "my-issues",
-    label: "My Issues",
-    icon: "User",
-    href: "/my-issues",
-    roles: ["SAP", "CEO", "BU", "EMP"],
     section: "global",
   },
   // Workspace section
@@ -155,14 +141,6 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
     roles: ["SAP", "CEO", "BU"],
     section: "workspace",
   },
-  {
-    id: "organization",
-    label: "Organization",
-    icon: "Network",
-    href: "/organization",
-    roles: ["SAP", "CEO"],
-    section: "workspace",
-  },
   // Context presets
   {
     id: "surveys",
@@ -178,22 +156,6 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
     icon: "Shield",
     href: "/sapira",
     roles: ["SAP"],
-    section: "context",
-  },
-  {
-    id: "ceo-dashboard",
-    label: "CEO dashboard", 
-    icon: "Crown",
-    href: "/ceo",
-    roles: ["CEO"],
-    section: "context",
-  },
-  {
-    id: "my-business-unit",
-    label: "My Business Unit",
-    icon: "Building2",
-    href: "/my-bu",
-    roles: ["BU"],
     section: "context",
   },
   {

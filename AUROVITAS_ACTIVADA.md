@@ -35,11 +35,11 @@ Todos los archivos API ahora usan Aurovitas por defecto:
 ```
 ID:   22222222-2222-2222-2222-222222222222
 Slug: aurovitas
-Estado: COMPLETAMENTE VACÍA
+Estado: LIMPIA Y LISTA
   - 0 Issues
   - 0 Projects
   - 0 Initiatives
-  - 0 Usuarios (excepto gerardo@aurovitas.com si activas login)
+  - 14 Usuarios mock (2 SAP, 1 CEO, 4 BU Managers, 7 Employees)
 ```
 
 ### **Gonvarri (Desactivada)** 🏭
@@ -195,11 +195,12 @@ Para reactivar el login:
 
 ## ✅ Estado Final
 
-- ✅ **Organización:** Aurovitas (vacía)
+- ✅ **Organización:** Aurovitas (limpia)
 - ✅ **Autenticación:** Desactivada (modo demo)
 - ✅ **Datos:** 0 issues, 0 projects, 0 initiatives
-- ✅ **Listo para:** Crear contenido desde cero
-- ✅ **Header:** Mostrará "Aurovitas" (cuando se cree contenido)
+- ✅ **Usuarios:** 14 usuarios mock activos
+- ✅ **Dropdowns:** Manager, Owner y Assignee funcionando
+- ✅ **Listo para:** Crear contenido desde cero con usuarios asignables
 
 ---
 
