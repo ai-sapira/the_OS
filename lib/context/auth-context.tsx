@@ -70,38 +70,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log('[AuthProvider] Loading organizations for user:', authUserId)
     
     try {
-      // First get user_organizations
-      console.log('[AuthProvider] ABOUT TO QUERY user_organizations...')
+      // Use API route instead of direct Supabase query
+      console.log('[AuthProvider] Calling API route...')
       
-      // Create a timeout promise
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Query timeout after 5s')), 5000)
-      )
+      const response = await fetch(`/api/user/organizations?userId=${authUserId}`)
       
-      const queryPromise = supabase
-        .from('user_organizations' as any)
-        .select('role, initiative_id, organization_id')
-        .eq('auth_user_id', authUserId)
-        .eq('active', true)
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
+      }
       
-      console.log('[AuthProvider] Query created, waiting for response...')
+      const { data, error } = await response.json()
       
-      const { data: userOrgsData, error: userOrgsError } = await Promise.race([
-        queryPromise,
-        timeoutPromise
-      ]) as any
+      console.log('[AuthProvider] API response:', { data, error })
 
-      console.log('[AuthProvider] User orgs query result:', { userOrgsData, error: userOrgsError })
-
-      if (userOrgsError) {
-        console.error('[AuthProvider] Error loading user_organizations:', userOrgsError)
+      if (error) {
+        console.error('[AuthProvider] API returned error:', error)
         setUserOrgs([])
         setCurrentOrg(null)
         setLoading(false)
         return
       }
 
-      if (!userOrgsData || userOrgsData.length === 0) {
+      if (!data || data.length === 0) {
         console.warn('[AuthProvider] No organizations found for user')
         setUserOrgs([])
         setCurrentOrg(null)
@@ -109,44 +99,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      // Then get organizations details
-      const orgIds = userOrgsData.map((uo: any) => uo.organization_id)
-      console.log('[AuthProvider] ABOUT TO QUERY organizations for IDs:', orgIds)
-      
-      const orgsQueryPromise = supabase
-        .from('organizations' as any)
-        .select('id, name, slug')
-        .in('id', orgIds)
-      
-      console.log('[AuthProvider] Organizations query created, waiting...')
-      
-      const { data: orgsData, error: orgsError } = await Promise.race([
-        orgsQueryPromise,
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Organizations query timeout after 5s')), 5000)
-        )
-      ]) as any
-
-      console.log('[AuthProvider] Organizations query result:', { orgsData, error: orgsError })
-
-      if (orgsError) {
-        console.error('[AuthProvider] Error loading organizations:', orgsError)
-        setUserOrgs([])
-        setCurrentOrg(null)
-        setLoading(false)
-        return
-      }
-
-      // Combine the data
-      const data = userOrgsData.map((uo: any) => ({
-        ...uo,
-        organization: orgsData?.find((o: any) => o.id === uo.organization_id)
-      }))
-
-      console.log('[AuthProvider] Combined data:', data)
-
+      // Map the data from API response
       const orgs = (data || []).map((item: any) => ({
-        organization: item.organization as Organization,
+        organization: item.organizations as Organization,
         role: item.role as Role,
         initiative_id: item.initiative_id
       })).filter((org: any) => org.organization) // Filter out any without organization data
