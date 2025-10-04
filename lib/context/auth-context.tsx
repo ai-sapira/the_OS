@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
 import { Role } from '@/hooks/use-roles'
@@ -34,12 +34,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentOrg, setCurrentOrg] = useState<UserOrganization | null>(null)
   const [userOrgs, setUserOrgs] = useState<UserOrganization[]>([])
   const [loading, setLoading] = useState(true)
-  const [loadingOrgs, setLoadingOrgs] = useState(false) // Prevent concurrent calls
+  
+  // Use refs to prevent race conditions
+  const loadingRef = useRef(false)
+  const lastLoadedUserIdRef = useRef<string | null>(null)
 
   // Load user and their organizations
   useEffect(() => {
+    let mounted = true
+    
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return
+      
       setUser(session?.user ?? null)
       if (session?.user) {
         loadUserOrganizations(session.user.id)
@@ -51,32 +58,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('[AuthProvider] Auth state changed:', event)
-        setUser(session?.user ?? null)
+        if (!mounted) return
         
-        if (session?.user) {
-          await loadUserOrganizations(session.user.id)
-        } else {
+        console.log('[AuthProvider] Auth state changed:', event)
+        
+        // Only process SIGNED_IN events to avoid duplicates
+        if (event === 'SIGNED_IN') {
+          setUser(session?.user ?? null)
+          if (session?.user) {
+            await loadUserOrganizations(session.user.id)
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null)
           setUserOrgs([])
           setCurrentOrg(null)
           setLoading(false)
           localStorage.removeItem('sapira.currentOrg')
+          lastLoadedUserIdRef.current = null
         }
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   const loadUserOrganizations = async (authUserId: string) => {
-    // Prevent concurrent calls
-    if (loadingOrgs) {
+    // Prevent concurrent calls and skip if already loaded for this user
+    if (loadingRef.current) {
       console.log('[AuthProvider] Already loading organizations, skipping...')
       return
     }
     
+    if (lastLoadedUserIdRef.current === authUserId && userOrgs.length > 0) {
+      console.log('[AuthProvider] Organizations already loaded for this user, skipping...')
+      setLoading(false)
+      return
+    }
+    
     console.log('[AuthProvider] Loading organizations for user:', authUserId)
-    setLoadingOrgs(true)
+    loadingRef.current = true
+    lastLoadedUserIdRef.current = authUserId
     
     try {
       // Use API route instead of direct Supabase query
@@ -110,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserOrgs([])
         setCurrentOrg(null)
         setLoading(false)
-        setLoadingOrgs(false)
+        loadingRef.current = false
         return
       }
 
@@ -119,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserOrgs([])
         setCurrentOrg(null)
         setLoading(false)
-        setLoadingOrgs(false)
+        loadingRef.current = false
         return
       }
 
@@ -156,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       console.log('[AuthProvider] Setting loading to false')
       setLoading(false)
-      setLoadingOrgs(false)
+      loadingRef.current = false
     }
   }
 
