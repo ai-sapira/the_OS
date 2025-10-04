@@ -46,20 +46,26 @@ const { data } = await response.json()
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhYXpwc3ZqaWx0bGtoeWVha214Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODg3OTUxMCwiZXhwIjoyMDc0NDU1NTEwfQ.dVoL2iWo1BVOSt7BRMjpwOzGGnxg0eG7lJhh8qfUBQM
 ```
 
-### 2. Vercel (⚠️ PENDIENTE)
+### 2. Vercel (⚠️ PENDIENTE - HAZLO AHORA)
+
+**El build fallará hasta que agregues esta variable.**
 
 Ve a tu proyecto en Vercel → Settings → Environment Variables → Add:
 
 ```
 Name: SUPABASE_SERVICE_ROLE_KEY
 Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhYXpwc3ZqaWx0bGtoeWVha214Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODg3OTUxMCwiZXhwIjoyMDc0NDU1NTEwfQ.dVoL2iWo1BVOSt7BRMjpwOzGGnxg0eG7lJhh8qfUBQM
-Environment: Production, Preview, Development
+Environment: ✅ Production, ✅ Preview, ✅ Development
 ```
 
-**⚠️ Importante:** Después de agregar la variable:
-1. Ve a Deployments
-2. Click en el último deployment
-3. Click "Redeploy"
+**Pasos exactos:**
+1. Ve a https://vercel.com/pablosenabres-projects/the-os/settings/environment-variables
+2. Click "Add New"
+3. Name: `SUPABASE_SERVICE_ROLE_KEY`
+4. Value: (copia el token de arriba)
+5. Check los 3 environments: Production, Preview, Development
+6. Click "Save"
+7. **El próximo deploy funcionará automáticamente**
 
 ## ✅ Ventajas
 
