@@ -71,11 +71,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     try {
       // First get user_organizations
-      const { data: userOrgsData, error: userOrgsError } = await supabase
+      console.log('[AuthProvider] ABOUT TO QUERY user_organizations...')
+      
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Query timeout after 5s')), 5000)
+      )
+      
+      const queryPromise = supabase
         .from('user_organizations' as any)
         .select('role, initiative_id, organization_id')
         .eq('auth_user_id', authUserId)
         .eq('active', true)
+      
+      console.log('[AuthProvider] Query created, waiting for response...')
+      
+      const { data: userOrgsData, error: userOrgsError } = await Promise.race([
+        queryPromise,
+        timeoutPromise
+      ]) as any
 
       console.log('[AuthProvider] User orgs query result:', { userOrgsData, error: userOrgsError })
 
@@ -97,10 +111,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Then get organizations details
       const orgIds = userOrgsData.map((uo: any) => uo.organization_id)
-      const { data: orgsData, error: orgsError } = await supabase
+      console.log('[AuthProvider] ABOUT TO QUERY organizations for IDs:', orgIds)
+      
+      const orgsQueryPromise = supabase
         .from('organizations' as any)
         .select('id, name, slug')
         .in('id', orgIds)
+      
+      console.log('[AuthProvider] Organizations query created, waiting...')
+      
+      const { data: orgsData, error: orgsError } = await Promise.race([
+        orgsQueryPromise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Organizations query timeout after 5s')), 5000)
+        )
+      ]) as any
 
       console.log('[AuthProvider] Organizations query result:', { orgsData, error: orgsError })
 
