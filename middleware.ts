@@ -3,6 +3,11 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(req: NextRequest) {
+  // Skip middleware for API routes - they handle their own auth
+  if (req.nextUrl.pathname.startsWith('/api/')) {
+    return NextResponse.next()
+  }
+
   let res = NextResponse.next({
     request: {
       headers: req.headers,

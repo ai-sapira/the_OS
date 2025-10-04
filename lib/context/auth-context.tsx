@@ -75,11 +75,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       const response = await fetch(`/api/user/organizations?userId=${authUserId}`)
       
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`)
-      }
+      console.log('[AuthProvider] Response status:', response.status, response.statusText)
+      console.log('[AuthProvider] Response headers:', Object.fromEntries(response.headers.entries()))
       
-      const { data, error } = await response.json()
+      // Get the response text first to see what we're actually receiving
+      const responseText = await response.text()
+      console.log('[AuthProvider] Response text (first 200 chars):', responseText.substring(0, 200))
+      
+      // Try to parse as JSON
+      let data, error
+      try {
+        const parsed = JSON.parse(responseText)
+        data = parsed.data
+        error = parsed.error
+      } catch (parseError) {
+        console.error('[AuthProvider] Failed to parse response as JSON:', parseError)
+        console.error('[AuthProvider] Full response:', responseText)
+        throw new Error(`API returned non-JSON response: ${responseText.substring(0, 100)}`)
+      }
       
       console.log('[AuthProvider] API response:', { data, error })
 
