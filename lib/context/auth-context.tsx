@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentOrg, setCurrentOrg] = useState<UserOrganization | null>(null)
   const [userOrgs, setUserOrgs] = useState<UserOrganization[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingOrgs, setLoadingOrgs] = useState(false) // Prevent concurrent calls
 
   // Load user and their organizations
   useEffect(() => {
@@ -50,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('[AuthProvider] Auth state changed:', event)
         setUser(session?.user ?? null)
         
         if (session?.user) {
@@ -67,7 +69,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const loadUserOrganizations = async (authUserId: string) => {
+    // Prevent concurrent calls
+    if (loadingOrgs) {
+      console.log('[AuthProvider] Already loading organizations, skipping...')
+      return
+    }
+    
     console.log('[AuthProvider] Loading organizations for user:', authUserId)
+    setLoadingOrgs(true)
     
     try {
       // Use API route instead of direct Supabase query
@@ -101,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserOrgs([])
         setCurrentOrg(null)
         setLoading(false)
+        setLoadingOrgs(false)
         return
       }
 
@@ -109,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserOrgs([])
         setCurrentOrg(null)
         setLoading(false)
+        setLoadingOrgs(false)
         return
       }
 
@@ -145,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       console.log('[AuthProvider] Setting loading to false')
       setLoading(false)
+      setLoadingOrgs(false)
     }
   }
 

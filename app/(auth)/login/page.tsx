@@ -28,11 +28,10 @@ export default function LoginPage() {
 
       if (error) throw error
 
-      // Successful login - force hard redirect after session is set
-      // Use window.location to ensure middleware picks up the session
-      setTimeout(() => {
-        window.location.href = '/'
-      }, 500)
+      console.log('[Login] Auth successful, redirecting...')
+      
+      // Use router.push first, let middleware handle the rest
+      router.push('/')
     } catch (err: any) {
       setError(err.message || 'Error al iniciar sesión')
       setLoading(false)
