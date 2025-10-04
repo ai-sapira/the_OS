@@ -70,29 +70,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     console.log('[AuthProvider] Loading organizations for user:', authUserId)
     
     try {
-      // Note: user_organizations table may not be in the generated types yet
-      // We use 'any' cast temporarily until we regenerate types
-      const { data, error } = await supabase
+      // First get user_organizations
+      const { data: userOrgsData, error: userOrgsError } = await supabase
         .from('user_organizations' as any)
-        .select(`
-          role,
-          initiative_id,
-          organization:organizations(id, name, slug)
-        `)
+        .select('role, initiative_id, organization_id')
         .eq('auth_user_id', authUserId)
         .eq('active', true)
 
-      console.log('[AuthProvider] Query result:', { data, error })
+      console.log('[AuthProvider] User orgs query result:', { userOrgsData, error: userOrgsError })
 
-      if (error) {
-        console.error('[AuthProvider] Error loading organizations:', error)
+      if (userOrgsError) {
+        console.error('[AuthProvider] Error loading user_organizations:', userOrgsError)
         setUserOrgs([])
         setCurrentOrg(null)
         setLoading(false)
         return
       }
 
-      if (!data || data.length === 0) {
+      if (!userOrgsData || userOrgsData.length === 0) {
         console.warn('[AuthProvider] No organizations found for user')
         setUserOrgs([])
         setCurrentOrg(null)
@@ -100,11 +95,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
+      // Then get organizations details
+      const orgIds = userOrgsData.map((uo: any) => uo.organization_id)
+      const { data: orgsData, error: orgsError } = await supabase
+        .from('organizations' as any)
+        .select('id, name, slug')
+        .in('id', orgIds)
+
+      console.log('[AuthProvider] Organizations query result:', { orgsData, error: orgsError })
+
+      if (orgsError) {
+        console.error('[AuthProvider] Error loading organizations:', orgsError)
+        setUserOrgs([])
+        setCurrentOrg(null)
+        setLoading(false)
+        return
+      }
+
+      // Combine the data
+      const data = userOrgsData.map((uo: any) => ({
+        ...uo,
+        organization: orgsData?.find((o: any) => o.id === uo.organization_id)
+      }))
+
+      console.log('[AuthProvider] Combined data:', data)
+
       const orgs = (data || []).map((item: any) => ({
         organization: item.organization as Organization,
         role: item.role as Role,
         initiative_id: item.initiative_id
-      }))
+      })).filter((org: any) => org.organization) // Filter out any without organization data
 
       console.log('[AuthProvider] Mapped organizations:', orgs)
       setUserOrgs(orgs)
