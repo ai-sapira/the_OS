@@ -111,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Try to restore previously selected org from localStorage
       const savedOrgId = localStorage.getItem('sapira.currentOrg')
-      const savedOrg = orgs.find(o => o.organization?.id === savedOrgId)
+      const savedOrg = orgs.find((o: any) => o.organization?.id === savedOrgId)
 
       if (savedOrg) {
         console.log('[AuthProvider] Restored saved org:', savedOrg.organization.name)
