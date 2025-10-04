@@ -30,8 +30,9 @@ export default function LoginPage() {
 
       console.log('[Login] Auth successful, redirecting...')
       
-      // Use router.push first, let middleware handle the rest
-      router.push('/')
+      // Force full page reload to ensure middleware picks up new session
+      // router.push doesn't refresh cookies, window.location does
+      window.location.href = '/'
     } catch (err: any) {
       setError(err.message || 'Error al iniciar sesión')
       setLoading(false)
