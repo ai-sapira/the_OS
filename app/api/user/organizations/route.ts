@@ -1,24 +1,39 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+// Disable static optimization for this API route
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs' // Explicitly use Node.js runtime
+
 export async function GET(request: Request) {
+  console.log('[API /user/organizations] Request received')
+  
   try {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
+
+    console.log('[API /user/organizations] userId:', userId)
 
     if (!userId) {
       return NextResponse.json({ error: 'Missing userId' }, { status: 400 })
     }
 
-    console.log('[API /user/organizations] Getting orgs for user:', userId)
-
     // Initialize Supabase client at runtime (not build time)
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://iaazpsvjiltlkhyeakmx.supabase.co'
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
     
+    console.log('[API /user/organizations] Config:', {
+      hasUrl: !!supabaseUrl,
+      hasKey: !!supabaseServiceKey,
+      keyPrefix: supabaseServiceKey?.substring(0, 20)
+    })
+    
     if (!supabaseServiceKey) {
       console.error('[API /user/organizations] Missing SUPABASE_SERVICE_ROLE_KEY')
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+      return NextResponse.json({ 
+        error: 'Server configuration error - missing service key',
+        data: []
+      }, { status: 500 })
     }
 
     // Use service role to bypass RLS for initial auth check
@@ -28,6 +43,8 @@ export async function GET(request: Request) {
         persistSession: false
       }
     })
+
+    console.log('[API /user/organizations] Querying database...')
 
     // Simple direct query with service role
     const { data, error } = await supabaseAdmin
@@ -46,16 +63,22 @@ export async function GET(request: Request) {
       .eq('active', true)
 
     if (error) {
-      console.error('[API /user/organizations] Error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('[API /user/organizations] Database error:', error)
+      return NextResponse.json({ 
+        error: error.message,
+        data: []
+      }, { status: 500 })
     }
 
-    console.log('[API /user/organizations] Success:', data)
-    return NextResponse.json({ data })
+    console.log('[API /user/organizations] Success - found', data?.length || 0, 'organizations')
+    return NextResponse.json({ data: data || [] })
 
   } catch (err: any) {
     console.error('[API /user/organizations] Unexpected error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return NextResponse.json({ 
+      error: err?.message || 'Unknown error',
+      data: []
+    }, { status: 500 })
   }
 }
 
