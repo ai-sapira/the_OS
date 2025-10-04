@@ -21,23 +21,32 @@ export async function GET(request: Request) {
     // Initialize Supabase client at runtime (not build time)
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://iaazpsvjiltlkhyeakmx.supabase.co'
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhYXpwc3ZqaWx0bGtoeWVha214Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4Nzk1MTAsImV4cCI6MjA3NDQ1NTUxMH0.kVn7eIZEzNjImOe5yNgqPJOzN-IGUjN2AkzOALflZms'
     
     console.log('[API /user/organizations] Config:', {
       hasUrl: !!supabaseUrl,
-      hasKey: !!supabaseServiceKey,
-      keyPrefix: supabaseServiceKey?.substring(0, 20)
+      hasServiceKey: !!supabaseServiceKey,
+      hasAnonKey: !!supabaseAnonKey,
+      keyPrefix: (supabaseServiceKey || supabaseAnonKey)?.substring(0, 20)
     })
     
-    if (!supabaseServiceKey) {
-      console.error('[API /user/organizations] Missing SUPABASE_SERVICE_ROLE_KEY')
+    // Use service role if available, fallback to anon key (temporary workaround)
+    const apiKey = supabaseServiceKey || supabaseAnonKey
+    
+    if (!apiKey) {
+      console.error('[API /user/organizations] No API key available')
       return NextResponse.json({ 
-        error: 'Server configuration error - missing service key',
+        error: 'Server configuration error - missing API key',
         data: []
       }, { status: 500 })
     }
 
+    if (!supabaseServiceKey) {
+      console.warn('[API /user/organizations] ⚠️ Using ANON key as fallback - get Service Role Key from Supabase Dashboard!')
+    }
+
     // Use service role to bypass RLS for initial auth check
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+    const supabaseAdmin = createClient(supabaseUrl, apiKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false
