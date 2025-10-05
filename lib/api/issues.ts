@@ -80,6 +80,9 @@ export class IssuesAPI {
       .from('issues')
       .select(`
         *,
+        initiative:initiatives(*),
+        project:projects(*),
+        assignee:users!issues_assignee_id_fkey(id, name, email, avatar_url),
         reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url),
         labels:issue_labels(label_id, labels(*))
       `)
@@ -106,6 +109,7 @@ export class IssuesAPI {
       `)
       .eq('organization_id', organizationId)
       .neq('state', 'triage')
+      .neq('state', 'canceled')
       .order('updated_at', { ascending: false })
 
     if (error) throw error
@@ -189,6 +193,8 @@ export class IssuesAPI {
 
   // Triage action (accept/decline/duplicate/snooze)
   static async triageIssue(issueId: string, action: TriageAction, actorUserId: string): Promise<Issue> {
+    console.log('[IssuesAPI] triageIssue called:', { issueId, action: action.action, actorUserId })
+    
     let updateData: any = {
       triaged_at: new Date().toISOString(),
       triaged_by_user_id: actorUserId
@@ -208,16 +214,20 @@ export class IssuesAPI {
           priority: action.accept_data.priority,
           due_at: action.accept_data.due_at
         }
+        console.log('[IssuesAPI] Accepting issue with data:', updateData)
         break
       case 'decline':
         updateData.state = 'canceled'
+        console.log('[IssuesAPI] Declining issue')
         break
       case 'duplicate':
         updateData.state = 'duplicate'
         updateData.duplicate_of_id = action.duplicate_of_id
+        console.log('[IssuesAPI] Marking as duplicate')
         break
       case 'snooze':
         updateData.snooze_until = action.snooze_until
+        console.log('[IssuesAPI] Snoozing until:', action.snooze_until)
         break
     }
 
@@ -228,7 +238,18 @@ export class IssuesAPI {
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('[IssuesAPI] Error updating issue:', error)
+      throw error
+    }
+    
+    console.log('[IssuesAPI] Issue updated successfully:', { 
+      id: data.id, 
+      key: data.key, 
+      new_state: data.state,
+      initiative_id: data.initiative_id,
+      project_id: data.project_id
+    })
 
     // Create activity record - map action to activity_action enum
     const activityAction = action.action === 'accept' ? 'accepted' : 
@@ -390,7 +411,10 @@ export class IssuesAPI {
   static async getIssueActivities(issueId: string) {
     const { data, error } = await supabase
       .from('issue_activity')
-      .select('*')
+      .select(`
+        *,
+        actor:users!issue_activity_actor_user_id_fkey(id, name, email, avatar_url, role)
+      `)
       .eq('issue_id', issueId)
       .order('created_at', { ascending: true })
 

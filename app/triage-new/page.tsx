@@ -355,7 +355,7 @@ function AISuggestions({
     <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
       <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
         <div className="flex items-center">
-          <div className="h-2 w-2 rounded-full bg-purple-500 animate-pulse" />
+          <div className="h-2 w-2 rounded-full bg-gray-500 animate-pulse" />
           <h3 className="text-sm font-medium text-gray-900 ml-2">Sugerencias</h3>
           <span className="text-xs text-gray-500 ml-auto mr-3">Basadas en el contenido del issue</span>
           
@@ -366,12 +366,12 @@ function AISuggestions({
             className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
               appliedFields.size === suggestions.length
                 ? 'text-green-700 bg-green-50 border border-green-200'
-                : 'text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200'
+                : 'text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-200'
             }`}
           >
             {loadingField === 'all' ? (
               <>
-                <div className="h-3 w-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                <div className="h-3 w-3 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
                 <span>Aplicando...</span>
               </>
             ) : appliedFields.size === suggestions.length ? (
@@ -416,7 +416,7 @@ function AISuggestions({
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 whitespace-nowrap ${
                 appliedFields.has(suggestion.field)
                   ? 'text-white bg-green-600'
-                  : 'text-white bg-purple-600 hover:bg-purple-700'
+                  : 'text-white bg-gray-600 hover:bg-gray-700'
               }`}
             >
               {loadingField === suggestion.field ? (
@@ -551,7 +551,7 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
 
   const getStateIcon = (state: string) => {
     const stateMap: Record<string, { icon: React.ReactNode; label: string }> = {
-      'triage': { icon: <Circle className="h-3.5 w-3.5 text-purple-500" />, label: 'Triage' },
+      'triage': { icon: <Circle className="h-3.5 w-3.5 text-gray-500" />, label: 'Triage' },
       'todo': { icon: <Circle className="h-3.5 w-3.5 text-gray-400" />, label: 'To do' },
       'in_progress': { icon: <Clock className="h-3.5 w-3.5 text-blue-500" />, label: 'In progress' },
       'blocked': { icon: <AlertCircle className="h-3.5 w-3.5 text-red-500" />, label: 'Blocked' },
@@ -584,7 +584,7 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
             label="Estado"
             value={getStateIcon(localIssue.state).label}
             options={[
-              { name: 'triage', label: 'Triage', icon: <Circle className="w-2.5 h-2.5 text-purple-500" /> },
+              { name: 'triage', label: 'Triage', icon: <Circle className="w-2.5 h-2.5 text-gray-500" /> },
               { name: 'todo', label: 'To do', icon: <Circle className="w-2.5 h-2.5 text-gray-400" /> },
               { name: 'in_progress', label: 'In progress', icon: <Clock className="w-2.5 h-2.5 text-blue-500" /> },
               { name: 'blocked', label: 'Blocked', icon: <AlertCircle className="w-2.5 h-2.5 text-red-500" /> },
@@ -776,11 +776,11 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
                     </div>
                   </div>
                   
-                  {/* Derecha: RISE Score - alineado con el chip de Core Technology */}
+                  {/* Derecha: RICE Score - alineado con el chip de Core Technology */}
                   {selectedIssue.rise_score !== null && selectedIssue.rise_score !== undefined && (
-                    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold bg-purple-50 border border-purple-200 text-purple-700">
+                    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold bg-gray-50 border border-gray-200 text-gray-700">
                       <Target className="h-3 w-3" />
-                      <span>RISE Score: {selectedIssue.rise_score}</span>
+                      <span>RICE Score: {selectedIssue.rise_score}</span>
                     </div>
                   )}
                 </div>
@@ -1021,6 +1021,8 @@ export default function TriageNewPage() {
     if (!triageIssue) return
     
     try {
+      console.log('[Triage] Accepting issue:', triageIssue.key, 'with data:', data)
+      
       // Map modal data to API format
       const acceptData = {
         initiative_id: data.initiative,    // Business Unit (OBLIGATORIO)
@@ -1029,10 +1031,13 @@ export default function TriageNewPage() {
         priority: data.priority || triageIssue.priority || null // Use modal priority, fallback to current issue priority
       }
 
+      console.log('[Triage] Accept data prepared:', acceptData)
+
       // Pass comment to send Teams notification
       const success = await acceptIssue(triageIssue.id, acceptData, data.comment)
       
       if (success) {
+        console.log('[Triage] Issue accepted successfully')
         // Close modal and clear selection
         setTriageAction(null)
         setTriageIssue(null)
@@ -1041,9 +1046,13 @@ export default function TriageNewPage() {
         if (selectedIssue?.id === triageIssue.id) {
           setSelectedIssue(null)
         }
+      } else {
+        console.error('[Triage] Failed to accept issue - success was false')
+        alert('No se pudo aceptar el issue. Por favor revisa la consola para más detalles.')
       }
     } catch (error) {
-      console.error('Error accepting issue:', error)
+      console.error('[Triage] Error accepting issue:', error)
+      alert('Error al aceptar el issue: ' + (error instanceof Error ? error.message : 'Error desconocido'))
     }
   }
 
@@ -1051,9 +1060,12 @@ export default function TriageNewPage() {
     if (!triageIssue) return
     
     try {
+      console.log('[Triage] Declining issue:', triageIssue.key, 'with reason:', data.reason || data.comment)
+      
       const success = await declineIssue(triageIssue.id, data.reason || data.comment)
       
       if (success) {
+        console.log('[Triage] Issue declined successfully')
         // Close modal and clear selection
         setTriageAction(null)
         setTriageIssue(null)
@@ -1062,9 +1074,13 @@ export default function TriageNewPage() {
         if (selectedIssue?.id === triageIssue.id) {
           setSelectedIssue(null)
         }
+      } else {
+        console.error('[Triage] Failed to decline issue - success was false')
+        alert('No se pudo rechazar el issue. Por favor revisa la consola para más detalles.')
       }
     } catch (error) {
-      console.error('Error declining issue:', error)
+      console.error('[Triage] Error declining issue:', error)
+      alert('Error al rechazar el issue: ' + (error instanceof Error ? error.message : 'Error desconocido'))
     }
   }
 
@@ -1072,6 +1088,8 @@ export default function TriageNewPage() {
     if (!triageIssue) return
     
     try {
+      console.log('[Triage] Snoozing issue:', triageIssue.key, 'until:', data.until.toISOString())
+      
       const success = await snoozeIssue(
         triageIssue.id, 
         data.until.toISOString(),
@@ -1079,6 +1097,7 @@ export default function TriageNewPage() {
       )
       
       if (success) {
+        console.log('[Triage] Issue snoozed successfully')
         // Close modal and clear selection
         setTriageAction(null)
         setTriageIssue(null)
@@ -1087,9 +1106,13 @@ export default function TriageNewPage() {
         if (selectedIssue?.id === triageIssue.id) {
           setSelectedIssue(null)
         }
+      } else {
+        console.error('[Triage] Failed to snooze issue - success was false')
+        alert('No se pudo posponer el issue. Por favor revisa la consola para más detalles.')
       }
     } catch (error) {
-      console.error('Error snoozing issue:', error)
+      console.error('[Triage] Error snoozing issue:', error)
+      alert('Error al posponer el issue: ' + (error instanceof Error ? error.message : 'Error desconocido'))
     }
   }
 
@@ -1139,7 +1162,7 @@ export default function TriageNewPage() {
   const getStateColor = (state: string) => {
     switch (state) {
       case "triage":
-        return "bg-purple-100 text-purple-800 border-purple-200"
+        return "bg-gray-100 text-gray-800 border-gray-200"
       case "todo":
         return "bg-gray-100 text-gray-800 border-gray-200"
       case "in_progress":
@@ -1259,7 +1282,7 @@ export default function TriageNewPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           {/* Estado badge */}
                           <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${
-                            issue.state === 'triage' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                            issue.state === 'triage' ? 'bg-gray-50 text-gray-700 border border-gray-200' :
                             issue.state === 'in_progress' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
                             'bg-gray-50 text-gray-700 border border-gray-200'
                           }`}>
