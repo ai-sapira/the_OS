@@ -34,7 +34,8 @@ import {
   Hash,
   Flag,
   Target,
-  Hexagon
+  Hexagon,
+  Activity
 } from "lucide-react"
 import {
   Command,
@@ -51,6 +52,7 @@ import {
 } from "@/components/ui/popover"
 import { TeamsConversation } from "@/components/teams-conversation"
 import { IssuesAPI } from "@/lib/api/issues"
+import { IssueActivityTimeline } from "@/components/issue-activity-timeline"
 
 // Timeline Calendar Component
 interface TimelineCalendarProps {
@@ -241,10 +243,10 @@ function TimelineCalendar({ startDate, dueDate, slaDate, onUpdateDates }: Timeli
                     borderColor = 'border-blue-500'
                     ringColor = 'hover:ring-blue-400'
                   } else if (isDue) {
-                    bgColor = 'bg-purple-500 hover:bg-purple-600'
+                    bgColor = 'bg-gray-500 hover:bg-gray-600'
                     textColor = 'text-white'
-                    borderColor = 'border-purple-500'
-                    ringColor = 'hover:ring-purple-400'
+                    borderColor = 'border-gray-500'
+                    ringColor = 'hover:ring-gray-400'
                   } else if (isSLA) {
                     bgColor = 'bg-orange-500 hover:bg-orange-600'
                     textColor = 'text-white'
@@ -284,7 +286,7 @@ function TimelineCalendar({ startDate, dueDate, slaDate, onUpdateDates }: Timeli
         )}
         {dueDate && (
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded bg-purple-500" />
+            <div className="w-2.5 h-2.5 rounded bg-gray-500" />
             <span className="text-gray-600">Vencimiento</span>
           </div>
         )}
@@ -534,7 +536,7 @@ export default function IssueDetailPage() {
 
   const getStateIcon = (state: string) => {
     const stateMap: Record<string, { icon: React.ReactNode; label: string }> = {
-      'triage': { icon: <Circle className="h-3.5 w-3.5 text-purple-500" />, label: 'Triage' },
+      'triage': { icon: <Circle className="h-3.5 w-3.5 text-gray-500" />, label: 'Triage' },
       'todo': { icon: <Circle className="h-3.5 w-3.5 text-gray-400" />, label: 'To do' },
       'in_progress': { icon: <Clock className="h-3.5 w-3.5 text-blue-500" />, label: 'In progress' },
       'blocked': { icon: <AlertCircle className="h-3.5 w-3.5 text-red-500" />, label: 'Blocked' },
@@ -697,11 +699,11 @@ export default function IssueDetailPage() {
                       </div>
                     </div>
                     
-                    {/* Derecha: RISE Score - alineado con el chip de Core Technology */}
+                    {/* Derecha: RICE Score - alineado con el chip de Core Technology */}
                     {localIssue.rise_score !== null && localIssue.rise_score !== undefined && (
-                      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold bg-purple-50 border border-purple-200 text-purple-700">
+                      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold bg-gray-50 border border-gray-200 text-gray-700">
                         <Target className="h-3 w-3" />
-                        <span>RISE Score: {localIssue.rise_score}</span>
+                        <span>RICE Score: {localIssue.rise_score}</span>
                       </div>
                     )}
                   </div>
@@ -795,6 +797,17 @@ export default function IssueDetailPage() {
                 </div>
               )}
 
+              {/* Activity Timeline */}
+              <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                <div className="p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Activity className="h-4 w-4 text-gray-500" />
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Activity Timeline</h3>
+                  </div>
+                  <IssueActivityTimeline issueId={localIssue.id} />
+                </div>
+              </div>
+
               {/* Notas internas */}
               <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
                 <div className="p-5">
@@ -831,7 +844,7 @@ export default function IssueDetailPage() {
                           label="Estado"
                           value={getStateIcon(localIssue.state).label}
                           options={[
-                            { name: 'triage', label: 'Triage', icon: <Circle className="w-2.5 h-2.5 text-purple-500" /> },
+                            { name: 'triage', label: 'Triage', icon: <Circle className="w-2.5 h-2.5 text-gray-500" /> },
                             { name: 'todo', label: 'To do', icon: <Circle className="w-2.5 h-2.5 text-gray-400" /> },
                             { name: 'in_progress', label: 'In progress', icon: <Clock className="w-2.5 h-2.5 text-blue-500" /> },
                             { name: 'blocked', label: 'Blocked', icon: <AlertCircle className="w-2.5 h-2.5 text-red-500" /> },
@@ -1019,7 +1032,7 @@ export default function IssueDetailPage() {
                           <span className="text-[13px] text-gray-600">Origen</span>
                           <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium border border-dashed ${
                             localIssue.origin === 'api' || localIssue.origin === 'teams'
-                              ? 'bg-purple-50 border-purple-300 text-purple-700'
+                              ? 'bg-gray-50 border-gray-300 text-gray-700'
                               : 'bg-gray-50 border-gray-300 text-gray-700'
                           }`}>
                             {localIssue.origin === 'api' ? 'Teams' : localIssue.origin === 'teams' ? 'Teams' : localIssue.origin}

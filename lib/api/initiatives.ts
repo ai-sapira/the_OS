@@ -189,4 +189,39 @@ export class InitiativesAPI {
     if (error) throw error
     return data || []
   }
+
+  // Get initiative activities (for showing timeline/history)
+  static async getInitiativeActivities(initiativeId: string) {
+    const { data, error } = await supabase
+      .from('initiative_activity')
+      .select(`
+        *,
+        actor:users!initiative_activity_actor_user_id_fkey(id, name, email, avatar_url, role)
+      `)
+      .eq('initiative_id', initiativeId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data || []
+  }
+
+  // Create a manual activity log entry (for special events not captured by triggers)
+  static async createActivity(
+    initiativeId: string,
+    action: string,
+    actorUserId: string | null,
+    payload?: any
+  ): Promise<void> {
+    const { error } = await supabase
+      .from('initiative_activity')
+      .insert({
+        organization_id: this.organizationId,
+        initiative_id: initiativeId,
+        actor_user_id: actorUserId,
+        action: action,
+        payload: payload || {}
+      })
+
+    if (error) throw error
+  }
 }

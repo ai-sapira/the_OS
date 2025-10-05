@@ -12,6 +12,8 @@ import {
   BarChart3,
   Users,
   ChevronDown,
+  Activity,
+  Calendar,
 } from "lucide-react";
 import { 
   ResizableAppShell, 
@@ -41,6 +43,7 @@ import { InitiativesAPI, InitiativeWithManager } from "@/lib/api/initiatives";
 import { ProjectsAPI, ProjectWithRelations } from "@/lib/api/projects";
 import { EditableProjectStatusDropdown } from "@/components/ui/editable-project-status-dropdown";
 import { EditableProjectOwnerDropdown } from "@/components/ui/editable-project-owner-dropdown";
+import { InitiativeActivityTimeline } from "@/components/initiative-activity-timeline";
 
 // Status Chip Component - Editable
 function StatusChip({ 
@@ -611,6 +614,33 @@ export default function InitiativeDetailPage() {
             <h2 className="text-sm font-semibold text-gray-900 mb-4">Performance Metrics</h2>
             <div className="pb-6 mb-6 border-b border-gray-200 -mx-5 px-5">
               <MetricsSection initiative={initiative} />
+            </div>
+          </div>
+
+          {/* Activity Timeline Section */}
+          <div className="px-5">
+            <h2 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Activity className="h-4 w-4 text-gray-600" />
+              Activity Timeline
+            </h2>
+            <div className="pb-6 mb-6 border-b border-gray-200 -mx-5 px-5">
+              <div className="border border-gray-200 rounded-lg bg-white p-5">
+                <InitiativeActivityTimeline initiativeId={initiative.id} />
+              </div>
+            </div>
+          </div>
+
+          {/* Notes Section */}
+          <div className="px-5">
+            <h2 className="text-sm font-semibold text-gray-900 mb-4">Notas internas</h2>
+            <div className="pb-6 mb-6 border-b border-gray-200 -mx-5 px-5">
+              <div className="border border-gray-200 rounded-lg bg-white p-5">
+                <Textarea
+                  placeholder="Añade notas internas sobre esta iniciativa..."
+                  className="min-h-[100px] resize-none text-sm text-gray-600 border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 bg-transparent shadow-none"
+                  style={{ boxShadow: 'none' }}
+                />
+              </div>
             </div>
           </div>
 
