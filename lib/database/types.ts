@@ -8,6 +8,7 @@ export type Json =
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
@@ -247,11 +248,13 @@ export type Database = {
           core_technology: string | null
           created_at: string | null
           description: string | null
+          difficulty: number | null
           due_at: string | null
           duplicate_of_id: string | null
           estimated_hours: number | null
           id: string
           impact: string | null
+          impact_score: number | null
           initiative_id: string | null
           key: string
           organization_id: string
@@ -261,6 +264,7 @@ export type Database = {
           priority: Database["public"]["Enums"]["issue_priority"] | null
           project_id: string | null
           reporter_id: string | null
+          rice_score: number | null
           rise_score: number | null
           short_description: string | null
           sla_due_date: string | null
@@ -278,11 +282,13 @@ export type Database = {
           core_technology?: string | null
           created_at?: string | null
           description?: string | null
+          difficulty?: number | null
           due_at?: string | null
           duplicate_of_id?: string | null
           estimated_hours?: number | null
           id?: string
           impact?: string | null
+          impact_score?: number | null
           initiative_id?: string | null
           key: string
           organization_id: string
@@ -292,6 +298,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["issue_priority"] | null
           project_id?: string | null
           reporter_id?: string | null
+          rice_score?: number | null
           rise_score?: number | null
           short_description?: string | null
           sla_due_date?: string | null
@@ -309,11 +316,13 @@ export type Database = {
           core_technology?: string | null
           created_at?: string | null
           description?: string | null
+          difficulty?: number | null
           due_at?: string | null
           duplicate_of_id?: string | null
           estimated_hours?: number | null
           id?: string
           impact?: string | null
+          impact_score?: number | null
           initiative_id?: string | null
           key?: string
           organization_id?: string
@@ -323,6 +332,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["issue_priority"] | null
           project_id?: string | null
           reporter_id?: string | null
+          rice_score?: number | null
           rise_score?: number | null
           short_description?: string | null
           sla_due_date?: string | null
@@ -856,110 +866,8 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
-
-export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
-    }
-    ? R
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
-    : never
-
-export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
-    : never
-
-export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
-
-export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
-
-// Helper types for easier usage
-export type Organization = Tables<'organizations'>
-export type Initiative = Tables<'initiatives'>
-export type Project = Tables<'projects'>
-export type Issue = Tables<'issues'>
-export type User = Tables<'users'>
-export type InitiativeActivity = Tables<'initiative_activity'>
+// Type aliases for convenience
+export type Issue = Database['public']['Tables']['issues']['Row']
+export type IssueState = Database['public']['Enums']['issue_state']
+export type IssuePriority = Database['public']['Enums']['issue_priority']
+export type IssueOrigin = Database['public']['Enums']['issue_origin']
