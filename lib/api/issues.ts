@@ -53,24 +53,28 @@ export class IssuesAPI {
     
     const prefix = org?.slug === 'gonvarri' ? 'GON' : 'ORG'
     
-    // Get the latest issue number for this organization
+    // Get ALL issues with this prefix to find the maximum number
     const { data: issues } = await supabase
       .from('issues')
       .select('key')
       .eq('organization_id', organizationId)
       .ilike('key', `${prefix}-%`)
-      .order('created_at', { ascending: false })
-      .limit(1)
     
-    let nextNumber = 1
+    let maxNumber = 0
     if (issues && issues.length > 0) {
-      const lastKey = issues[0].key
-      const match = lastKey.match(/(\d+)$/)
-      if (match) {
-        nextNumber = parseInt(match[1], 10) + 1
-      }
+      // Extract all numbers and find the maximum
+      issues.forEach(issue => {
+        const match = issue.key.match(/(\d+)$/)
+        if (match) {
+          const num = parseInt(match[1], 10)
+          if (num > maxNumber) {
+            maxNumber = num
+          }
+        }
+      })
     }
     
+    const nextNumber = maxNumber + 1
     return `${prefix}-${nextNumber}`
   }
 
