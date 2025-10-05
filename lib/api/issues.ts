@@ -16,6 +16,8 @@ export interface CreateIssueData {
   impact?: string // Business impact (Gonvarri)
   core_technology?: string // Core technology used (Gonvarri)
   priority?: IssuePriority
+  initiative_id?: string // Business Unit (can be inferred by Teams bot)
+  project_id?: string // Project (can be inferred by Teams bot)
   reporter_id?: string
   origin?: IssueOrigin
   labels?: string[]
@@ -38,6 +40,8 @@ export interface TriageAction {
 }
 
 export class IssuesAPI {
+  private static organizationId = '01234567-8901-2345-6789-012345678901' // Gonvarri
+
   // Generate next issue key for organization
   private static async generateIssueKey(organizationId: string): Promise<string> {
     // Get organization slug
@@ -110,6 +114,8 @@ export class IssuesAPI {
 
   // Get issues by role filter
   static async getIssuesByRole(organizationId: string, role: string, userId?: string, initiativeId?: string): Promise<IssueWithRelations[]> {
+    console.log('[IssuesAPI] getIssuesByRole called with:', { organizationId, role, userId, initiativeId });
+    
     let query = supabase
       .from('issues')
       .select(`
@@ -144,7 +150,12 @@ export class IssuesAPI {
     query = query.order('updated_at', { ascending: false })
 
     const { data, error } = await query
-    if (error) throw error
+    if (error) {
+      console.error('[IssuesAPI] Error loading issues:', error);
+      throw error;
+    }
+    
+    console.log('[IssuesAPI] Loaded', data?.length || 0, 'issues for role:', role);
     return this.transformIssuesWithLabels(data || [])
   }
 
@@ -312,6 +323,8 @@ export class IssuesAPI {
 
   // Get issue by ID with full relations
   static async getIssueById(issueId: string): Promise<IssueWithRelations | null> {
+    console.log('[IssuesAPI] getIssueById called with:', { issueId, organizationId: this.organizationId });
+    
     const { data, error } = await supabase
       .from('issues')
       .select(`
@@ -323,11 +336,20 @@ export class IssuesAPI {
         labels:issue_labels(label_id, labels(*))
       `)
       .eq('id', issueId)
+      .eq('organization_id', this.organizationId)
       .single()
 
-    if (error) throw error
-    if (!data) return null
+    if (error) {
+      console.error('[IssuesAPI] Error loading issue by ID:', error);
+      throw error;
+    }
+    
+    if (!data) {
+      console.warn('[IssuesAPI] Issue not found:', issueId);
+      return null;
+    }
 
+    console.log('[IssuesAPI] Issue loaded successfully:', data.key);
     return this.transformIssueWithLabels(data)
   }
 

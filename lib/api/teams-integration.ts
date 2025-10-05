@@ -39,6 +39,8 @@ export interface TeamsConversationData {
     difficulty?: 1 | 2 | 3 // Technical difficulty
     impact_score?: 1 | 2 | 3 // Business impact score
     priority: 'P0' | 'P1' | 'P2' | 'P3'
+    business_unit?: string // Business Unit name (Finance, Legal, HR, etc.)
+    project?: string // Project name (Pricing, Invoicing, etc.)
     suggested_labels: string[]
     key_points: string[]
     suggested_assignee?: string // Email or name of suggested assignee
@@ -66,6 +68,56 @@ export class TeamsIntegration {
   }
 
   /**
+   * Maps Business Unit name to initiative_id (fetched from DB)
+   */
+  private static async getInitiativeIdByName(businessUnitName: string): Promise<string | null> {
+    try {
+      const { data, error } = await supabase
+        .from('initiatives')
+        .select('id')
+        .eq('organization_id', this.organizationId)
+        .ilike('name', `%${businessUnitName}%`)
+        .single()
+      
+      if (error || !data) {
+        console.log(`⚠️ Business Unit "${businessUnitName}" not found in DB`)
+        return null
+      }
+      
+      return data.id
+    } catch (error) {
+      console.error('Error fetching Business Unit:', error)
+      return null
+    }
+  }
+
+  /**
+   * Maps Project name to project_id (fetched from DB)
+   */
+  private static async getProjectIdByName(projectName: string): Promise<string | null> {
+    if (!projectName) return null
+    
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('organization_id', this.organizationId)
+        .ilike('name', `%${projectName}%`)
+        .single()
+      
+      if (error || !data) {
+        console.log(`⚠️ Project "${projectName}" not found in DB`)
+        return null
+      }
+      
+      return data.id
+    } catch (error) {
+      console.error('Error fetching Project:', error)
+      return null
+    }
+  }
+
+  /**
    * Creates an issue from Teams conversation analysis
    * Called by webhook or API endpoint
    */
@@ -73,6 +125,20 @@ export class TeamsIntegration {
     conversationData: TeamsConversationData
   ): Promise<TeamsIssueCreationResult> {
     const { ai_analysis, conversation_id, conversation_url, conversation_reference } = conversationData
+
+    // Map business_unit and project names to IDs if provided
+    let initiative_id = null
+    let project_id = null
+    
+    if (ai_analysis.business_unit) {
+      initiative_id = await this.getInitiativeIdByName(ai_analysis.business_unit)
+      console.log(`📍 Mapped Business Unit "${ai_analysis.business_unit}" → ${initiative_id || 'NOT FOUND'}`)
+    }
+    
+    if (ai_analysis.project) {
+      project_id = await this.getProjectIdByName(ai_analysis.project)
+      console.log(`📍 Mapped Project "${ai_analysis.project}" → ${project_id || 'NOT FOUND'}`)
+    }
 
     // 1. Create the issue in triage with Gonvarri fields
     const issueData: CreateIssueData = {
@@ -84,6 +150,8 @@ export class TeamsIntegration {
       priority: ai_analysis.priority,
       origin: 'teams',
       reporter_id: this.aiAgentUserId,
+      initiative_id: initiative_id || undefined, // Business Unit mapped from AI
+      project_id: project_id || undefined, // Project mapped from AI
       labels: [] // We'll add these after creation
     }
 
