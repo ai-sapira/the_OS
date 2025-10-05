@@ -38,10 +38,8 @@ export interface TriageAction {
 }
 
 export class IssuesAPI {
-  private static organizationId = '22222222-2222-2222-2222-222222222222' // Aurovitas (vacía) - TODO: Get from context
-
   // Get issues for triage (state=triage, not snoozed)
-  static async getTriageIssues(): Promise<IssueWithRelations[]> {
+  static async getTriageIssues(organizationId: string): Promise<IssueWithRelations[]> {
     const { data, error } = await supabase
       .from('issues')
       .select(`
@@ -49,7 +47,7 @@ export class IssuesAPI {
         reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url),
         labels:issue_labels(label_id, labels(*))
       `)
-      .eq('organization_id', this.organizationId)
+      .eq('organization_id', organizationId)
       .eq('state', 'triage')
       .or('snooze_until.is.null,snooze_until.lt.now()')
       .order('created_at', { ascending: false })
@@ -59,8 +57,8 @@ export class IssuesAPI {
   }
 
   // Get all issues (for admin/general views)
-  static async getIssues(): Promise<IssueWithRelations[]> {
-    const { data, error } = await supabase
+  static async getIssues(organizationId: string): Promise<IssueWithRelations[]> {
+    const { data, error} = await supabase
       .from('issues')
       .select(`
         *,
@@ -70,7 +68,7 @@ export class IssuesAPI {
         reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url),
         labels:issue_labels(label_id, labels(*))
       `)
-      .eq('organization_id', this.organizationId)
+      .eq('organization_id', organizationId)
       .neq('state', 'triage')
       .order('updated_at', { ascending: false })
 
@@ -79,7 +77,7 @@ export class IssuesAPI {
   }
 
   // Get issues by role filter
-  static async getIssuesByRole(role: string, userId?: string, initiativeId?: string): Promise<IssueWithRelations[]> {
+  static async getIssuesByRole(organizationId: string, role: string, userId?: string, initiativeId?: string): Promise<IssueWithRelations[]> {
     let query = supabase
       .from('issues')
       .select(`
@@ -90,7 +88,7 @@ export class IssuesAPI {
         reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url),
         labels:issue_labels(label_id, labels(*))
       `)
-      .eq('organization_id', this.organizationId)
+      .eq('organization_id', organizationId)
       .neq('state', 'triage')
 
     // Apply role-based filters
@@ -119,14 +117,14 @@ export class IssuesAPI {
   }
 
   // Create new issue
-  static async createIssue(issueData: CreateIssueData): Promise<Issue> {
+  static async createIssue(organizationId: string, issueData: CreateIssueData): Promise<Issue> {
     const { labels, ...issueFields } = issueData
     
     const { data: issue, error } = await supabase
       .from('issues')
       .insert({
         ...issueFields,
-        organization_id: this.organizationId,
+        organization_id: organizationId,
         state: 'triage'
       })
       .select()

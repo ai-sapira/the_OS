@@ -97,26 +97,36 @@ export function useSupabaseData() {
       return
     }
 
+    if (!currentOrg) {
+      console.warn('[useSupabaseData] No currentOrg, cannot load triage issues')
+      return
+    }
+
     try {
-      const issues = await IssuesAPI.getTriageIssues()
+      const issues = await IssuesAPI.getTriageIssues(currentOrg.organization.id)
       setTriageIssues(issues)
     } catch (err) {
       console.error('Error loading triage issues:', err)
       setError('Error loading triage issues')
     }
-  }, [activeRole])
+  }, [activeRole, currentOrg])
 
   // Load role-filtered issues
   const loadRoleIssues = useCallback(async () => {
+    if (!currentOrg) {
+      console.warn('[useSupabaseData] No currentOrg, cannot load role issues')
+      return
+    }
+
     try {
       const { userId, initiativeId } = getCurrentUser()
-      const issues = await IssuesAPI.getIssuesByRole(activeRole, userId || undefined, initiativeId || undefined)
+      const issues = await IssuesAPI.getIssuesByRole(currentOrg.organization.id, activeRole, userId || undefined, initiativeId || undefined)
       setRoleIssues(issues)
     } catch (err) {
       console.error('Error loading role issues:', err)
       setError('Error loading role issues')
     }
-  }, [activeRole, getCurrentUser])
+  }, [activeRole, getCurrentUser, currentOrg])
 
   // Load initiatives (filtered by role)
   const loadInitiatives = useCallback(async () => {
@@ -196,9 +206,18 @@ export function useSupabaseData() {
       setError(null)
 
       try {
+        if (!currentOrg) {
+          console.warn('[useSupabaseData] No currentOrg in useEffect, skipping data load')
+          setTriageIssues([])
+          setRoleIssues([])
+          setInitiatives([])
+          setProjects([])
+          return
+        }
+
         // Load triage issues (only for SAP, CEO, BU roles)
         if (['SAP', 'CEO', 'BU'].includes(activeRole)) {
-          const issues = await IssuesAPI.getTriageIssues()
+          const issues = await IssuesAPI.getTriageIssues(currentOrg.organization.id)
           setTriageIssues(issues)
         } else {
           setTriageIssues([])
@@ -206,7 +225,7 @@ export function useSupabaseData() {
 
         // Load role-filtered issues
         const { userId, initiativeId } = getCurrentUser()
-        const issues = await IssuesAPI.getIssuesByRole(activeRole, userId || undefined, initiativeId || undefined)
+        const issues = await IssuesAPI.getIssuesByRole(currentOrg.organization.id, activeRole, userId || undefined, initiativeId || undefined)
         setRoleIssues(issues)
 
         // Load initiatives (filtered by role)
@@ -237,7 +256,7 @@ export function useSupabaseData() {
     }
 
     fetchData()
-  }, [activeRole])  // Only depend on activeRole, not on callbacks
+  }, [activeRole, currentOrg, getCurrentUser])  // Depend on activeRole, currentOrg and getCurrentUser
 
   // Helper: Send notification to Teams if issue has Teams context
   const sendTeamsNotification = useCallback(async (
@@ -402,10 +421,15 @@ export function useSupabaseData() {
   }, [getCurrentUser, loadTriageIssues, sendTeamsNotification])
 
   // Create new issue
-  const createIssue = useCallback(async (issueData: Parameters<typeof IssuesAPI.createIssue>[0]) => {
+  const createIssue = useCallback(async (issueData: Parameters<typeof IssuesAPI.createIssue>[1]) => {
+    if (!currentOrg) {
+      console.error('[useSupabaseData] No currentOrg, cannot create issue')
+      return
+    }
+
     try {
       const { userId } = getCurrentUser()
-      await IssuesAPI.createIssue({
+      await IssuesAPI.createIssue(currentOrg.organization.id, {
         ...issueData,
         reporter_id: userId
       })
@@ -419,7 +443,7 @@ export function useSupabaseData() {
       setError('Error creating issue')
       return false
     }
-  }, [getCurrentUser, loadTriageIssues])
+  }, [getCurrentUser, loadTriageIssues, currentOrg])
 
   // Update issue (for drag & drop and other updates)
   const updateIssue = useCallback(async (issueId: string, updateData: Parameters<typeof IssuesAPI.updateIssue>[1]) => {

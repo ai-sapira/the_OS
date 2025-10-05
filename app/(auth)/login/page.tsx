@@ -17,23 +17,38 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('[Login] Form submitted, starting login...')
     setLoading(true)
     setError(null)
 
     try {
+      console.log('[Login] Calling signInWithPassword...')
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
+      console.log('[Login] signInWithPassword response:', { hasData: !!data, hasError: !!error, error })
+
       if (error) throw error
 
-      console.log('[Login] Auth successful, redirecting...')
+      console.log('[Login] ✅ Auth successful! User:', data?.user?.id)
+      console.log('[Login] Session:', data?.session)
       
-      // Force full page reload to ensure middleware picks up new session
-      // router.push doesn't refresh cookies, window.location does
-      window.location.href = '/'
+      // Wait for cookies to be set (Supabase client needs time to persist cookies)
+      console.log('[Login] Waiting 1 second for cookies to propagate...')
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      console.log('[Login] Executing redirect now...')
+      // Use router.push for client-side navigation with cookies
+      router.push('/')
+      
+      // Alternatively, force reload if needed
+      // setTimeout(() => {
+      //   window.location.href = '/'
+      // }, 100)
     } catch (err: any) {
+      console.error('[Login] ❌ Login error:', err)
       setError(err.message || 'Error al iniciar sesión')
       setLoading(false)
     }

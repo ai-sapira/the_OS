@@ -8,6 +8,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
+  console.log('[Middleware] Request path:', req.nextUrl.pathname)
+
   let res = NextResponse.next({
     request: {
       headers: req.headers,
@@ -68,18 +70,22 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession()
 
+  console.log('[Middleware] Has session:', !!session, 'User:', session?.user?.id)
+
   // Public routes that don't require auth
   const isAuthPage = req.nextUrl.pathname.startsWith('/login') || 
                      req.nextUrl.pathname.startsWith('/select-org')
 
   // If not authenticated and trying to access protected route
   if (!session && !isAuthPage) {
+    console.log('[Middleware] No session, redirecting to /login')
     const redirectUrl = new URL('/login', req.url)
     return NextResponse.redirect(redirectUrl)
   }
 
   // If authenticated and on login page, redirect to app
   if (session && req.nextUrl.pathname === '/login') {
+    console.log('[Middleware] Has session on /login, redirecting to /')
     const redirectUrl = new URL('/', req.url)
     return NextResponse.redirect(redirectUrl)
   }

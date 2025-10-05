@@ -7,9 +7,11 @@ export default function Home() {
   const router = useRouter()
 
   useEffect(() => {
-    // Redirect to issues page
+    console.log('[Home Page] Redirecting to /issues...')
     router.push("/issues")
   }, [router])
+
+  console.log('[Home Page] Rendering loading spinner')
 
   return (
     <div className="flex items-center justify-center h-screen bg-background">

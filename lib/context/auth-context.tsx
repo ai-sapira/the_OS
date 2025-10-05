@@ -157,20 +157,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthProvider] Mapped organizations:', orgs)
       setUserOrgs(orgs)
 
-      // Try to restore previously selected org from localStorage
-      const savedOrgId = localStorage.getItem('sapira.currentOrg')
-      const savedOrg = orgs.find((o: any) => o.organization?.id === savedOrgId)
-
-      if (savedOrg) {
-        console.log('[AuthProvider] Restored saved org:', savedOrg.organization.name)
-        setCurrentOrg(savedOrg)
-      } else if (orgs.length === 1) {
-        // Auto-select if user only has one organization
+      // If user only has one organization, ALWAYS auto-select it (ignore localStorage)
+      if (orgs.length === 1) {
         console.log('[AuthProvider] Auto-selecting single org:', orgs[0].organization.name)
         setCurrentOrg(orgs[0])
         localStorage.setItem('sapira.currentOrg', orgs[0].organization.id)
-      } else {
-        console.log('[AuthProvider] Multiple orgs, waiting for user selection')
+      } 
+      // If user has multiple orgs, try to restore from localStorage
+      else if (orgs.length > 1) {
+        const savedOrgId = localStorage.getItem('sapira.currentOrg')
+        const savedOrg = orgs.find((o: any) => o.organization?.id === savedOrgId)
+
+        if (savedOrg) {
+          console.log('[AuthProvider] Restored saved org:', savedOrg.organization.name)
+          setCurrentOrg(savedOrg)
+        } else {
+          console.log('[AuthProvider] Multiple orgs, waiting for user selection')
+          // Don't auto-select, let user choose via /select-org
+        }
       }
 
     } catch (err) {
