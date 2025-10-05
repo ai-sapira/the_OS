@@ -126,90 +126,140 @@ export class TeamsIntegration {
   ): Promise<TeamsIssueCreationResult> {
     const { ai_analysis, conversation_id, conversation_url, conversation_reference } = conversationData
 
-    // Map business_unit and project names to IDs if provided
-    let initiative_id = null
-    let project_id = null
-    
-    if (ai_analysis.business_unit) {
-      initiative_id = await this.getInitiativeIdByName(ai_analysis.business_unit)
-      console.log(`📍 Mapped Business Unit "${ai_analysis.business_unit}" → ${initiative_id || 'NOT FOUND'}`)
-    }
-    
-    if (ai_analysis.project) {
-      project_id = await this.getProjectIdByName(ai_analysis.project)
-      console.log(`📍 Mapped Project "${ai_analysis.project}" → ${project_id || 'NOT FOUND'}`)
-    }
-
-    // 1. Create the issue in triage with Gonvarri fields
-    const issueData: CreateIssueData = {
-      title: this.generateIssueTitle(ai_analysis.summary),
-      description: this.generateIssueDescription(conversationData),
-      short_description: ai_analysis.short_description,
-      impact: ai_analysis.impact,
-      core_technology: ai_analysis.core_technology,
-      priority: ai_analysis.priority,
-      origin: 'teams',
-      reporter_id: this.aiAgentUserId,
-      initiative_id: initiative_id || undefined, // Business Unit mapped from AI
-      project_id: project_id || undefined, // Project mapped from AI
-      labels: [] // We'll add these after creation
-    }
-
-    const issue = await IssuesAPI.createIssue(this.organizationId, issueData)
-
-    // 1.5. Calculate and update RICE score
-    if (ai_analysis.difficulty && ai_analysis.impact_score) {
-      const riceScore = this.calculateRICEScore(
-        ai_analysis.impact_score, 
-        ai_analysis.difficulty
-      )
+    try {
+      console.log('[TeamsIntegration] 🚀 Starting issue creation from Teams conversation')
       
-      await supabase
-        .from('issues')
-        .update({ 
-          rice_score: riceScore,
-          difficulty: ai_analysis.difficulty,
-          impact_score: ai_analysis.impact_score
-        })
-        .eq('id', issue.id)
+      // Map business_unit and project names to IDs if provided
+      let initiative_id = null
+      let project_id = null
       
-      console.log(`✅ RICE score calculated for Teams issue: ${riceScore} (impact: ${ai_analysis.impact_score}, difficulty: ${ai_analysis.difficulty})`)
-    }
+      if (ai_analysis.business_unit) {
+        try {
+          initiative_id = await this.getInitiativeIdByName(ai_analysis.business_unit)
+          console.log(`📍 Mapped Business Unit "${ai_analysis.business_unit}" → ${initiative_id || 'NOT FOUND'}`)
+        } catch (error) {
+          console.error('[TeamsIntegration] ❌ Error mapping business unit:', error)
+        }
+      }
+      
+      if (ai_analysis.project) {
+        try {
+          project_id = await this.getProjectIdByName(ai_analysis.project)
+          console.log(`📍 Mapped Project "${ai_analysis.project}" → ${project_id || 'NOT FOUND'}`)
+        } catch (error) {
+          console.error('[TeamsIntegration] ❌ Error mapping project:', error)
+        }
+      }
 
-    // 2. Create link to Teams conversation (with conversation_reference for proactive messaging)
-    const linkData: any = {
-      issue_id: issue.id,
-      provider: 'teams',
-      external_id: conversation_id,
-      url: conversation_url,
-      synced_at: new Date().toISOString()
-    }
+      // 1. Create the issue in triage with Gonvarri fields
+      console.log('[TeamsIntegration] 📝 Creating issue...')
+      const issueData: CreateIssueData = {
+        title: this.generateIssueTitle(ai_analysis.summary),
+        description: this.generateIssueDescription(conversationData),
+        short_description: ai_analysis.short_description,
+        impact: ai_analysis.impact,
+        core_technology: ai_analysis.core_technology,
+        priority: ai_analysis.priority,
+        origin: 'teams',
+        reporter_id: this.aiAgentUserId,
+        initiative_id: initiative_id || undefined, // Business Unit mapped from AI
+        project_id: project_id || undefined, // Project mapped from AI
+        labels: [] // We'll add these after creation
+      }
 
-    // Add conversation reference if provided (for proactive messaging)
-    if (conversation_reference) {
-      linkData.teams_context = conversation_reference
-    }
+      const issue = await IssuesAPI.createIssue(this.organizationId, issueData)
+      console.log(`[TeamsIntegration] ✅ Issue created: ${issue.id} (${issue.key})`)
 
-    const { data: link, error: linkError } = await supabase
-      .from('issue_links')
-      .insert(linkData)
-      .select()
-      .single()
+      // 1.5. Calculate and update RICE score
+      console.log('[TeamsIntegration] 🎯 Calculating RICE score...')
+      if (ai_analysis.difficulty && ai_analysis.impact_score) {
+        try {
+          const riceScore = this.calculateRICEScore(
+            ai_analysis.impact_score, 
+            ai_analysis.difficulty
+          )
+          
+          const { error: riceError } = await supabase
+            .from('issues')
+            .update({ 
+              rice_score: riceScore,
+              difficulty: ai_analysis.difficulty,
+              impact_score: ai_analysis.impact_score
+            })
+            .eq('id', issue.id)
+          
+          if (riceError) {
+            console.error('[TeamsIntegration] ❌ Error updating RICE score:', riceError)
+            throw riceError
+          }
+          
+          console.log(`[TeamsIntegration] ✅ RICE score calculated: ${riceScore} (impact: ${ai_analysis.impact_score}, difficulty: ${ai_analysis.difficulty})`)
+        } catch (error) {
+          console.error('[TeamsIntegration] ❌ Error calculating/updating RICE score:', error)
+          throw error
+        }
+      } else {
+        console.log('[TeamsIntegration] ⚠️ Skipping RICE score (missing difficulty or impact_score)')
+      }
 
-    if (linkError) throw linkError
+      // 2. Create link to Teams conversation (with conversation_reference for proactive messaging)
+      console.log('[TeamsIntegration] 🔗 Creating Teams link...')
+      const linkData: any = {
+        issue_id: issue.id,
+        provider: 'teams',
+        external_id: conversation_id,
+        url: conversation_url,
+        synced_at: new Date().toISOString()
+      }
 
-    // 3. Add AI-suggested labels
-    if (ai_analysis.suggested_labels.length > 0) {
-      await this.addSuggestedLabels(issue.id, ai_analysis.suggested_labels)
-    }
+      // Add conversation reference if provided (for proactive messaging)
+      if (conversation_reference) {
+        linkData.teams_context = conversation_reference
+      }
 
-    // 4. Create detailed activity record
-    await this.createTeamsActivity(issue.id, conversationData)
+      const { data: link, error: linkError } = await supabase
+        .from('issue_links')
+        .insert(linkData)
+        .select()
+        .single()
 
-    return {
-      issue_id: issue.id,
-      issue_key: issue.key,
-      link_id: link.id
+      if (linkError) {
+        console.error('[TeamsIntegration] ❌ Error creating issue link:', linkError)
+        throw linkError
+      }
+      console.log(`[TeamsIntegration] ✅ Link created: ${link.id}`)
+
+      // 3. Add AI-suggested labels
+      console.log('[TeamsIntegration] 🏷️ Adding labels...')
+      if (ai_analysis.suggested_labels.length > 0) {
+        try {
+          await this.addSuggestedLabels(issue.id, ai_analysis.suggested_labels)
+          console.log('[TeamsIntegration] ✅ Labels added')
+        } catch (error) {
+          console.error('[TeamsIntegration] ⚠️ Error adding labels (non-critical):', error)
+          // Non-critical, continue
+        }
+      }
+
+      // 4. Create detailed activity record
+      console.log('[TeamsIntegration] 📋 Creating activity records...')
+      try {
+        await this.createTeamsActivity(issue.id, conversationData)
+        console.log('[TeamsIntegration] ✅ Activity records created')
+      } catch (error) {
+        console.error('[TeamsIntegration] ⚠️ Error creating activity (non-critical):', error)
+        // Non-critical, continue
+      }
+
+      console.log('[TeamsIntegration] 🎉 Issue creation complete!')
+      return {
+        issue_id: issue.id,
+        issue_key: issue.key,
+        link_id: link.id
+      }
+    } catch (error) {
+      console.error('[TeamsIntegration] ❌ FATAL ERROR in createIssueFromTeamsConversation:', error)
+      throw error
     }
   }
 
