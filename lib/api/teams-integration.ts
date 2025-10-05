@@ -32,6 +32,7 @@ export interface TeamsConversationData {
     timestamp: string
   }[]
   ai_analysis: {
+    title?: string // Project/product name (2-3 words, max 40 chars)
     summary: string
     short_description?: string // Brief scope description
     impact?: string // Business impact
@@ -154,7 +155,7 @@ export class TeamsIntegration {
       // 1. Create the issue in triage with Gonvarri fields
       console.log('[TeamsIntegration] 📝 Creating issue...')
       const issueData: CreateIssueData = {
-        title: this.generateIssueTitle(ai_analysis.summary),
+        title: ai_analysis.title || this.generateIssueTitle(ai_analysis.summary), // Use AI-generated title if available
         description: this.generateIssueDescription(conversationData),
         short_description: ai_analysis.short_description,
         impact: ai_analysis.impact,
