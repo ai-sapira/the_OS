@@ -31,8 +31,8 @@ interface TeamsContext {
  * Service for sending proactive messages to Teams conversations
  */
 export class TeamsMessenger {
-  private static organizationId = '22222222-2222-2222-2222-222222222222' // Aurovitas (vacía)
-  private static systemUserId = '11111111-aaaa-2222-2222-222222222222' // SAP/Bot user (María García - Aurovitas)
+  private static organizationId = '01234567-8901-2345-6789-012345678901' // Gonvarri
+  private static systemUserId = '11111111-1111-1111-1111-111111111111' // SAP/Bot user (Pablo Senabre - Gonvarri)
   
   /**
    * Sends a proactive message to the Teams conversation linked to an issue

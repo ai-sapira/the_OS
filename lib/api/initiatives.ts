@@ -21,7 +21,7 @@ export interface InitiativeWithManager extends Initiative {
 }
 
 export class InitiativesAPI {
-  private static organizationId = '22222222-2222-2222-2222-222222222222' // Aurovitas (vacía) - TODO: Get from context
+  private static organizationId = '01234567-8901-2345-6789-012345678901' // Gonvarri
 
   // Get all active initiatives
   static async getInitiatives(): Promise<InitiativeWithManager[]> {

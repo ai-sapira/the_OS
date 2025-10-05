@@ -86,8 +86,8 @@ export function useSupabaseData() {
 
   // Get organization ID from context or fallback to Aurovitas for demo mode
   const getOrganizationId = useCallback(() => {
-    // MODO DEMO: Siempre usar Aurovitas (organización vacía) si no hay auth
-    return currentOrg?.organization.id || '22222222-2222-2222-2222-222222222222'  // Aurovitas (vacía)
+    // Always use Gonvarri
+    return currentOrg?.organization.id || '01234567-8901-2345-6789-012345678901'  // Gonvarri
   }, [currentOrg])
 
   // Load triage issues (only for SAP, CEO, BU roles)

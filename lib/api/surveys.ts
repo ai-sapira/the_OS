@@ -54,7 +54,7 @@ export interface SubmitResponseInput {
 }
 
 export class SurveysAPI {
-  private static organizationId = '22222222-2222-2222-2222-222222222222' // Aurovitas (vacía) - TODO: Get from context
+  private static organizationId = '01234567-8901-2345-6789-012345678901' // Gonvarri
 
   // Get all surveys with filters
   static async getSurveys(filters?: {
