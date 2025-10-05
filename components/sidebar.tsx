@@ -245,18 +245,18 @@ export function Sidebar({
           </div>
         </div>
       )}
-      {/* Aurovitas Logo and Name - Above Role Selector */}
+      {/* Gonvarri Logo and Name - Above Role Selector */}
       {!isCollapsed && (
         <div className="flex items-center px-4 py-4 border-b border-border gap-3">
           <Image 
-            src="/aurovitas-logo.jpg" 
-            alt="Aurovitas Logo" 
+            src="/gonvarri_vector.png" 
+            alt="Gonvarri Logo" 
             width={32} 
             height={32}
             className="object-contain rounded-md"
           />
           <span className="text-base font-bold text-black">
-            Aurovitas
+            Gonvarri
           </span>
         </div>
       )}

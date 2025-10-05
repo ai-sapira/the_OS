@@ -38,6 +38,38 @@ export interface TriageAction {
 }
 
 export class IssuesAPI {
+  // Generate next issue key for organization
+  private static async generateIssueKey(organizationId: string): Promise<string> {
+    // Get organization slug
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('slug')
+      .eq('id', organizationId)
+      .single()
+    
+    const prefix = org?.slug === 'gonvarri' ? 'GON' : 'ORG'
+    
+    // Get the latest issue number for this organization
+    const { data: issues } = await supabase
+      .from('issues')
+      .select('key')
+      .eq('organization_id', organizationId)
+      .ilike('key', `${prefix}-%`)
+      .order('created_at', { ascending: false })
+      .limit(1)
+    
+    let nextNumber = 1
+    if (issues && issues.length > 0) {
+      const lastKey = issues[0].key
+      const match = lastKey.match(/(\d+)$/)
+      if (match) {
+        nextNumber = parseInt(match[1], 10) + 1
+      }
+    }
+    
+    return `${prefix}-${nextNumber}`
+  }
+
   // Get issues for triage (state=triage, not snoozed)
   static async getTriageIssues(organizationId: string): Promise<IssueWithRelations[]> {
     const { data, error } = await supabase
@@ -120,10 +152,14 @@ export class IssuesAPI {
   static async createIssue(organizationId: string, issueData: CreateIssueData): Promise<Issue> {
     const { labels, ...issueFields } = issueData
     
+    // Generate issue key (e.g., GON-123)
+    const key = await this.generateIssueKey(organizationId)
+    
     const { data: issue, error } = await supabase
       .from('issues')
       .insert({
         ...issueFields,
+        key,
         organization_id: organizationId,
         state: 'triage'
       })

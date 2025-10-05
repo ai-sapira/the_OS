@@ -87,7 +87,7 @@ export class TeamsIntegration {
       labels: [] // We'll add these after creation
     }
 
-    const issue = await IssuesAPI.createIssue(issueData)
+    const issue = await IssuesAPI.createIssue(this.organizationId, issueData)
 
     // 2. Create link to Teams conversation (with conversation_reference for proactive messaging)
     const linkData: any = {
