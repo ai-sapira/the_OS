@@ -95,7 +95,7 @@ export function CreateIssueModal({ open, onOpenChange, onCreateIssue }: CreateIs
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Crear nuevo ticket</DialogTitle>
+          <DialogTitle>Crear nueva iniciativa</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">

@@ -629,7 +629,9 @@ function IssuesMetrics() {
     const loadData = async () => {
       try {
         setLoading(true)
-        const issues = await IssuesAPI.getIssues()
+        // Gonvarri organization ID
+        const organizationId = '01234567-8901-2345-6789-012345678901'
+        const issues = await IssuesAPI.getIssues(organizationId)
         
         const metrics: IssueMetric[] = issues.slice(0, 50).map(issue => {
           // Calculate realistic metrics based on issue data

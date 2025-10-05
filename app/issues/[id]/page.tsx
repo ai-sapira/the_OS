@@ -589,7 +589,7 @@ export default function IssueDetailPage() {
             <div style={{ borderBottom: '1px solid var(--stroke)' }}>
               <PageHeader>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">Issues</span>
+                  <span className="text-sm text-gray-500">Initiatives</span>
                   <span className="text-sm text-gray-400">›</span>
                   <span className="text-sm font-medium">No encontrado</span>
                 </div>
@@ -601,10 +601,10 @@ export default function IssueDetailPage() {
             <div className="text-center">
               <MessageSquare className="h-12 w-12 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-400 mb-2">
-                Issue no encontrado
+                Iniciativa no encontrada
               </h3>
               <p className="text-sm text-gray-400">
-                El issue que buscas no existe o no tienes permisos para verlo
+                La iniciativa que buscas no existe o no tienes permisos para verla
               </p>
             </div>
           </div>
@@ -625,7 +625,7 @@ export default function IssueDetailPage() {
                   onClick={() => router.push('/issues')} 
                   className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer transition-colors"
                 >
-                  Issues
+                  Initiatives
                 </span>
                 <span className="text-sm text-gray-400">›</span>
                 <span className="text-sm font-medium">{localIssue.key}</span>
@@ -678,20 +678,32 @@ export default function IssueDetailPage() {
                     )}
                   </div>
                   
-                  <div className="flex items-center gap-2 text-xs flex-wrap">
-                    <div className="flex items-center gap-1.5 text-gray-500">
-                      <User className="h-3 w-3" />
-                      <span>{localIssue.reporter?.name || 'Usuario desconocido'}</span>
+                  {/* Fila inferior: Autor/fecha (izquierda) y RISE Score (derecha) alineados */}
+                  <div className="flex items-center justify-between gap-2 text-xs flex-wrap">
+                    {/* Izquierda: Autor y fecha */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 text-gray-500">
+                        <User className="h-3 w-3" />
+                        <span>{localIssue.reporter?.name || 'Usuario desconocido'}</span>
+                      </div>
+                      <div className="h-1 w-1 rounded-full bg-gray-300" />
+                      <div className="flex items-center gap-1.5 text-gray-500">
+                        <Calendar className="h-3 w-3" />
+                        <span>{localIssue.created_at ? new Date(localIssue.created_at).toLocaleDateString('es-ES', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        }) : 'Sin fecha'}</span>
+                      </div>
                     </div>
-                    <div className="h-1 w-1 rounded-full bg-gray-300" />
-                    <div className="flex items-center gap-1.5 text-gray-500">
-                      <Calendar className="h-3 w-3" />
-                      <span>{localIssue.created_at ? new Date(localIssue.created_at).toLocaleDateString('es-ES', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                      }) : 'Sin fecha'}</span>
-                    </div>
+                    
+                    {/* Derecha: RISE Score - alineado con el chip de Core Technology */}
+                    {localIssue.rise_score !== null && localIssue.rise_score !== undefined && (
+                      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold bg-purple-50 border border-purple-200 text-purple-700">
+                        <Target className="h-3 w-3" />
+                        <span>RISE Score: {localIssue.rise_score}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

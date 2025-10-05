@@ -247,17 +247,19 @@ export function Sidebar({
       )}
       {/* Gonvarri Logo and Name - Above Role Selector */}
       {!isCollapsed && (
-        <div className="flex items-center px-4 py-4 border-b border-border gap-3">
-          <Image 
-            src="/gonvarri_vector.png" 
-            alt="Gonvarri Logo" 
-            width={32} 
-            height={32}
-            className="object-contain rounded-md"
-          />
-          <span className="text-base font-bold text-black">
-            Gonvarri
-          </span>
+        <div className="flex h-[53px] items-center px-4 border-b border-border">
+          <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md bg-white border border-gray-200">
+            <Image 
+              src="/gonvarri_vector.png" 
+              alt="Gonvarri Logo" 
+              width={32} 
+              height={32}
+              className="object-contain rounded-md"
+            />
+            <span className="text-base font-bold text-black">
+              Gonvarri
+            </span>
+          </div>
         </div>
       )}
       

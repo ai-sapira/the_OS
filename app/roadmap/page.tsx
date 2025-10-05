@@ -35,10 +35,34 @@ export default function RoadmapPage() {
     const loadData = async () => {
       try {
         setLoading(true)
+        // Gonvarri organization ID
+        const organizationId = '01234567-8901-2345-6789-012345678901'
         const [projectsData, issuesData] = await Promise.all([
           ProjectsAPI.getProjects(),
-          IssuesAPI.getIssues()
+          IssuesAPI.getIssues(organizationId)
         ])
+        
+        console.log('[Roadmap] Loaded projects:', projectsData.length)
+        console.log('[Roadmap] Loaded issues:', issuesData.length)
+        console.log('[Roadmap] Sample issue dates:', issuesData.slice(0, 5).map(i => ({
+          key: i.key,
+          title: i.title,
+          planned_start_at: i.planned_start_at,
+          sla_due_date: i.sla_due_date,
+          state: i.state
+        })))
+        
+        // Check if dates are actually set
+        const issuesWithDates = issuesData.filter(i => i.planned_start_at && i.sla_due_date)
+        console.log(`[Roadmap] Issues with dates: ${issuesWithDates.length}/${issuesData.length}`)
+        
+        if (issuesWithDates.length === 0) {
+          console.warn('[Roadmap] ⚠️ NO ISSUES HAVE DATES SET! Check database update.')
+        }
+        
+        // Log project date calculations
+        console.log('[Roadmap] Projects will calculate dates from their issues automatically')
+        
         setProjects(projectsData)
         setIssues(issuesData)
       } catch (error) {
@@ -66,8 +90,8 @@ export default function RoadmapPage() {
 
 
   // Helper function to convert ISO date strings to Date objects
-  const convertToDate = (dateString: string | null): Date => {
-    if (!dateString) return new Date()
+  const convertToDate = (dateString: string | null): Date | null => {
+    if (!dateString) return null
     return new Date(dateString)
   }
 
@@ -82,14 +106,46 @@ export default function RoadmapPage() {
     const completedIssues = projectIssues.filter(i => i.state === 'done').length
     const progress = project._progress?.manual || project._progress?.calculated || 0
 
+    // Calculate project dates based on its issues
+    // Project should span from earliest issue start to latest issue end
+    let startDate: Date
+    let endDate: Date
+    
+    if (projectIssues.length > 0) {
+      // Get all issue dates
+      const issueDates = projectIssues
+        .map(issue => ({
+          start: convertToDate(issue.planned_start_at),
+          end: convertToDate(issue.sla_due_date)
+        }))
+        .filter(d => d.start && d.end) as { start: Date; end: Date }[]
+      
+      if (issueDates.length > 0) {
+        // Find earliest start and latest end
+        const earliestStart = new Date(Math.min(...issueDates.map(d => d.start.getTime())))
+        const latestEnd = new Date(Math.max(...issueDates.map(d => d.end.getTime())))
+        
+        startDate = earliestStart
+        endDate = latestEnd
+      } else {
+        // Fallback if no issues have dates
+        startDate = convertToDate(project.planned_start_at) || new Date(2026, 0, 1)
+        endDate = convertToDate(project.planned_end_at) || new Date(startDate.getTime() + 90 * 24 * 60 * 60 * 1000)
+      }
+    } else {
+      // No issues, use project dates or defaults
+      startDate = convertToDate(project.planned_start_at) || new Date(2026, 0, 1)
+      endDate = convertToDate(project.planned_end_at) || new Date(startDate.getTime() + 90 * 24 * 60 * 60 * 1000)
+    }
+
     return {
       id: project.id,
       title: project.name,
       description: project.description || '',
       status: project.status === 'done' ? 'completed' : project.status === 'active' ? 'in-progress' : project.status === 'paused' ? 'on-hold' : 'planning',
       progress,
-      startDate: convertToDate(project.planned_start_at),
-      endDate: convertToDate(project.planned_end_at),
+      startDate,
+      endDate,
       owner: project.owner?.name || 'Sin asignar',
       projects: project.initiative?.name ? [project.initiative.name] : [],
       priority: "medium",
@@ -101,12 +157,27 @@ export default function RoadmapPage() {
   const issueToGanttItem = (issue: IssueWithRelations): GanttInitiative => {
     const progress = issue.state === 'done' ? 100 : issue.state === 'in_progress' ? 50 : 0
     
-    // Use planned_start_at if available, otherwise fall back to created_at or due_at - 14 days
-    const startDate = convertToDate(issue.planned_start_at) || 
-                     (issue.due_at ? new Date(convertToDate(issue.due_at).getTime() - 14 * 24 * 60 * 60 * 1000) : convertToDate(issue.created_at))
+    // Use planned_start_at if available
+    let startDate = convertToDate(issue.planned_start_at)
+    let endDate = convertToDate(issue.sla_due_date)
     
-    // Use due_at if available, otherwise default to 14 days after start
-    const endDate = convertToDate(issue.due_at) || new Date(startDate.getTime() + 14 * 24 * 60 * 60 * 1000)
+    // If we have end date but no start, calculate start as end - duration (or default offset)
+    if (!startDate && endDate) {
+      startDate = new Date(endDate.getTime() - 60 * 24 * 60 * 60 * 1000) // 60 days before end
+    }
+    
+    // If we have start but no end, calculate end as start + duration
+    if (startDate && !endDate) {
+      endDate = new Date(startDate.getTime() + 60 * 24 * 60 * 60 * 1000) // 60 days after start
+    }
+    
+    // If neither, use default dates in 2026
+    if (!startDate) {
+      startDate = new Date(2026, 0, 1) // Jan 1, 2026
+    }
+    if (!endDate) {
+      endDate = new Date(startDate.getTime() + 60 * 24 * 60 * 60 * 1000)
+    }
     
     return {
       id: issue.id,

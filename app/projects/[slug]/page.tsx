@@ -437,60 +437,64 @@ function MetricsSection({ project }: { project: ProjectWithRelations }) {
   );
 }
 
-// Issues List Component
-function ProjectIssuesList({ 
+// Initiatives List Component
+function ProjectInitiativesList({ 
   projectId 
 }: { 
   projectId: string 
 }) {
   const router = useRouter();
-  const [issues, setIssues] = useState<any[]>([]);
+  const [initiatives, setInitiatives] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadIssues = async () => {
+    const loadInitiatives = async () => {
       try {
         setLoading(true);
-        // Import IssuesAPI when needed
+        // Import IssuesAPI and auth context
         const { IssuesAPI } = await import('@/lib/api/issues');
-        const allIssues = await IssuesAPI.getIssues();
+        const { useAuth } = await import('@/lib/context/auth-context');
         
-        // Filter issues that belong to this project
-        const filteredIssues = allIssues.filter(issue => {
-          return issue.project_id === projectId;
+        // Get organization ID - hardcode Gonvarri for now
+        const organizationId = '01234567-8901-2345-6789-012345678901';
+        const allInitiatives = await IssuesAPI.getIssues(organizationId);
+        
+        // Filter initiatives that belong to this project
+        const filteredInitiatives = allInitiatives.filter(initiative => {
+          return initiative.project_id === projectId;
         });
         
-        setIssues(filteredIssues);
+        setInitiatives(filteredInitiatives);
       } catch (error) {
-        console.error('Error loading issues:', error);
-        setIssues([]);
+        console.error('Error loading initiatives:', error);
+        setInitiatives([]);
       } finally {
         setLoading(false);
       }
     };
 
-    loadIssues();
+    loadInitiatives();
   }, [projectId]);
 
-  // Navigate to issue detail page
-  const handleIssueClick = (issueId: string) => {
-    router.push(`/issues/${issueId}`);
+  // Navigate to initiative detail page
+  const handleInitiativeClick = (initiativeId: string) => {
+    router.push(`/issues/${initiativeId}`);
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-muted-foreground text-sm">Loading issues...</div>
+        <div className="text-muted-foreground text-sm">Loading initiatives...</div>
       </div>
     );
   }
 
-  if (issues.length === 0) {
+  if (initiatives.length === 0) {
     return (
       <div className="py-12 text-center text-gray-500">
         <AlertCircle className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-        <p className="text-sm">No issues yet</p>
-        <p className="text-xs mt-1">Issues will appear here when assigned to this project</p>
+        <p className="text-sm">No initiatives yet</p>
+        <p className="text-xs mt-1">Initiatives will appear here when assigned to this project</p>
       </div>
     );
   }
@@ -546,46 +550,46 @@ function ProjectIssuesList({
 
       {/* Issue Rows */}
       <div>
-        {issues.map((issue) => (
+        {initiatives.map((initiative) => (
           <div
-            key={issue.id}
-            onClick={() => handleIssueClick(issue.id)}
+            key={initiative.id}
+            onClick={() => handleInitiativeClick(initiative.id)}
             className="py-3 px-6 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-b-0"
           >
             <div className="grid grid-cols-[40px_1fr_120px_100px_140px] gap-4 items-center">
               {/* Key Column */}
               <div className="text-xs font-mono text-gray-500">
-                {issue.key}
+                {initiative.key}
               </div>
 
               {/* Title Column */}
               <div className="min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">{issue.title}</div>
-                {issue.description && (
-                  <div className="text-xs text-gray-500 truncate">{issue.description}</div>
+                <div className="text-sm font-medium text-gray-900 truncate">{initiative.title}</div>
+                {initiative.description && (
+                  <div className="text-xs text-gray-500 truncate">{initiative.description}</div>
                 )}
               </div>
 
               {/* Status Column */}
               <div className="flex justify-start">
-                {getStatusBadge(issue.state || 'triage')}
+                {getStatusBadge(initiative.state || 'triage')}
               </div>
 
               {/* Priority Column */}
               <div className="flex justify-start">
-                {getPriorityBadge(issue.priority)}
+                {getPriorityBadge(initiative.priority)}
               </div>
 
               {/* Assignee Column */}
               <div className="flex items-center gap-2">
-                {issue.assignee ? (
+                {initiative.assignee ? (
                   <>
                     <Avatar className="h-5 w-5">
                       <AvatarFallback className="text-[10px] bg-gray-100 text-gray-600">
-                        {issue.assignee.name.split(' ').map((n: string) => n[0]).join('')}
+                        {initiative.assignee.name.split(' ').map((n: string) => n[0]).join('')}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-xs text-gray-700 truncate">{issue.assignee.name}</span>
+                    <span className="text-xs text-gray-700 truncate">{initiative.assignee.name}</span>
                   </>
                 ) : (
                   <span className="text-xs text-gray-400">Unassigned</span>
@@ -754,19 +758,19 @@ export default function ProjectDetailPage() {
             </div>
           </div>
 
-          {/* Issues Section */}
+          {/* Initiatives Section */}
           <div className="px-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-gray-900">
-                Issues
+                Initiatives
               </h2>
               <Button size="sm" variant="outline" className="h-7 text-xs">
-                + New Issue
+                + New Initiative
               </Button>
             </div>
-            
+
             <div className="border border-gray-200 rounded-lg bg-white">
-              <ProjectIssuesList projectId={project.id} />
+              <ProjectInitiativesList projectId={project.id} />
             </div>
           </div>
         </div>

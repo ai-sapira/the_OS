@@ -88,7 +88,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
-// Issue states mapping
+// Initiative states mapping
 const ISSUE_STATES: { value: IssueState; label: string; color: string }[] = [
   { value: "todo", label: "Todo", color: "bg-blue-500" },
   { value: "in_progress", label: "In Progress", color: "bg-yellow-500" },
@@ -162,7 +162,7 @@ const DEFAULT_BOARD_SETTINGS: BoardSettings = {
   sortInColumns: "priority"
 }
 
-// Issues Filters Bar Component
+// Initiatives Filters Bar Component
 function IssuesFiltersBar({
   onFiltersChange
 }: {
@@ -248,7 +248,7 @@ function IssuesFiltersBar({
         <div className="relative">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Search issues..."
+            placeholder="Search initiatives..."
             value={globalFilter}
             onChange={handleGlobalFilterChange}
             className="pl-9 h-7 max-w-sm bg-gray-50 border-gray-200 rounded-lg border-dashed focus:border-gray-200 focus:ring-0 focus:ring-offset-0 focus:shadow-none focus:outline-none text-gray-900 placeholder-gray-500 shadow-none hover:bg-gray-100 transition-colors text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
@@ -963,7 +963,7 @@ export default function IssuesPage() {
           </div>
         )}
 
-        {/* Create Issue Modal */}
+        {/* Create Initiative Modal */}
         <NewIssueModal 
           open={createIssueOpen} 
           onOpenChange={setCreateIssueOpen} 
@@ -973,7 +973,7 @@ export default function IssuesPage() {
   )
 }
 
-// Issues List View Component (similar to projects/initiatives)
+// Initiatives List View Component (similar to projects/initiatives)
 interface IssuesListViewProps {
   issues: IssueWithRelations[]
   projects: ProjectWithRelations[]
@@ -1091,7 +1091,7 @@ function IssuesListView({ issues, projects, onIssueClick, onDataChange }: Issues
       ) : (
         <div className="py-12 text-center text-gray-500">
           <Circle className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-          <p>No issues found</p>
+          <p>No initiatives found</p>
           <p className="text-sm">Try adjusting your filters</p>
         </div>
       )}
@@ -1891,7 +1891,7 @@ function MobileKanbanView({
 
           {/* Issues grouped by project */}
           <ProjectGroup
-            project={{ name: "All Issues" }}
+            project={{ name: "All Initiatives" }}
             issues={issuesInSelectedState}
                       displayProperties={displayProperties}
             onIssueClick={onIssueClick}

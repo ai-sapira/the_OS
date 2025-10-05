@@ -215,6 +215,7 @@ export type Database = {
           estimated_hours: number | null
           blocker_reason: string | null
           blocked_by_issue_id: string | null
+          rise_score: number | null
         }
         Insert: {
           assignee_id?: string | null
@@ -245,6 +246,7 @@ export type Database = {
           estimated_hours?: number | null
           blocker_reason?: string | null
           blocked_by_issue_id?: string | null
+          rise_score?: number | null
         }
         Update: {
           assignee_id?: string | null
@@ -275,6 +277,7 @@ export type Database = {
           estimated_hours?: number | null
           blocker_reason?: string | null
           blocked_by_issue_id?: string | null
+          rise_score?: number | null
         }
         Relationships: [
           {

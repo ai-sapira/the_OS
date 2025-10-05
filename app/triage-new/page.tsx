@@ -59,17 +59,17 @@ import { useResizableSections } from "@/hooks/use-resizable-sections"
 import { TeamsConversation } from "@/components/teams-conversation"
 import { IssuesAPI } from "@/lib/api/issues"
 
-// Component for empty state when no issue is selected
+// Component for empty state when no initiative is selected
 function EmptyIssueState() {
   return (
     <div className="flex items-center justify-center h-full text-gray-500">
       <div className="text-center">
         <MessageSquare className="h-12 w-12 text-gray-300 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-400 mb-2">
-          Selecciona un issue
+          Selecciona una iniciativa
         </h3>
         <p className="text-sm text-gray-400">
-          Elige un issue de la lista para ver sus detalles
+          Elige una iniciativa de la lista para ver sus detalles
         </p>
       </div>
     </div>
@@ -102,15 +102,15 @@ function PropertyChip({ icon, label, value, options, onSelect, loading = false }
           role="combobox"
           aria-expanded={open}
           size="sm"
-          className="h-7 border-dashed bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-600 hover:text-gray-700 gap-1.5 px-3 text-xs rounded-lg"
+          className="h-7 border-dashed bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-600 hover:text-gray-700 gap-1.5 px-3 text-xs rounded-lg min-w-0"
         >
           <div className="flex-shrink-0 text-gray-500">
             {icon}
           </div>
-          <span className="text-gray-700 whitespace-nowrap">
+          <span className="text-gray-700 truncate max-w-[150px]">
             {value}
           </span>
-          <ChevronDown className={`h-3 w-3 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`h-3 w-3 text-gray-400 transition-transform duration-200 flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -197,6 +197,7 @@ function AISuggestions({
   availableInitiatives = [] 
 }: AISuggestionsProps) {
   const [loadingField, setLoadingField] = useState<string | null>(null)
+  const [appliedFields, setAppliedFields] = useState<Set<string>>(new Set())
 
   // Generate AI suggestions based on issue content
   const suggestions: Suggestion[] = React.useMemo(() => {
@@ -320,6 +321,7 @@ function AISuggestions({
     setLoadingField(suggestion.field)
     try {
       await onApplySuggestion(suggestion.field, suggestion.value)
+      setAppliedFields(prev => new Set(prev).add(suggestion.field))
     } finally {
       setLoadingField(null)
     }
@@ -336,6 +338,10 @@ function AISuggestions({
       
       // Aplicar todas de una vez
       await onApplySuggestion('bulk', updates)
+      
+      // Marcar todas como aplicadas
+      const allFields = new Set(suggestions.map(s => s.field))
+      setAppliedFields(allFields)
     } finally {
       setLoadingField(null)
     }
@@ -356,13 +362,22 @@ function AISuggestions({
           {/* Botón Aplicar todas */}
           <button
             onClick={handleApplyAll}
-            disabled={loadingField !== null}
-            className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loadingField !== null || appliedFields.size === suggestions.length}
+            className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              appliedFields.size === suggestions.length
+                ? 'text-green-700 bg-green-50 border border-green-200'
+                : 'text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200'
+            }`}
           >
             {loadingField === 'all' ? (
               <>
                 <div className="h-3 w-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
                 <span>Aplicando...</span>
+              </>
+            ) : appliedFields.size === suggestions.length ? (
+              <>
+                <CheckCircle2 className="h-3 w-3" />
+                <span>Aplicado</span>
               </>
             ) : (
               <>
@@ -377,10 +392,10 @@ function AISuggestions({
         {suggestions.map((suggestion) => (
           <div 
             key={suggestion.field}
-            className="flex items-center gap-3 p-3 border border-dashed border-gray-300 rounded-lg bg-gray-50/50 hover:bg-gray-50 transition-colors"
+            className="flex flex-nowrap items-center gap-3 p-3 border border-dashed border-gray-300 rounded-lg bg-gray-50/50 hover:bg-gray-50 transition-colors"
           >
             {/* Label */}
-            <div className="flex items-center gap-1.5 min-w-[100px]">
+            <div className="flex items-center gap-1.5 min-w-[100px] shrink-0">
               <div className="text-gray-500">
                 {suggestion.icon}
               </div>
@@ -388,22 +403,31 @@ function AISuggestions({
             </div>
 
             {/* Suggested Value */}
-            <div className="flex-1">
-              <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-white border border-gray-200 text-gray-900">
-                {suggestion.displayValue}
+            <div className="flex-1 min-w-0">
+              <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-white border border-gray-200 text-gray-900 max-w-full">
+                <span className="truncate">{suggestion.displayValue}</span>
               </div>
             </div>
 
             {/* Apply Button */}
             <button
               onClick={() => handleApplySuggestion(suggestion)}
-              disabled={loadingField === suggestion.field}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+              disabled={loadingField === suggestion.field || appliedFields.has(suggestion.field)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 whitespace-nowrap ${
+                appliedFields.has(suggestion.field)
+                  ? 'text-white bg-green-600'
+                  : 'text-white bg-purple-600 hover:bg-purple-700'
+              }`}
             >
               {loadingField === suggestion.field ? (
                 <>
                   <div className="h-3 w-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   <span>Aplicando...</span>
+                </>
+              ) : appliedFields.has(suggestion.field) ? (
+                <>
+                  <CheckCircle2 className="h-3 w-3" />
+                  <span>Aplicado</span>
                 </>
               ) : (
                 <>
@@ -554,7 +578,7 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
     <div className="flex flex-col h-full">
       {/* Sección de chips de propiedades */}
       <div className="flex-shrink-0 border-b bg-white relative" style={{ borderColor: 'var(--stroke)' }}>
-        <div className="flex items-center gap-2 flex-wrap px-6 py-2">
+        <div className="flex items-center gap-2 flex-nowrap px-6 py-2">
           <PropertyChip
             icon={getStateIcon(localIssue.state).icon}
             label="Estado"
@@ -633,7 +657,7 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
           />
 
           {/* Separador visual */}
-          <div className="h-7 w-px bg-gray-200 mx-1" />
+          <div className="h-7 w-px bg-gray-200 mx-1 shrink-0" />
 
           {/* Actions Dropdown */}
           <Popover>
@@ -641,7 +665,7 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 border-dashed bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-700 hover:text-blue-800 gap-1.5 px-3 text-xs rounded-lg font-medium transition-all duration-200"
+                className="h-7 border-dashed bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-700 hover:text-blue-800 gap-1.5 px-3 text-xs rounded-lg font-medium transition-all duration-200 shrink-0 whitespace-nowrap"
               >
                 <Flag className="h-3.5 w-3.5" />
                 <span>Actions</span>
@@ -733,20 +757,32 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
                   )}
                 </div>
                 
-                <div className="flex items-center gap-2 text-xs flex-wrap">
-                  <div className="flex items-center gap-1.5 text-gray-500">
-                    <User className="h-3 w-3" />
-                    <span>{selectedIssue.reporter?.name || 'Usuario desconocido'}</span>
+                {/* Fila inferior: Autor/fecha (izquierda) y RISE Score (derecha) alineados */}
+                <div className="flex items-center justify-between gap-2 text-xs flex-wrap">
+                  {/* Izquierda: Autor y fecha */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 text-gray-500">
+                      <User className="h-3 w-3" />
+                      <span>{selectedIssue.reporter?.name || 'Usuario desconocido'}</span>
+                    </div>
+                    <div className="h-1 w-1 rounded-full bg-gray-300" />
+                    <div className="flex items-center gap-1.5 text-gray-500">
+                      <Calendar className="h-3 w-3" />
+                      <span>{selectedIssue.created_at ? new Date(selectedIssue.created_at).toLocaleDateString('es-ES', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      }) : 'Sin fecha'}</span>
+                    </div>
                   </div>
-                  <div className="h-1 w-1 rounded-full bg-gray-300" />
-                  <div className="flex items-center gap-1.5 text-gray-500">
-                    <Calendar className="h-3 w-3" />
-                    <span>{selectedIssue.created_at ? new Date(selectedIssue.created_at).toLocaleDateString('es-ES', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric'
-                    }) : 'Sin fecha'}</span>
-                  </div>
+                  
+                  {/* Derecha: RISE Score - alineado con el chip de Core Technology */}
+                  {selectedIssue.rise_score !== null && selectedIssue.rise_score !== undefined && (
+                    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold bg-purple-50 border border-purple-200 text-purple-700">
+                      <Target className="h-3 w-3" />
+                      <span>RISE Score: {selectedIssue.rise_score}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1199,14 +1235,10 @@ export default function TriageNewPage() {
                     <div
                       key={issue.id}
                       className={`px-6 py-3 hover:bg-gray-50/50 cursor-pointer transition-all duration-200 relative ${
-                        selectedIssue?.id === issue.id ? '' : ''
+                        selectedIssue?.id === issue.id ? 'border-2 border-gray-400 bg-gray-50/50 -m-[1px]' : ''
                       }`}
                       onClick={() => handleIssueSelect(issue)}
                     >
-                      {/* Resalte fino de todo el ancho cuando está seleccionado */}
-                      {selectedIssue?.id === issue.id && (
-                        <div className="absolute bottom-0 left-0 right-0 h-px bg-gray-400" />
-                      )}
                       {/* Título del issue con número de iniciativa */}
                       <div className="mb-2.5">
                         <div className="flex items-start gap-2 mb-1">

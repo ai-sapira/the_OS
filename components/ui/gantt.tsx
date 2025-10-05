@@ -1049,8 +1049,9 @@ export const GanttProvider: FC<GanttProviderProps> = ({
   className,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Use 2026 as base year for Gonvarri roadmap (most initiatives are in 2026)
   const [timelineData, setTimelineData] = useState<TimelineData>(
-    createInitialTimelineData(new Date())
+    createInitialTimelineData(new Date(2026, 0, 1))
   );
   const [, setScrollX] = useGanttScrollX();
   const sidebarElement = scrollRef.current?.querySelector(

@@ -1,0 +1,38 @@
+Tabla 1
+Initiative number;Initiative;Business unit;Project;Short Description;Impact;Core Technology;Start date;Finish date;Status
+6;Agile pricing;Finance;Pricing;AI for pricing and discount margins;Reduced repetitive tasks;Predictive AI;01/06/2026;01/09/2026;to do
+7;GMHS's Offer automation;Sales;Processing;Bot automating CET info to proposals;Reduced repetitive tasks;Data + RPA + IDP;01/01/2026;01/06/2026;to do
+8;Contract concierge;Legal;Advisory;Virtual assistant for legal documents;Increased productivity;IDP + GenAI;01/01/2026;01/03/2026;to do
+10;Translator;Legal;Advisory;Teams-based translation assistant;Increased productivity;GenAI (Translation);01/01/2026;01/03/2026;to do
+11;GonvAlrri desk;HR;NPS;Virtual assistant chatbot for employee issues;Increased productivity;GenAI (Chatbot);01/01/2026;01/05/2026;to do
+24;Bid Crafter Tender Analysis & Creation Suite;Sales;Processing;Tool to read tender contracts and extract key variables;Reduced repetitive tasks;IDP + GenAI;01/01/2026;01/06/2026;to do
+27;Supplier negotiation cockpit;Procurement;Negotiation;Trading booth consolidating supplier info;Improving decision-making;Data;01/01/2026;01/06/2026;to do
+28;Customer Negotiation Cockpit;Sales;Processing;Trading booth consolidating customer info;Improving decision-making;GenAI + Analytics;01/01/2026;01/06/2026;to do
+29;Supplier contract analysis;Legal;Advisory;Automated analysis of contracts with suppliers;Reduced manual effort;IDP + GenAI;01/01/2026;01/03/2026;to do
+30;Customer contract analysis;Legal;Advisory;Automated analysis of contracts with clients;Reduced manual effort;IDP + GenAI;01/01/2026;01/03/2026;to do
+36;Invoice AutoFlow;Finance;Invoicing;Automated invoice processing;Increased efficiency;RPA + IDP;01/01/2026;01/04/2026;to do
+42;RFP QuickGen;Procurement;Outbound;RFP Automation;Reduced acquisition costs;RPA + GenAI;01/01/2026;01/06/2026;to do
+47;InvoiceGenius;Finance;Invoicing;Automated invoice generation;Reduced processing costs;RPA + IDP;01/01/2026;01/01/2026;to do
+50;FraudFinder AI;Finance;Invoicing;Fraudulent transactions detection;Reduce time on investigations;IDP + Predictive AI;01/01/2026;01/01/2026;to do
+51;ComplianceAI Mapper;Legal;Compliance;Compliance risk assessment;Reduced manual work;GenAI + Compliance AI;01/01/2026;01/03/2026;to do
+55;Onboarding Buddy GenAI;HR;NPS;GenAI onboarding companion;Reduction in onboarding time;GenAI (Copilot);01/01/2026;01/05/2026;to do
+56;HRChatbot GenAI;HR;NPS;GenAI chatbots for HR queries;Reduced HR workload;GenAI (Chatbot);01/01/2026;01/05/2026;to do
+58;NLP HRRequest Sorter;HR;NPS;Categorize and prioritize HR requests;Increased productivity;NLP + RPA;01/01/2026;01/05/2026;to do
+59;AttritionPredictor AI;HR;Retention;Predict employee attrition;Decrease attrition;Predictive AI;01/01/2026;01/05/2026;to do
+60;CareerCoPilot GenAI;HR;Upskilling;GenAI career co-pilot;Increase efficiency;GenAI (Copilot);01/01/2026;01/05/2026;to do
+64;Automated supplier inquiry handling;Procurement;Operations;Automate supplier interactions;Increased efficiency;RPA + GenAI;01/01/2026;01/06/2026;to do
+69;Accounts Receivable Collections Assistant;Finance;Invoicing;ERP-integrated assistant for collections;Single-window view;RPA + Gen AI;01/01/2026;01/01/2026;to do
+71;SmartBidder;Procurement;Negotiation;Purchasing intelligence;Reduced acquisition costs;Advanced Analytics;01/01/2026;01/06/2026;to do
+72;SpendSight Analytics;Procurement;Reporting;Supplier performance analysis;Reduced costs;Advanced Analytics;01/01/2026;01/06/2026;to do
+76;OnboardEase;HR;NPS;Digital onboarding platform;Increased productivity;Digital Platform + GenAI;01/01/2026;01/05/2026;to do
+77;TalentInsight AI;HR;Reporting;Recruitment & turnover analytics;Reduced recruitment costs;Predictive AI + Analytics;01/01/2026;01/05/2026;to do
+79;ComplyStreamline;Legal;Compliance;Automate compliance reporting;Increased productivity;RPA + GenAI;01/01/2026;01/03/2026;to do
+80;FinanceGuardian;Finance;Invoicing;Detecting anomalies in financial data;Reduced labor costs;IDP + Predictive AI;01/01/2026;01/01/2026;to do
+81;DebtTrend AI;Finance;Invoicing;Debt prediction and collection;Reduced expenses;Predictive AI + GenAI;01/01/2026;01/01/2026;to do
+82;QueryAssist AI;Finance;Invoicing;Virtual Assistant for invoice queries;Reduced costs;GenAI + RPA;01/01/2026;01/01/2026;to do
+83;CloudBill Exchange;Finance;Invoicing;Cloud billing & sharing;Reduce expenses;RPA + Cloud Integration;01/01/2026;01/01/2026;to do
+87;InvoiceAccelerator AI;Finance;Invoicing;Accelerated invoice processing;Reduce payable processing cost;IDP + RPA;01/01/2026;01/01/2026;to do
+90;FinConsolidate AI;Finance;Accounting;Automated financial consolidation;Reduce reconciliation times;RPA + Analytics;01/06/2026;01/09/2026;to do
+92;TalentInsight AI;HR;Reporting;Recruitment & turnover analytics;Increased efficiency;Predictive AI + Analytics;01/01/2026;01/05/2026;to do
+93;SentimentScraper GenAI;HR;NPS;Scraping surveys and reviews;Increased productivity;GenAI (NLP/LLM);01/01/2026;01/05/2026;to do
+94;PathFinder GenAI;HR;Upskilling;Career path suggestions;Improved productivity;GenAI (Copilot);01/01/2026;01/05/2026;to do
