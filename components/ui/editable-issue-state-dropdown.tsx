@@ -52,7 +52,7 @@ export function EditableIssueStateDropdown({
       label: "Triage",
       description: "Waiting for triage",
       icon: <HelpCircle className="h-3.5 w-3.5" />,
-      color: "bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-200"
+      color: "bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200"
     },
     {
       value: "todo",

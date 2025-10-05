@@ -169,7 +169,7 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
   },
   {
     id: "my-sapira-relationship",
-    label: "My Sapira Relationship",
+    label: "My Sapira",
     icon: "Handshake",
     href: "/my-sapira",
     roles: ["BU", "EMP", "CEO"],
@@ -178,7 +178,7 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
   // Footer
   {
     id: "your-profile",
-    label: "Gerardo Dueso",
+    label: "Nestor Lacarra",
     icon: "User",
     href: "/profile",
     roles: ["SAP", "CEO", "BU", "EMP"],

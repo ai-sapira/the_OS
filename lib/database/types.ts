@@ -8,12 +8,63 @@ export type Json =
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.5"
   }
   public: {
     Tables: {
+      initiative_activity: {
+        Row: {
+          action: Database["public"]["Enums"]["initiative_activity_action"]
+          actor_user_id: string | null
+          created_at: string | null
+          id: string
+          initiative_id: string
+          organization_id: string
+          payload: Json | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["initiative_activity_action"]
+          actor_user_id?: string | null
+          created_at?: string | null
+          id?: string
+          initiative_id: string
+          organization_id: string
+          payload?: Json | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["initiative_activity_action"]
+          actor_user_id?: string | null
+          created_at?: string | null
+          id?: string
+          initiative_id?: string
+          organization_id?: string
+          payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "initiative_activity_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "initiative_activity_initiative_id_fkey"
+            columns: ["initiative_id"]
+            isOneToOne: false
+            referencedRelation: "initiatives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "initiative_activity_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       initiatives: {
         Row: {
           active: boolean | null
@@ -155,6 +206,7 @@ export type Database = {
           issue_id: string
           provider: Database["public"]["Enums"]["link_provider"]
           synced_at: string | null
+          teams_context: Json | null
           url: string | null
         }
         Insert: {
@@ -164,6 +216,7 @@ export type Database = {
           issue_id: string
           provider: Database["public"]["Enums"]["link_provider"]
           synced_at?: string | null
+          teams_context?: Json | null
           url?: string | null
         }
         Update: {
@@ -173,6 +226,7 @@ export type Database = {
           issue_id?: string
           provider?: Database["public"]["Enums"]["link_provider"]
           synced_at?: string | null
+          teams_context?: Json | null
           url?: string | null
         }
         Relationships: [
@@ -188,11 +242,16 @@ export type Database = {
       issues: {
         Row: {
           assignee_id: string | null
+          blocked_by_issue_id: string | null
+          blocker_reason: string | null
+          core_technology: string | null
           created_at: string | null
           description: string | null
           due_at: string | null
           duplicate_of_id: string | null
+          estimated_hours: number | null
           id: string
+          impact: string | null
           initiative_id: string | null
           key: string
           organization_id: string
@@ -202,28 +261,28 @@ export type Database = {
           priority: Database["public"]["Enums"]["issue_priority"] | null
           project_id: string | null
           reporter_id: string | null
+          rise_score: number | null
+          short_description: string | null
+          sla_due_date: string | null
           snooze_until: string | null
           state: Database["public"]["Enums"]["issue_state"] | null
           title: string
           triaged_at: string | null
           triaged_by_user_id: string | null
           updated_at: string | null
-          short_description: string | null
-          impact: string | null
-          core_technology: string | null
-          sla_due_date: string | null
-          estimated_hours: number | null
-          blocker_reason: string | null
-          blocked_by_issue_id: string | null
-          rise_score: number | null
         }
         Insert: {
           assignee_id?: string | null
+          blocked_by_issue_id?: string | null
+          blocker_reason?: string | null
+          core_technology?: string | null
           created_at?: string | null
           description?: string | null
           due_at?: string | null
           duplicate_of_id?: string | null
+          estimated_hours?: number | null
           id?: string
+          impact?: string | null
           initiative_id?: string | null
           key: string
           organization_id: string
@@ -233,28 +292,28 @@ export type Database = {
           priority?: Database["public"]["Enums"]["issue_priority"] | null
           project_id?: string | null
           reporter_id?: string | null
+          rise_score?: number | null
+          short_description?: string | null
+          sla_due_date?: string | null
           snooze_until?: string | null
           state?: Database["public"]["Enums"]["issue_state"] | null
           title: string
           triaged_at?: string | null
           triaged_by_user_id?: string | null
           updated_at?: string | null
-          short_description?: string | null
-          impact?: string | null
-          core_technology?: string | null
-          sla_due_date?: string | null
-          estimated_hours?: number | null
-          blocker_reason?: string | null
-          blocked_by_issue_id?: string | null
-          rise_score?: number | null
         }
         Update: {
           assignee_id?: string | null
+          blocked_by_issue_id?: string | null
+          blocker_reason?: string | null
+          core_technology?: string | null
           created_at?: string | null
           description?: string | null
           due_at?: string | null
           duplicate_of_id?: string | null
+          estimated_hours?: number | null
           id?: string
+          impact?: string | null
           initiative_id?: string | null
           key?: string
           organization_id?: string
@@ -264,20 +323,15 @@ export type Database = {
           priority?: Database["public"]["Enums"]["issue_priority"] | null
           project_id?: string | null
           reporter_id?: string | null
+          rise_score?: number | null
+          short_description?: string | null
+          sla_due_date?: string | null
           snooze_until?: string | null
           state?: Database["public"]["Enums"]["issue_state"] | null
           title?: string
           triaged_at?: string | null
           triaged_by_user_id?: string | null
           updated_at?: string | null
-          short_description?: string | null
-          impact?: string | null
-          core_technology?: string | null
-          sla_due_date?: string | null
-          estimated_hours?: number | null
-          blocker_reason?: string | null
-          blocked_by_issue_id?: string | null
-          rise_score?: number | null
         }
         Relationships: [
           {
@@ -474,9 +528,227 @@ export type Database = {
           },
         ]
       }
+      survey_questions: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_required: boolean | null
+          options: Json | null
+          order_index: number
+          question_text: string
+          question_type: Database["public"]["Enums"]["question_type"]
+          survey_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_required?: boolean | null
+          options?: Json | null
+          order_index: number
+          question_text: string
+          question_type: Database["public"]["Enums"]["question_type"]
+          survey_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_required?: boolean | null
+          options?: Json | null
+          order_index?: number
+          question_text?: string
+          question_type?: Database["public"]["Enums"]["question_type"]
+          survey_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_questions_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      survey_responses: {
+        Row: {
+          created_at: string | null
+          id: string
+          question_id: string
+          responder_user_id: string | null
+          response_data: Json | null
+          response_value: string | null
+          survey_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          question_id: string
+          responder_user_id?: string | null
+          response_data?: Json | null
+          response_value?: string | null
+          survey_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          question_id?: string
+          responder_user_id?: string | null
+          response_data?: Json | null
+          response_value?: string | null
+          survey_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_responses_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "survey_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_responder_user_id_fkey"
+            columns: ["responder_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      surveys: {
+        Row: {
+          allow_anonymous: boolean | null
+          allow_multiple_responses: boolean | null
+          created_at: string | null
+          creator_user_id: string
+          description: string | null
+          ends_at: string | null
+          id: string
+          organization_id: string
+          starts_at: string | null
+          status: Database["public"]["Enums"]["survey_status"]
+          target_audience: Database["public"]["Enums"]["survey_audience"]
+          target_bu_id: string | null
+          target_roles: string[] | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          allow_anonymous?: boolean | null
+          allow_multiple_responses?: boolean | null
+          created_at?: string | null
+          creator_user_id: string
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          organization_id: string
+          starts_at?: string | null
+          status?: Database["public"]["Enums"]["survey_status"]
+          target_audience?: Database["public"]["Enums"]["survey_audience"]
+          target_bu_id?: string | null
+          target_roles?: string[] | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          allow_anonymous?: boolean | null
+          allow_multiple_responses?: boolean | null
+          created_at?: string | null
+          creator_user_id?: string
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          organization_id?: string
+          starts_at?: string | null
+          status?: Database["public"]["Enums"]["survey_status"]
+          target_audience?: Database["public"]["Enums"]["survey_audience"]
+          target_bu_id?: string | null
+          target_roles?: string[] | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "surveys_creator_user_id_fkey"
+            columns: ["creator_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surveys_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "surveys_target_bu_id_fkey"
+            columns: ["target_bu_id"]
+            isOneToOne: false
+            referencedRelation: "initiatives"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_organizations: {
+        Row: {
+          active: boolean | null
+          auth_user_id: string
+          created_at: string | null
+          id: string
+          initiative_id: string | null
+          organization_id: string
+          role: string
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          auth_user_id: string
+          created_at?: string | null
+          id?: string
+          initiative_id?: string | null
+          organization_id: string
+          role: string
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          auth_user_id?: string
+          created_at?: string | null
+          id?: string
+          initiative_id?: string | null
+          organization_id?: string
+          role?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_organizations_initiative_id_fkey"
+            columns: ["initiative_id"]
+            isOneToOne: false
+            referencedRelation: "initiatives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_organizations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           active: boolean | null
+          auth_user_id: string | null
           avatar_url: string | null
           created_at: string | null
           email: string
@@ -488,6 +760,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean | null
+          auth_user_id?: string | null
           avatar_url?: string | null
           created_at?: string | null
           email: string
@@ -499,6 +772,7 @@ export type Database = {
         }
         Update: {
           active?: boolean | null
+          auth_user_id?: string | null
           avatar_url?: string | null
           created_at?: string | null
           email?: string
@@ -523,7 +797,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_initiative: {
+        Args: { org_id: string }
+        Returns: string
+      }
+      get_user_role: {
+        Args: { org_id: string }
+        Returns: string
+      }
     }
     Enums: {
       activity_action:
@@ -538,6 +819,19 @@ export type Database = {
         | "labeled"
         | "assigned"
         | "state_changed"
+      initiative_activity_action:
+        | "created"
+        | "updated"
+        | "status_changed"
+        | "manager_assigned"
+        | "manager_changed"
+        | "manager_removed"
+        | "description_updated"
+        | "project_added"
+        | "project_removed"
+        | "issue_accepted"
+        | "archived"
+        | "restored"
       issue_origin: "teams" | "email" | "slack" | "api" | "url"
       issue_priority: "P0" | "P1" | "P2" | "P3"
       issue_state:
@@ -551,6 +845,9 @@ export type Database = {
         | "duplicate"
       link_provider: "teams" | "slack" | "email" | "url"
       project_status: "planned" | "active" | "paused" | "done"
+      question_type: "multiple_choice" | "rating" | "text" | "yes_no"
+      survey_audience: "all" | "bu_specific" | "role_specific"
+      survey_status: "draft" | "active" | "closed" | "archived"
       user_role: "SAP" | "CEO" | "BU" | "EMP"
     }
     CompositeTypes: {
@@ -660,73 +957,9 @@ export type Enums<
     : never
 
 // Helper types for easier usage
-export type User = Tables<'users'>
 export type Organization = Tables<'organizations'>
 export type Initiative = Tables<'initiatives'>
 export type Project = Tables<'projects'>
 export type Issue = Tables<'issues'>
-export type Label = Tables<'labels'>
-export type IssueActivity = Tables<'issue_activity'>
-export type IssueLink = Tables<'issue_links'>
-
-export type UserRole = Database['public']['Enums']['user_role']
-export type IssueState = Database['public']['Enums']['issue_state']
-export type IssuePriority = Database['public']['Enums']['issue_priority']
-export type IssueOrigin = Database['public']['Enums']['issue_origin']
-export type ProjectStatus = Database['public']['Enums']['project_status']
-export type ActivityAction = Database['public']['Enums']['activity_action']
-export type LinkProvider = Database['public']['Enums']['link_provider']
-
-// Survey types
-export type SurveyStatus = 'draft' | 'active' | 'closed' | 'archived'
-export type SurveyAudience = 'all' | 'bu_specific' | 'role_specific'
-export type QuestionType = 'multiple_choice' | 'rating' | 'text' | 'yes_no'
-
-export type Survey = {
-  id: string
-  organization_id: string
-  title: string
-  description: string | null
-  creator_user_id: string
-  target_audience: SurveyAudience
-  target_bu_id: string | null
-  target_roles: string[] | null
-  status: SurveyStatus
-  starts_at: string | null
-  ends_at: string | null
-  allow_anonymous: boolean
-  allow_multiple_responses: boolean
-  created_at: string
-  updated_at: string
-}
-
-export type SurveyQuestion = {
-  id: string
-  survey_id: string
-  question_text: string
-  question_type: QuestionType
-  options: string[] | null
-  is_required: boolean
-  order_index: number
-  created_at: string
-}
-
-export type SurveyResponse = {
-  id: string
-  survey_id: string
-  question_id: string
-  responder_user_id: string | null
-  response_value: string | null
-  response_data: any | null
-  created_at: string
-}
-
-// Survey with relations (for API responses)
-export type SurveyWithRelations = Survey & {
-  creator?: User
-  target_bu?: Initiative
-  questions?: SurveyQuestion[]
-  response_count?: number
-  my_response_status?: 'pending' | 'completed'
-  completion_rate?: number
-}
+export type User = Tables<'users'>
+export type InitiativeActivity = Tables<'initiative_activity'>

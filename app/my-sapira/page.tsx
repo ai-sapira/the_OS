@@ -226,7 +226,7 @@ export default function MySapiraPage() {
             <div className="flex items-center gap-2">
               <span className="text-[14px] text-gray-500">Quick Access</span>
               <span className="text-[14px] text-gray-400">›</span>
-              <span className="text-[14px] font-medium">My Sapira Relationship</span>
+              <span className="text-[14px] font-medium">My Sapira</span>
             </div>
           </div>
         }
@@ -468,7 +468,7 @@ export default function MySapiraPage() {
                         'todo': { label: 'To Do', colors: 'bg-gray-100 text-gray-700 border-gray-300' },
                         'blocked': { label: 'Blocked', colors: 'bg-red-50 text-red-700 border-red-200' },
                         'waiting_info': { label: 'Waiting', colors: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-                        'triage': { label: 'Triage', colors: 'bg-purple-50 text-purple-700 border-purple-200' },
+                        'triage': { label: 'Triage', colors: 'bg-gray-50 text-gray-700 border-gray-200' },
                         'canceled': { label: 'Canceled', colors: 'bg-gray-100 text-gray-500 border-gray-300' },
                         'duplicate': { label: 'Duplicate', colors: 'bg-gray-100 text-gray-500 border-gray-300' },
                       };

@@ -1009,7 +1009,7 @@ function IssuesListView({ issues, projects, onIssueClick, onDataChange }: Issues
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs font-mono text-gray-500">{issue.key}</span>
                       {issue.core_technology && (
-                        <Badge className="bg-purple-100 text-purple-800 border-purple-200 font-medium text-xs h-5 px-1.5 border">
+                        <Badge className="bg-gray-100 text-gray-800 border-gray-200 font-medium text-xs h-5 px-1.5 border">
                           {issue.core_technology}
                         </Badge>
                       )}
@@ -1687,8 +1687,8 @@ function IssueCard({ issue, displayProperties, onClick, isDragging = false, drag
       {/* Technology Badge (if exists) - inline with bottom row if possible */}
       {localIssue.core_technology && (
         <div className="mb-1.5">
-          <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 border border-purple-200">
-            <span className="text-[10px] font-medium text-purple-700">{localIssue.core_technology}</span>
+          <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-50 border border-gray-200">
+            <span className="text-[10px] font-medium text-gray-700">{localIssue.core_technology}</span>
           </div>
         </div>
       )}

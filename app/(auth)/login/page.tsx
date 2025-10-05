@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -14,6 +13,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login')
+  const [isTransitioning, setIsTransitioning] = useState(false)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,18 +36,16 @@ export default function LoginPage() {
       console.log('[Login] ✅ Auth successful! User:', data?.user?.id)
       console.log('[Login] Session:', data?.session)
       
-      // Wait for cookies to be set (Supabase client needs time to persist cookies)
-      console.log('[Login] Waiting 1 second for cookies to propagate...')
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Start transition animation
+      setIsTransitioning(true)
+      
+      // Wait for cookies to be set and animation to start
+      console.log('[Login] Waiting for cookies and transition animation...')
+      await new Promise(resolve => setTimeout(resolve, 800))
       
       console.log('[Login] Executing redirect now...')
       // Use router.push for client-side navigation with cookies
       router.push('/')
-      
-      // Alternatively, force reload if needed
-      // setTimeout(() => {
-      //   window.location.href = '/'
-      // }, 100)
     } catch (err: any) {
       console.error('[Login] ❌ Login error:', err)
       setError(err.message || 'Error al iniciar sesión')
@@ -55,67 +54,141 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            Bienvenido a Sapira
-          </CardTitle>
-          <CardDescription className="text-center">
-            Ingresa tus credenciales para acceder
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="tu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-              />
+    <>
+      {/* Transition overlay */}
+      <div
+        className={`fixed inset-0 z-50 bg-white transition-all duration-700 pointer-events-none ${
+          isTransitioning 
+            ? 'opacity-100' 
+            : 'opacity-0'
+        }`}
+      >
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="inline-flex items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
-
-            {error && (
-              <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
-                {error}
-              </div>
-            )}
-
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading}
-            >
-              {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-xs text-center text-gray-500">
-            <p>Usuarios de prueba:</p>
-            <p className="mt-1">Aurovitas: gerardo@aurovitas.com / aurovitas123</p>
-            <p>Gonvarri: ceo@gonvarri.com / gonvarri123</p>
+            <p className="text-gray-700 font-medium">Entrando a Sapira OS...</p>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </div>
+
+      <div className={`relative flex flex-col items-center justify-center min-h-screen p-4 z-10 transition-all duration-500 ${
+        isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+      }`}>
+        {/* Logo and title */}
+        <div className="mb-8 text-center">
+        <h1 className="text-4xl font-bold mb-2">
+          <span className="text-white">Sapira </span>
+          <span className="text-gray-400 font-normal">OS</span>
+        </h1>
+        <p className="text-lg text-gray-200 mt-4">Bienvenido de vuelta</p>
+        <p className="text-sm text-gray-400 mt-1">Conecta con profesionales de tu organización</p>
+      </div>
+
+      {/* Tab buttons */}
+      <div className="flex gap-3 mb-8">
+        <button
+          onClick={() => setActiveTab('login')}
+          className={`px-8 py-3 rounded-lg font-medium transition-all ${
+            activeTab === 'login'
+              ? 'bg-white text-gray-900 shadow-lg'
+              : 'bg-gray-800/50 text-gray-300 hover:bg-gray-800'
+          }`}
+        >
+          Iniciar sesión
+        </button>
+        <button
+          onClick={() => setActiveTab('register')}
+          className={`px-8 py-3 rounded-lg font-medium transition-all ${
+            activeTab === 'register'
+              ? 'bg-white text-gray-900 shadow-lg'
+              : 'bg-gray-800/50 text-gray-300 hover:bg-gray-800'
+          }`}
+        >
+          Registrarse
+        </button>
+      </div>
+
+      {/* Login Card */}
+      <div className="w-full max-w-md bg-white/10 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-white/10">
+        {activeTab === 'login' ? (
+          <>
+            <h2 className="text-2xl font-semibold text-white mb-2">
+              Iniciar sesión
+            </h2>
+            <p className="text-sm text-gray-400 mb-8">
+              Accede a tu cuenta para conectar con la comunidad
+            </p>
+
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-medium text-gray-200">
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="tu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={loading}
+                  className="h-12 px-4 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:ring-1 focus:ring-white/10 focus:outline-none transition-all"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-sm font-medium text-gray-200">
+                  Contraseña
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                  className="h-12 px-4 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:ring-1 focus:ring-white/10 focus:outline-none transition-all"
+                />
+              </div>
+
+              {error && (
+                <div className="p-4 text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg">
+                  {error}
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full h-12 bg-white hover:bg-gray-100 text-gray-900 font-medium text-base rounded-lg shadow-lg transition-all"
+              >
+                {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+              </Button>
+            </form>
+          </>
+        ) : (
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-semibold text-white mb-2">
+              Crear cuenta
+            </h2>
+            <p className="text-sm text-gray-400 mb-4">
+              El registro estará disponible próximamente
+            </p>
+            <Button
+              onClick={() => setActiveTab('login')}
+              variant="outline"
+              className="mt-4 border-white/20 text-white hover:bg-white/10"
+            >
+              Volver a iniciar sesión
+            </Button>
+          </div>
+        )}
+      </div>
+      </div>
+    </>
   )
 }
 

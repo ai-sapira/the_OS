@@ -18,7 +18,7 @@ const TriageActionButton = React.forwardRef<
       className={cn(
         "group relative cursor-pointer overflow-hidden rounded-lg border border-border bg-transparent h-8 px-4 text-center transition-all duration-200",
         variant === "accept" 
-          ? "hover:bg-purple-500/5 hover:border-purple-500/30 hover:text-purple-400" 
+          ? "hover:bg-gray-500/5 hover:border-gray-500/30 hover:text-gray-400" 
           : "hover:bg-muted/20",
         className,
       )}
@@ -38,12 +38,12 @@ const TriageActionButton = React.forwardRef<
           <span className={cn(
             "flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold transition-colors",
             variant === "accept" 
-              ? "bg-purple-400/20 text-purple-400 group-hover:bg-purple-400/30" 
+              ? "bg-gray-400/20 text-gray-400 group-hover:bg-gray-400/30" 
               : "bg-foreground/20 text-foreground"
           )}>
             {shortcut}
           </span>
-          <span className={variant === "accept" ? "text-purple-400" : "text-foreground"}>
+          <span className={variant === "accept" ? "text-gray-400" : "text-foreground"}>
             {text}
           </span>
         </span>
@@ -52,7 +52,7 @@ const TriageActionButton = React.forwardRef<
       {/* Dot hover effect - más sutil */}
       <div className={cn(
         "absolute left-2 top-1/2 -translate-y-1/2 h-1 w-1 rounded-full opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:scale-150",
-        variant === "accept" ? "bg-purple-400" : "bg-foreground"
+        variant === "accept" ? "bg-gray-400" : "bg-foreground"
       )}></div>
     </button>
   );

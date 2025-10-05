@@ -315,6 +315,7 @@ export default function SurveyAnswerPage() {
                   variant="outline"
                   onClick={() => router.push("/surveys")}
                   disabled={submitting}
+                  className="border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                 >
                   Cancel
                 </Button>

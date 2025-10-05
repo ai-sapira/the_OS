@@ -30,14 +30,14 @@ interface NewIssueModalProps {
 
 // Status configurations matching database enums
 const STATUSES: { value: IssueState; label: string; icon: React.ReactNode }[] = [
-  { value: "triage", label: "Triage", icon: <Circle className="w-2.5 h-2.5 text-purple-500" /> },
+  { value: "triage", label: "Triage", icon: <Circle className="w-2.5 h-2.5 text-gray-500" /> },
   { value: "todo", label: "To do", icon: <Circle className="w-2.5 h-2.5 text-gray-400" /> },
   { value: "in_progress", label: "In progress", icon: <Clock className="w-2.5 h-2.5 text-blue-500" /> },
   { value: "blocked", label: "Blocked", icon: <AlertCircle className="w-2.5 h-2.5 text-red-500" /> },
   { value: "waiting_info", label: "Waiting info", icon: <AlertCircle className="w-2.5 h-2.5 text-orange-500" /> },
   { value: "done", label: "Done", icon: <CheckCircle2 className="w-2.5 h-2.5 text-green-500" /> },
   { value: "canceled", label: "Canceled", icon: <X className="w-2.5 h-2.5 text-gray-400" /> },
-  { value: "duplicate", label: "Duplicate", icon: <Circle className="w-2.5 h-2.5 text-purple-400" /> },
+  { value: "duplicate", label: "Duplicate", icon: <Circle className="w-2.5 h-2.5 text-gray-400" /> },
 ]
 
 // Priority configurations matching database enums
