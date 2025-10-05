@@ -330,6 +330,8 @@ export class TeamsIntegration {
         action: 'created',
         payload: {
           source: 'teams_conversation',
+          origin: 'teams', // Add origin for timeline display
+          reporter_name: conversationData.participants[0] || 'Usuario de Teams', // Add reporter name
           conversation_id: conversationData.conversation_id,
           conversation_url: conversationData.conversation_url,
           participants: conversationData.participants,

@@ -769,7 +769,7 @@ export default function IssueDetailPage() {
               )}
 
               {/* Timeline/Calendario visual */}
-              {(localIssue.planned_start_at || localIssue.due_at || localIssue.sla_due_date) && (
+              {(localIssue.planned_start_at || localIssue.due_at) && (
                 <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
                   <div className="p-5">
                     <div className="flex items-center gap-2 mb-4">
@@ -780,7 +780,7 @@ export default function IssueDetailPage() {
                     <TimelineCalendar
                       startDate={localIssue.planned_start_at ? new Date(localIssue.planned_start_at) : null}
                       dueDate={localIssue.due_at ? new Date(localIssue.due_at) : null}
-                      slaDate={localIssue.sla_due_date ? new Date(localIssue.sla_due_date) : null}
+                      slaDate={null}
                       onUpdateDates={(newStart, newDue) => {
                         IssuesAPI.updateIssue(localIssue.id, { 
                           planned_start_at: newStart?.toISOString() || null,
@@ -935,9 +935,9 @@ export default function IssueDetailPage() {
                     </div>
                   </div>
 
-                  {/* Fechas & SLA */}
+                  {/* Fechas */}
                   <div className="border border-gray-200 rounded-lg overflow-hidden bg-white p-5">
-                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Fechas & SLA</h3>
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Fechas</h3>
                     <div className="space-y-3">
                       {/* Fecha inicio */}
                       <div className="flex items-center justify-between">
@@ -968,57 +968,6 @@ export default function IssueDetailPage() {
                           className="px-2.5 py-1.5 text-[13px] border border-dashed border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300 text-gray-700"
                         />
                       </div>
-                      
-                      {/* SLA límite */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-[13px] text-gray-600">SLA límite</span>
-                        <input 
-                          type="date" 
-                          value={localIssue.sla_due_date ? new Date(localIssue.sla_due_date).toISOString().split('T')[0] : ''}
-                          onChange={(e) => {
-                            const newDate = e.target.value ? new Date(e.target.value).toISOString() : null
-                            IssuesAPI.updateIssue(localIssue.id, { sla_due_date: newDate })
-                            setLocalIssue({ ...localIssue, sla_due_date: newDate })
-                          }}
-                          className="px-2.5 py-1.5 text-[13px] border border-dashed border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300 text-gray-700"
-                        />
-                      </div>
-                      
-                      {/* Estado SLA (visual indicator) */}
-                      {localIssue.sla_due_date && (
-                        <div className="flex items-center justify-between pt-1">
-                          <span className="text-[13px] text-gray-600">Estado SLA</span>
-                          {(() => {
-                            const now = new Date()
-                            const slaDate = new Date(localIssue.sla_due_date)
-                            const daysRemaining = Math.ceil((slaDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-                            
-                            let statusColor = 'bg-green-50 border-green-200 text-green-700'
-                            let statusText = 'En plazo'
-                            let statusIcon = '✓'
-                            
-                            if (daysRemaining < 0) {
-                              statusColor = 'bg-red-50 border-red-200 text-red-700'
-                              statusText = 'Incumplido'
-                              statusIcon = '✗'
-                            } else if (daysRemaining <= 2) {
-                              statusColor = 'bg-orange-50 border-orange-200 text-orange-700'
-                              statusText = 'En riesgo'
-                              statusIcon = '⚠'
-                            }
-                            
-                            return (
-                              <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium border border-dashed ${statusColor}`}>
-                                <span>{statusIcon}</span>
-                                <span>{statusText}</span>
-                                {daysRemaining >= 0 && (
-                                  <span className="text-[11px] opacity-75">({daysRemaining}d)</span>
-                                )}
-                              </div>
-                            )
-                          })()}
-                        </div>
-                      )}
                     </div>
                   </div>
 
