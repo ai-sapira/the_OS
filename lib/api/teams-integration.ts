@@ -226,32 +226,50 @@ export class TeamsIntegration {
 
   // Private helper methods
   private static generateIssueTitle(summary: string): string {
-    // Limit to 100 chars and ensure it's descriptive
+    // Extract short, meaningful title (2-4 words ideally)
     const cleanSummary = summary.trim()
-    if (cleanSummary.length <= 100) return cleanSummary
     
-    return cleanSummary.substring(0, 97) + '...'
+    // If already short enough (< 50 chars), use as is
+    if (cleanSummary.length <= 50) {
+      return cleanSummary
+    }
+    
+    // Extract first 3-4 significant words (length > 2)
+    const words = cleanSummary
+      .split(' ')
+      .filter(w => w.length > 2) // Filter out short words like "a", "the", "to"
+    
+    const shortTitle = words.slice(0, 4).join(' ')
+    
+    // If still too long, truncate
+    return shortTitle.length > 50 ? shortTitle.substring(0, 47) + '...' : shortTitle
   }
 
   private static generateIssueDescription(data: TeamsConversationData): string {
-    const { ai_analysis, participants, messages } = data
+    const { ai_analysis } = data
     
-    // Build clean description
-    let description = ai_analysis.summary
-
-    // Add key points if available
-    if (ai_analysis.key_points && ai_analysis.key_points.length > 0) {
-      description += '\n\nPuntos clave:\n' + ai_analysis.key_points.map(point => `- ${point}`).join('\n')
+    // Use the AI-generated summary as the main description
+    // Gemini should provide a narrative description (3-5 sentences)
+    // If the summary is substantial (> 100 chars), use it directly
+    if (ai_analysis.summary && ai_analysis.summary.length > 100) {
+      return ai_analysis.summary
     }
-
-    // Add technical context if available
+    
+    // Fallback: construct a basic narrative description
+    let description = `This initiative was reported via Microsoft Teams. `
+    
+    if (ai_analysis.short_description) {
+      description += `${ai_analysis.short_description}. `
+    }
+    
+    if (ai_analysis.impact) {
+      description += `The expected impact is: ${ai_analysis.impact}. `
+    }
+    
     if (ai_analysis.core_technology) {
-      description += `\n\nTecnología propuesta: ${ai_analysis.core_technology}`
+      description += `The solution will utilize ${ai_analysis.core_technology} technology.`
     }
-
-    // Add metadata at the end
-    description += `\n\n---\nOrigen: Conversación en Teams (${messages.length} mensajes)\nParticipantes: ${participants.join(', ')}\nEnlace: ${data.conversation_url}`
-
+    
     return description
   }
 
