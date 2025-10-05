@@ -85,7 +85,7 @@ export default function SurveyAnswerPage() {
     setSubmitting(true)
     try {
       // TODO: Get actual user ID from auth context
-      const currentUserId = '11111111-aaaa-2222-2222-222222222222' // María García (SAP - Aurovitas)
+      const currentUserId = 'b8023796-e4c8-4752-9f5c-5b140c990f06' // Guillermo (guillermo@sapira.ai)
 
       // Submit all responses
       const responsePromises = Object.entries(responses)

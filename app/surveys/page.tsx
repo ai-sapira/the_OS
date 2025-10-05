@@ -56,7 +56,7 @@ export default function SurveysPage() {
   // Filter surveys based on active tab
   const filteredSurveys = surveys.filter(survey => {
     // TODO: Get actual user ID from auth context
-    const currentUserId = '11111111-aaaa-2222-2222-222222222222' // María García (SAP - Aurovitas)
+    const currentUserId = 'b8023796-e4c8-4752-9f5c-5b140c990f06' // Guillermo (guillermo@sapira.ai)
     
     if (activeTab === "active") {
       return survey.status === "active"

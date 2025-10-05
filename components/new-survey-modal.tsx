@@ -746,7 +746,7 @@ export function NewSurveyModal({ open, onOpenChange, onCreateSurvey }: NewSurvey
         }))
       }
 
-      const mockCreatorId = '11111111-aaaa-2222-2222-222222222222' // María García (SAP - Aurovitas)
+      const mockCreatorId = 'b8023796-e4c8-4752-9f5c-5b140c990f06' // Guillermo (guillermo@sapira.ai)
       
       await SurveysAPI.createSurvey(surveyData, mockCreatorId)
       

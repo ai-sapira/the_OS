@@ -3,13 +3,23 @@ import {
   Survey, 
   SurveyQuestion, 
   SurveyResponse, 
-  SurveyWithRelations,
   SurveyStatus,
   SurveyAudience,
   QuestionType,
   User,
   Initiative
 } from '../database/types'
+
+// Extended Survey type with relations
+export type SurveyWithRelations = Survey & {
+  creator_user_id?: string | null
+  creator?: User | null
+  target_bu?: Initiative | null
+  questions?: SurveyQuestion[] | null
+  response_count?: number
+  my_response_status?: 'pending' | 'completed'
+  completion_rate?: number
+}
 
 // Input types for creating surveys
 export interface CreateSurveyInput {
@@ -309,7 +319,7 @@ export class SurveysAPI {
     surveyId: string
   ): Promise<'pending' | 'completed'> {
     // TODO: Get actual user ID from auth context
-    const mockUserId = '11111111-aaaa-2222-2222-222222222222' // María García (SAP - Aurovitas)
+    const mockUserId = 'b8023796-e4c8-4752-9f5c-5b140c990f06' // Guillermo (guillermo@sapira.ai)
     
     const { count, error } = await supabase
       .from('survey_responses')
