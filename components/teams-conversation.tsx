@@ -13,17 +13,11 @@ interface Message {
 interface TeamsConversationProps {
   messages: Message[]
   conversationUrl?: string
-  summary?: string
-  keyPoints?: string[]
-  suggestedAssignee?: string
 }
 
 export function TeamsConversation({ 
   messages, 
-  conversationUrl, 
-  summary,
-  keyPoints,
-  suggestedAssignee 
+  conversationUrl
 }: TeamsConversationProps) {
   if (!messages || messages.length === 0) {
     return null
@@ -36,59 +30,6 @@ export function TeamsConversation({
 
   return (
     <div className="space-y-3">
-      {/* AI Analysis Section - Combined */}
-      {(summary || keyPoints || suggestedAssignee) && (
-        <div className="border border-gray-200 rounded-lg overflow-hidden bg-gradient-to-br from-blue-50/30 to-purple-50/30">
-          <div className="px-4 py-3 border-b border-gray-200/50 bg-white/50">
-            <div className="flex items-center gap-2">
-              <Bot className="h-4 w-4 text-blue-600" />
-              <h3 className="text-sm font-medium text-gray-900">Análisis de IA</h3>
-            </div>
-          </div>
-          
-          <div className="p-4 space-y-3">
-            {/* Summary */}
-            {summary && (
-              <div>
-                <h4 className="text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">Resumen</h4>
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  {summary}
-                </p>
-              </div>
-            )}
-
-            {/* Key points */}
-            {keyPoints && keyPoints.length > 0 && (
-              <div>
-                <h4 className="text-xs font-medium text-gray-700 uppercase tracking-wide mb-1.5">Puntos clave</h4>
-                <ul className="space-y-1">
-                  {keyPoints.map((point, index) => (
-                    <li key={index} className="text-sm text-gray-700 flex items-start gap-2">
-                      <span className="text-blue-400 mt-1">•</span>
-                      <span className="flex-1">{point}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Suggested assignee */}
-            {suggestedAssignee && (
-              <div className="pt-2 border-t border-gray-200/50">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-xs font-medium text-gray-700 uppercase tracking-wide">
-                    Asignación sugerida:
-                  </h4>
-                  <Badge variant="outline" className="bg-white border-blue-200 text-blue-700 text-xs">
-                    {suggestedAssignee}
-                  </Badge>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Conversation section */}
       <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
         <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
