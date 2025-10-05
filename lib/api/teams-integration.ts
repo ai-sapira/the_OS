@@ -157,6 +157,25 @@ export class TeamsIntegration {
 
     const issue = await IssuesAPI.createIssue(this.organizationId, issueData)
 
+    // 1.5. Calculate and update RICE score
+    if (ai_analysis.difficulty && ai_analysis.impact_score) {
+      const riceScore = this.calculateRICEScore(
+        ai_analysis.impact_score, 
+        ai_analysis.difficulty
+      )
+      
+      await supabase
+        .from('issues')
+        .update({ 
+          rice_score: riceScore,
+          difficulty: ai_analysis.difficulty,
+          impact_score: ai_analysis.impact_score
+        })
+        .eq('id', issue.id)
+      
+      console.log(`✅ RICE score calculated for Teams issue: ${riceScore} (impact: ${ai_analysis.impact_score}, difficulty: ${ai_analysis.difficulty})`)
+    }
+
     // 2. Create link to Teams conversation (with conversation_reference for proactive messaging)
     const linkData: any = {
       issue_id: issue.id,
@@ -225,6 +244,30 @@ export class TeamsIntegration {
   }
 
   // Private helper methods
+  
+  /**
+   * Calculate RICE score based on impact and difficulty
+   * RICE = (Reach × Impact × Confidence) / Effort
+   * 
+   * For Teams issues:
+   * - Reach: Fixed at 50 (base value for all Teams issues)
+   * - Impact: impact_score (1-3) → scaled to 1-3
+   * - Confidence: Fixed at 80% (0.8)
+   * - Effort: difficulty (1-3) → scaled to 1-3
+   * 
+   * Formula: (50 × impact_score × 0.8) / difficulty + 50
+   * The +50 is to ensure all Teams issues start with a base score
+   */
+  private static calculateRICEScore(impactScore: number, difficulty: number): number {
+    const reach = 50
+    const impact = impactScore // 1-3
+    const confidence = 0.8
+    const effort = difficulty // 1-3
+    
+    const score = Math.round((reach * impact * confidence) / effort) + 50
+    return score
+  }
+  
   private static generateIssueTitle(summary: string): string {
     // Extract short, meaningful title (2-4 words ideally)
     const cleanSummary = summary.trim()
