@@ -247,25 +247,22 @@ export class TeamsIntegration {
   
   /**
    * Calculate RICE score based on impact and difficulty
-   * RICE = (Reach × Impact × Confidence) / Effort
    * 
-   * For Teams issues:
-   * - Reach: Fixed at 50 (base value for all Teams issues)
-   * - Impact: impact_score (1-3) → scaled to 1-3
-   * - Confidence: Fixed at 80% (0.8)
-   * - Effort: difficulty (1-3) → scaled to 1-3
+   * For Teams issues, score range is 60-100:
+   * - Impact: 1-3 (low to high business impact)
+   * - Difficulty: 1-3 (low to high technical complexity)
    * 
-   * Formula: (50 × impact_score × 0.8) / difficulty + 50
-   * The +50 is to ensure all Teams issues start with a base score
+   * Formula: 60 + (impact × 15) - (difficulty × 5)
+   * 
+   * Examples:
+   * - Impact 3, Difficulty 1: 60 + 45 - 5 = 100 (max priority)
+   * - Impact 2, Difficulty 2: 60 + 30 - 10 = 80 (medium)
+   * - Impact 1, Difficulty 3: 60 + 15 - 15 = 60 (min priority)
    */
   private static calculateRICEScore(impactScore: number, difficulty: number): number {
-    const reach = 50
-    const impact = impactScore // 1-3
-    const confidence = 0.8
-    const effort = difficulty // 1-3
-    
-    const score = Math.round((reach * impact * confidence) / effort) + 50
-    return score
+    const score = 60 + (impactScore * 15) - (difficulty * 5)
+    // Ensure score stays within 60-100 range
+    return Math.max(60, Math.min(100, score))
   }
   
   private static generateIssueTitle(summary: string): string {
