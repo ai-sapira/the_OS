@@ -276,3 +276,4 @@ Este diseño en capas asegura que el filtrado sea:
 - ✅ Eficiente (filtrado en SQL, no en JavaScript)
 - ✅ Mantenible (lógica centralizada)
 
+

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useRoles } from "@/hooks/use-roles"
+import { useAuth } from "@/lib/context/auth-context"
 import { ResizableAppShell, ResizablePageSheet } from "@/components/layout"
 import { NewSurveyModal } from "@/components/new-survey-modal"
 import { Button } from "@/components/ui/button"
@@ -26,6 +27,7 @@ import {
 export default function SurveysPage() {
   const router = useRouter()
   const { can, activeRole } = useRoles()
+  const { currentOrg } = useAuth()
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [createSurveyOpen, setCreateSurveyOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<string>("active")
@@ -38,9 +40,15 @@ export default function SurveysPage() {
 
   // Load surveys
   const loadSurveys = async () => {
+    if (!currentOrg?.organization?.id) {
+      setLoading(false)
+      setSurveys([])
+      return
+    }
+
     try {
       setLoading(true)
-      const allSurveys = await SurveysAPI.getSurveys()
+      const allSurveys = await SurveysAPI.getSurveys(currentOrg.organization.id)
       setSurveys(allSurveys)
     } catch (error) {
       console.error("Error loading surveys:", error)
@@ -51,7 +59,7 @@ export default function SurveysPage() {
 
   useEffect(() => {
     loadSurveys()
-  }, [])
+  }, [currentOrg?.organization?.id])
 
   // Filter surveys based on active tab
   const filteredSurveys = surveys.filter(survey => {

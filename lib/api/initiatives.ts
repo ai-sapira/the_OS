@@ -181,14 +181,19 @@ export class InitiativesAPI {
   }
 
   // Get available users for manager assignment
-  static async getAvailableManagers(): Promise<InitiativeWithManager['manager'][]> {
-    const { data, error } = await supabase
+  static async getAvailableManagers(organizationId?: string): Promise<InitiativeWithManager['manager'][]> {
+    let query = supabase
       .from('users')
       .select('id, name, email, avatar_url, role, organization_id, active, created_at, updated_at')
-      .eq('organization_id', this.organizationId)
       .eq('active', true)
       .in('role', ['SAP', 'CEO', 'BU'])
       .order('name')
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    const { data, error } = await query
 
     if (error) throw error
     return data || []

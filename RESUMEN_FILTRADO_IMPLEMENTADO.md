@@ -313,3 +313,4 @@ R: Sí, modifica la lógica en `use-supabase-data.ts` o las queries en `lib/api/
 
 ¡El sistema está listo! 🚀
 
+

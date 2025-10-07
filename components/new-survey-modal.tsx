@@ -34,6 +34,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { InitiativesAPI } from "@/lib/api/initiatives"
 import { SurveysAPI, type CreateSurveyInput, type CreateQuestionInput } from "@/lib/api/surveys"
 import type { SurveyAudience, QuestionType, User as UserType, Initiative } from "@/lib/database/types"
+import { useAuth } from "@/lib/context/auth-context"
 
 interface NewSurveyModalProps {
   open: boolean
@@ -647,6 +648,7 @@ function QuestionEditor({ question, index, onUpdate, onRemove, canRemove }: Ques
 }
 
 export function NewSurveyModal({ open, onOpenChange, onCreateSurvey }: NewSurveyModalProps) {
+  const { currentOrg } = useAuth()
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [channel, setChannel] = useState<"teams" | "email">("teams")
@@ -670,13 +672,14 @@ export function NewSurveyModal({ open, onOpenChange, onCreateSurvey }: NewSurvey
   // Load users and initiatives when modal opens
   useEffect(() => {
     const loadData = async () => {
-      if (!open) return
+      if (!open || !currentOrg?.organization?.id) return
       
       setLoadingData(true)
       try {
+        const organizationId = currentOrg.organization.id
         const [availableUsers, availableInitiatives] = await Promise.all([
-          SurveysAPI.getAvailableUsers(),
-          InitiativesAPI.getInitiatives()
+          SurveysAPI.getAvailableUsers(organizationId),
+          InitiativesAPI.getInitiatives(organizationId)
         ])
         setUsers(availableUsers)
         setInitiatives(availableInitiatives)
@@ -689,7 +692,7 @@ export function NewSurveyModal({ open, onOpenChange, onCreateSurvey }: NewSurvey
     }
     
     loadData()
-  }, [open])
+  }, [open, currentOrg?.organization?.id])
 
   const resetForm = () => {
     setTitle("")
@@ -748,7 +751,11 @@ export function NewSurveyModal({ open, onOpenChange, onCreateSurvey }: NewSurvey
 
       const mockCreatorId = 'b8023796-e4c8-4752-9f5c-5b140c990f06' // Guillermo (guillermo@sapira.ai)
       
-      await SurveysAPI.createSurvey(surveyData, mockCreatorId)
+      if (!currentOrg?.organization?.id) {
+        throw new Error('No organization selected')
+      }
+      
+      await SurveysAPI.createSurvey(surveyData, mockCreatorId, currentOrg.organization.id)
       
       onCreateSurvey?.()
       onOpenChange(false)

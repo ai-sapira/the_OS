@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/command"
 import { useSupabaseData } from "@/hooks/use-supabase-data"
 import { InitiativesAPI } from "@/lib/api/initiatives"
+import { useAuth } from "@/lib/context/auth-context"
 
 interface NewInitiativeModalProps {
   open: boolean
@@ -113,6 +114,7 @@ function PropertyChip({ icon, label, value, options, onSelect, loading = false }
 }
 
 export function NewInitiativeModal({ open, onOpenChange, onCreateInitiative }: NewInitiativeModalProps) {
+  const { currentOrg } = useAuth()
   const [createMore, setCreateMore] = useState(false)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
@@ -126,9 +128,14 @@ export function NewInitiativeModal({ open, onOpenChange, onCreateInitiative }: N
   // Load available managers from database
   useEffect(() => {
     const loadManagers = async () => {
+      if (!currentOrg?.organization?.id) {
+        setLoadingManagers(false)
+        return
+      }
+
       try {
         setLoadingManagers(true)
-        const availableManagers = await InitiativesAPI.getAvailableManagers()
+        const availableManagers = await InitiativesAPI.getAvailableManagers(currentOrg.organization.id)
         setManagers(availableManagers)
       } catch (error) {
         console.error('Error loading managers:', error)
@@ -140,7 +147,7 @@ export function NewInitiativeModal({ open, onOpenChange, onCreateInitiative }: N
     if (open) {
       loadManagers()
     }
-  }, [open])
+  }, [open, currentOrg?.organization?.id])
 
   const resetForm = () => {
     setName("")

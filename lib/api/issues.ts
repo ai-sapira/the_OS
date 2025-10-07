@@ -438,38 +438,53 @@ export class IssuesAPI {
   }
 
   // Get available users for filters (reporters and assignees)
-  static async getAvailableUsers() {
-    const { data, error } = await supabase
+  static async getAvailableUsers(organizationId?: string) {
+    let query = supabase
       .from('users')
       .select('id, name, email, avatar_url, role')
-      .eq('organization_id', this.organizationId)
       .eq('active', true)
       .order('name')
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    const { data, error } = await query
 
     if (error) throw error
     return data || []
   }
 
   // Get available projects for filters
-  static async getProjects() {
-    const { data, error } = await supabase
+  static async getProjects(organizationId?: string) {
+    let query = supabase
       .from('projects')
       .select('id, name, slug')
-      .eq('organization_id', this.organizationId)
       .order('name')
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    const { data, error } = await query
 
     if (error) throw error
     return data || []
   }
 
   // Get available initiatives for filters
-  static async getInitiatives() {
-    const { data, error } = await supabase
+  static async getInitiatives(organizationId?: string) {
+    let query = supabase
       .from('initiatives')
       .select('id, name, slug')
-      .eq('organization_id', this.organizationId)
       .eq('active', true)
       .order('name')
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    const { data, error } = await query
 
     if (error) throw error
     return data || []

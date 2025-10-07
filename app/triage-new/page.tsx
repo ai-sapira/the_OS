@@ -58,6 +58,7 @@ import { useSupabaseData } from "@/hooks/use-supabase-data"
 import { useResizableSections } from "@/hooks/use-resizable-sections"
 import { TeamsConversation } from "@/components/teams-conversation"
 import { IssuesAPI } from "@/lib/api/issues"
+import { useAuth } from "@/lib/context/auth-context"
 
 // Component for empty state when no initiative is selected
 function EmptyIssueState() {
@@ -453,6 +454,7 @@ interface IssueChipPanelProps {
 }
 
 function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriageAction, onIssueUpdate }: IssueChipPanelProps) {
+  const { currentOrg } = useAuth()
   const selectedIssue = issue // El issue seleccionado es el que se pasa como prop
   const [availableUsers, setAvailableUsers] = useState<any[]>([])
   const [availableProjects, setAvailableProjects] = useState<any[]>([])
@@ -468,12 +470,18 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
   // Load data for dropdowns
   useEffect(() => {
     const loadData = async () => {
+      if (!currentOrg?.organization?.id) {
+        setLoading(false)
+        return
+      }
+
       try {
         setLoading(true)
+        const organizationId = currentOrg.organization.id
         const [users, projects, initiatives] = await Promise.all([
-          IssuesAPI.getAvailableUsers(),
-          IssuesAPI.getProjects(),
-          IssuesAPI.getInitiatives()
+          IssuesAPI.getAvailableUsers(organizationId),
+          IssuesAPI.getProjects(organizationId),
+          IssuesAPI.getInitiatives(organizationId)
         ])
         setAvailableUsers(users)
         setAvailableProjects(projects)
@@ -485,7 +493,7 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
       }
     }
     loadData()
-  }, [])
+  }, [currentOrg?.organization?.id])
 
   // Update functions
   const updateIssueState = async (newState: string) => {

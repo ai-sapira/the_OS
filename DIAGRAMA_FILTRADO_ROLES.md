@@ -290,3 +290,4 @@ Para mostrar el sistema en una presentación:
 ⏱️ **Duración**: 2 minutos  
 🎯 **Impacto**: Alto - Muestra poder del sistema de permisos
 
+

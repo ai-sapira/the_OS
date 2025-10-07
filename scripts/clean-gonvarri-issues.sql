@@ -50,3 +50,4 @@ WHERE organization_id = '01234567-8901-2345-6789-012345678901';
 -- RESULTADO: Debería mostrar 0 issues
 -- ============================================
 
+

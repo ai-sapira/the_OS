@@ -206,3 +206,4 @@ Solo necesitas ejecutar el script SQL y verificar que los IDs coincidan.
 - 🔧 `scripts/test-bu-filtering.sql` - Script de verificación
 - ⚙️ `hooks/use-supabase-data.ts` - Mock users (si necesitas actualizar IDs)
 
+

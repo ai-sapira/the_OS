@@ -21,6 +21,7 @@ import {
 import { useSupabaseData } from "@/hooks/use-supabase-data"
 import { IssuesAPI } from "@/lib/api/issues"
 import type { IssueState, IssuePriority } from "@/lib/database/types"
+import { useAuth } from "@/lib/context/auth-context"
 
 interface NewIssueModalProps {
   open: boolean
@@ -147,12 +148,19 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueMod
 
   const { createIssue: createIssueApi, projects } = useSupabaseData()
 
+  const { currentOrg } = useAuth()
+
   // Load users from database
   useEffect(() => {
     const loadUsers = async () => {
+      if (!currentOrg?.organization?.id) {
+        setLoadingUsers(false)
+        return
+      }
+
       try {
         setLoadingUsers(true)
-        const availableUsers = await IssuesAPI.getAvailableUsers()
+        const availableUsers = await IssuesAPI.getAvailableUsers(currentOrg.organization.id)
         setUsers(availableUsers)
       } catch (error) {
         console.error('Error loading users:', error)
@@ -164,7 +172,7 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueMod
     if (open) {
       loadUsers()
     }
-  }, [open])
+  }, [open, currentOrg?.organization?.id])
 
   const resetForm = () => {
     setTitle("")

@@ -36,3 +36,4 @@ BEGIN
     RAISE NOTICE '  Avg score: %', avg_score;
 END $$;
 
+

@@ -22,6 +22,7 @@ import { useSupabaseData } from "@/hooks/use-supabase-data"
 import { ProjectsAPI } from "@/lib/api/projects"
 import { IssuesAPI } from "@/lib/api/issues"
 import type { ProjectStatus } from "@/lib/database/types"
+import { useAuth } from "@/lib/context/auth-context"
 
 interface NewProjectModalProps {
   open: boolean
@@ -135,12 +136,19 @@ export function NewProjectModal({ open, onOpenChange, onCreateProject }: NewProj
 
   const { initiatives, refreshData } = useSupabaseData()
 
+  const { currentOrg } = useAuth()
+
   // Load users from database
   useEffect(() => {
     const loadUsers = async () => {
+      if (!currentOrg?.organization?.id) {
+        setLoadingUsers(false)
+        return
+      }
+
       try {
         setLoadingUsers(true)
-        const availableUsers = await IssuesAPI.getAvailableUsers()
+        const availableUsers = await IssuesAPI.getAvailableUsers(currentOrg.organization.id)
         setUsers(availableUsers)
       } catch (error) {
         console.error('Error loading users:', error)
@@ -152,7 +160,7 @@ export function NewProjectModal({ open, onOpenChange, onCreateProject }: NewProj
     if (open) {
       loadUsers()
     }
-  }, [open])
+  }, [open, currentOrg?.organization?.id])
 
   const resetForm = () => {
     setName("")
