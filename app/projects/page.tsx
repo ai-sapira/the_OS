@@ -42,6 +42,7 @@ import {
 import { ProjectsAPI, ProjectWithRelations } from "@/lib/api/projects";
 import { cn } from "@/lib/utils";
 import { useSupabaseData } from "@/hooks/use-supabase-data";
+import { useAuth } from "@/lib/context/auth-context";
 
 // Editable Components
 import { EditableProjectStatusDropdown } from "@/components/ui/editable-project-status-dropdown";
@@ -343,17 +344,42 @@ function ProjectsFiltersBar({
 // Projects Card List Component  
 function ProjectsCardList({ 
   filters, 
-  globalFilter
+  globalFilter,
+  refreshKey
 }: { 
   filters?: any[], 
-  globalFilter?: string
+  globalFilter?: string,
+  refreshKey?: number
 }) {
   const router = useRouter();
-  
-  // Use the hook that filters by role
-  const { projects: data, loading } = useSupabaseData();
-  
+  const { currentOrg } = useAuth();
+  const [data, setData] = useState<ProjectWithRelations[]>([]);
   const [filteredData, setFilteredData] = useState<ProjectWithRelations[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load projects when component mounts or refreshKey changes
+  useEffect(() => {
+    const loadProjects = async () => {
+      if (!currentOrg?.organization?.id) {
+        setLoading(false);
+        setData([]);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const projects = await ProjectsAPI.getProjects(currentOrg.organization.id);
+        setData(projects);
+      } catch (error) {
+        console.error('Error loading projects:', error);
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProjects();
+  }, [refreshKey, currentOrg?.organization?.id]);
 
   // Apply filters when data, filters, or globalFilter changes
   useEffect(() => {
@@ -519,6 +545,7 @@ export default function ProjectsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [filters, setFilters] = useState<any[]>([])
   const [globalFilter, setGlobalFilter] = useState("")
+  const [dataVersion, setDataVersion] = useState(0)
 
   const handleFiltersChange = useCallback((newFilters: any[], newGlobalFilter: string) => {
     setFilters(newFilters)
@@ -526,8 +553,8 @@ export default function ProjectsPage() {
   }, [])
 
   const handleProjectCreated = () => {
-    // Reload the page to show the new project
-    router.refresh()
+    // Force refresh by incrementing data version
+    setDataVersion(v => v + 1)
   }
 
   return (
@@ -585,6 +612,7 @@ export default function ProjectsPage() {
             <ProjectsCardList 
               filters={filters} 
               globalFilter={globalFilter}
+              refreshKey={dataVersion}
             />
           </div>
         </div>

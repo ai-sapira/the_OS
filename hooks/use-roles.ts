@@ -178,7 +178,7 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
   // Footer
   {
     id: "your-profile",
-    label: "Nestor Lacarra",
+    label: "Your Profile",
     icon: "User",
     href: "/profile",
     roles: ["SAP", "CEO", "BU", "EMP"],
