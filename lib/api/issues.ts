@@ -40,45 +40,22 @@ export interface TriageAction {
 }
 
 export class IssuesAPI {
-  // Generate next issue key for organization
+  // Generate next issue key for organization using atomic SQL function
   private static async generateIssueKey(organizationId: string): Promise<string> {
-    // Get organization slug
-    const { data: org } = await supabase
-      .from('organizations')
-      .select('slug')
-      .eq('id', organizationId)
-      .single()
+    // Use the SQL function for atomic key generation
+    const { data, error } = await supabase
+      .rpc('generate_issue_key', { org_id: organizationId })
     
-    if (!org?.slug) {
-      throw new Error('Organization not found')
-    }
-
-    // Generate prefix from organization slug (first 3 chars uppercase)
-    const prefix = org.slug.substring(0, 3).toUpperCase()
-    
-    // Get ALL issues for this organization to find the maximum number
-    const { data: issues } = await supabase
-      .from('issues')
-      .select('key')
-      .eq('organization_id', organizationId)
-      .ilike('key', `${prefix}-%`)
-    
-    let maxNumber = 0
-    if (issues && issues.length > 0) {
-      // Extract all numbers and find the maximum
-      issues.forEach(issue => {
-        const match = issue.key.match(/(\d+)$/)
-        if (match) {
-          const num = parseInt(match[1], 10)
-          if (num > maxNumber) {
-            maxNumber = num
-          }
-        }
-      })
+    if (error) {
+      console.error('[IssuesAPI] Error generating issue key:', error)
+      throw error
     }
     
-    const nextNumber = maxNumber + 1
-    return `${prefix}-${nextNumber}`
+    if (!data) {
+      throw new Error('Failed to generate issue key')
+    }
+    
+    return data as string
   }
 
   // Get issues for triage (state=triage, not snoozed)

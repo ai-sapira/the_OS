@@ -157,11 +157,11 @@ export function Sidebar({
       )
     }
 
-    // Special handling for Your Profile with badge
+    // Special handling for Your Profile - show user name only
     if (item.id === "your-profile") {
       // Extract user name from email
       const getUserName = () => {
-        if (!user?.email) return 'Usuario'
+        if (!user?.email) return 'Your Profile'
         
         // Extract name from email (e.g., javiergarcia@cosermo.com -> Javier García)
         const namePart = user.email.split('@')[0]
@@ -189,12 +189,7 @@ export function Sidebar({
           >
             <Icon className="h-4 w-4 mr-2 shrink-0" />
             {!isCollapsed && (
-              <>
-                <span className="flex-1 text-left">{item.label}</span>
-                <Badge variant="outline" className="h-5 px-1.5 text-xs">
-                  {getUserName()}
-                </Badge>
-              </>
+              <span className="flex-1 text-left">{getUserName()}</span>
             )}
           </Button>
         </Link>
