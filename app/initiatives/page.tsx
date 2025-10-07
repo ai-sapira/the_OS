@@ -20,6 +20,7 @@ import { ManagerButton } from "@/components/ui/manager-button";
 
 // API and Types
 import { InitiativesAPI, InitiativeWithManager } from "@/lib/api/initiatives";
+import { useAuth } from "@/lib/context/auth-context";
 
 // Filters Component
 import { InitiativesFiltersBar } from "@/components/ui/initiatives-filters";
@@ -42,6 +43,7 @@ function InitiativesCardList({
   refreshKey?: number
 }) {
   const router = useRouter();
+  const { currentOrg } = useAuth();
   const [data, setData] = useState<InitiativeWithManager[]>([]);
   const [filteredData, setFilteredData] = useState<InitiativeWithManager[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,9 +51,15 @@ function InitiativesCardList({
   // Load initiatives data
   useEffect(() => {
     const loadInitiatives = async () => {
+      if (!currentOrg?.organization?.id) {
+        setLoading(false);
+        setData([]);
+        return;
+      }
+
       try {
         setLoading(true);
-        const initiatives = await InitiativesAPI.getInitiatives();
+        const initiatives = await InitiativesAPI.getInitiatives(currentOrg.organization.id);
         setData(initiatives);
       } catch (error) {
         console.error('Error loading initiatives:', error);
@@ -189,7 +197,7 @@ function InitiativesCardList({
     };
 
     loadInitiatives();
-  }, [refreshKey]);
+  }, [refreshKey, currentOrg?.organization?.id]);
 
   // Apply filters when data, filters, or globalFilter changes
   useEffect(() => {

@@ -488,15 +488,21 @@ export default function InitiativeDetailPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
+  const { currentOrg } = useAuth();
   
   const [initiative, setInitiative] = useState<InitiativeWithManager | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadInitiative = async () => {
+      if (!currentOrg?.organization?.id) {
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
-        const initiatives = await InitiativesAPI.getInitiatives();
+        const initiatives = await InitiativesAPI.getInitiatives(currentOrg.organization.id);
         const found = initiatives.find(i => i.slug === slug);
         
         if (found) {
@@ -510,7 +516,7 @@ export default function InitiativeDetailPage() {
     };
 
     loadInitiative();
-  }, [slug]);
+  }, [slug, currentOrg?.organization?.id]);
 
   if (loading) {
     return (

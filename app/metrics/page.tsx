@@ -320,14 +320,20 @@ function MetricsFiltersBar({
 
 // Business Units Metrics List
 function BusinessUnitsMetrics() {
+  const { currentOrg } = useAuth()
   const [data, setData] = useState<BUMetric[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const loadData = async () => {
+      if (!currentOrg?.organization?.id) {
+        setLoading(false)
+        return
+      }
+
       try {
         setLoading(true)
-        const initiatives = await InitiativesAPI.getInitiatives()
+        const initiatives = await InitiativesAPI.getInitiatives(currentOrg.organization.id)
         
         const metrics: BUMetric[] = initiatives.map(bu => {
           const total = bu._count?.issues || 0
@@ -366,7 +372,7 @@ function BusinessUnitsMetrics() {
     }
 
     loadData()
-  }, [])
+  }, [currentOrg?.organization?.id])
 
   const getScoreColor = (score: number) => {
     if (score >= 90) return "bg-green-100 text-green-800"
