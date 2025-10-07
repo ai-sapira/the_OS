@@ -42,7 +42,13 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
   }
 
   const getUserInitials = () => {
-    if (!user?.email) return 'AV'  // Aurovitas en modo demo
+    if (!user?.email) {
+      // Use organization initials if available
+      if (currentOrg?.organization.name) {
+        return currentOrg.organization.name.substring(0, 2).toUpperCase()
+      }
+      return 'US'  // User by default
+    }
     return user.email.substring(0, 2).toUpperCase()
   }
 
@@ -56,17 +62,23 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Gonvarri Logo and Name */}
+        {/* Organization Logo and Name */}
         <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md bg-white border border-gray-200">
-          <Image 
-            src="/gonvarri_vector.png" 
-            alt="Gonvarri Logo" 
-            width={18} 
-            height={18}
-            className="object-contain"
-          />
+          {currentOrg?.organization.slug && (
+            <Image 
+              src={`/logos/${currentOrg.organization.slug}.jpg`}
+              alt={`${currentOrg.organization.name} Logo`}
+              width={18} 
+              height={18}
+              className="object-contain"
+              onError={(e) => {
+                // Fallback to placeholder if logo not found
+                e.currentTarget.src = '/placeholder-logo.svg'
+              }}
+            />
+          )}
           <span className="text-[11px] font-normal text-black">
-            {currentOrg?.organization.name || 'Gonvarri'}
+            {currentOrg?.organization.name || 'Organización'}
           </span>
         </div>
         
@@ -109,7 +121,7 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
                   {user?.email || 'Modo Demo'}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {currentOrg?.organization.name || 'Aurovitas'}
+                  {currentOrg?.organization.name || 'Organización'}
                 </p>
               </div>
             </DropdownMenuLabel>

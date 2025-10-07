@@ -84,10 +84,9 @@ export function useSupabaseData() {
     }
   }, [activeRole, currentOrg, isSAPUser, user])
 
-  // Get organization ID from context or fallback to Aurovitas for demo mode
+  // Get organization ID from context
   const getOrganizationId = useCallback(() => {
-    // Always use Gonvarri
-    return currentOrg?.organization.id || '01234567-8901-2345-6789-012345678901'  // Gonvarri
+    return currentOrg?.organization.id
   }, [currentOrg])
 
   // Load triage issues (only for SAP, CEO, BU roles)
@@ -130,9 +129,15 @@ export function useSupabaseData() {
 
   // Load initiatives (filtered by role)
   const loadInitiatives = useCallback(async () => {
+    const organizationId = getOrganizationId()
+    if (!organizationId) {
+      setInitiatives([])
+      return
+    }
+
     try {
       const { userId, initiativeId } = getCurrentUser()
-      let filteredInitiatives = await InitiativesAPI.getInitiatives()
+      let filteredInitiatives = await InitiativesAPI.getInitiatives(organizationId)
       
       if (activeRole === 'BU' && initiativeId) {
         // BU only sees their own initiative
@@ -141,22 +146,28 @@ export function useSupabaseData() {
         // EMP doesn't see initiatives
         filteredInitiatives = []
       }
-      // SAP and CEO see all initiatives
+      // SAP and CEO see all initiatives (of current organization)
       
       setInitiatives(filteredInitiatives)
     } catch (err) {
       console.error('Error loading initiatives:', err)
       setError('Error loading initiatives')
     }
-  }, [activeRole, getCurrentUser])
+  }, [activeRole, getCurrentUser, getOrganizationId])
 
   // Load projects (filtered by role)
   const loadProjects = useCallback(async () => {
+    const organizationId = getOrganizationId()
+    if (!organizationId) {
+      setProjects([])
+      return
+    }
+
     try {
       const { userId, initiativeId } = getCurrentUser()
       
       // Filter projects by role
-      let filteredProjects = await ProjectsAPI.getProjects()
+      let filteredProjects = await ProjectsAPI.getProjects(organizationId)
       
       if (activeRole === 'BU' && initiativeId) {
         // BU only sees projects from their initiative
@@ -168,14 +179,14 @@ export function useSupabaseData() {
         // EMP might see projects where they have issues (or none)
         filteredProjects = [] // Or filter by projects with their issues
       }
-      // SAP and CEO see all projects
+      // SAP and CEO see all projects (of current organization)
       
       setProjects(filteredProjects)
     } catch (err) {
       console.error('Error loading projects:', err)
       setError('Error loading projects')
     }
-  }, [activeRole, getCurrentUser])
+  }, [activeRole, getCurrentUser, getOrganizationId])
 
   // Load all data
   const loadData = useCallback(async () => {
@@ -229,7 +240,7 @@ export function useSupabaseData() {
         setRoleIssues(issues)
 
         // Load initiatives (filtered by role)
-        let filteredInitiatives = await InitiativesAPI.getInitiatives()
+        let filteredInitiatives = await InitiativesAPI.getInitiatives(currentOrg.organization.id)
         if (activeRole === 'BU' && initiativeId) {
           filteredInitiatives = filteredInitiatives.filter(i => i.id === initiativeId)
         } else if (activeRole === 'EMP') {
@@ -238,7 +249,7 @@ export function useSupabaseData() {
         setInitiatives(filteredInitiatives)
 
         // Load projects (filtered by role)
-        let filteredProjects = await ProjectsAPI.getProjects()
+        let filteredProjects = await ProjectsAPI.getProjects(currentOrg.organization.id)
         if (activeRole === 'BU' && initiativeId) {
           filteredProjects = filteredProjects.filter(p => 
             p.initiative?.id === initiativeId || p.initiative_id === initiativeId
