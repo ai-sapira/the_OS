@@ -49,9 +49,14 @@ export class IssuesAPI {
       .eq('id', organizationId)
       .single()
     
-    const prefix = org?.slug === 'gonvarri' ? 'GON' : 'ORG'
+    if (!org?.slug) {
+      throw new Error('Organization not found')
+    }
+
+    // Generate prefix from organization slug (first 3 chars uppercase)
+    const prefix = org.slug.substring(0, 3).toUpperCase()
     
-    // Get ALL issues with this prefix to find the maximum number
+    // Get ALL issues for this organization to find the maximum number
     const { data: issues } = await supabase
       .from('issues')
       .select('key')
