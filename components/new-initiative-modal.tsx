@@ -163,6 +163,10 @@ export function NewInitiativeModal({ open, onOpenChange, onCreateInitiative }: N
     setIsSubmitting(true)
 
     try {
+      if (!currentOrg?.organization?.id) {
+        throw new Error('No organization selected')
+      }
+
       // Generate slug from name
       const slug = name
         .toLowerCase()
@@ -177,7 +181,7 @@ export function NewInitiativeModal({ open, onOpenChange, onCreateInitiative }: N
         description: description.trim() || null,
         manager_user_id: selectedManagerId,
         active: true,
-      })
+      }, currentOrg.organization.id)
 
       // Refresh data
       await refreshData()

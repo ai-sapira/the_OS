@@ -57,7 +57,7 @@ export class ProjectsAPI {
   }
 
   // Get projects by status (for roadmap view)
-  static async getProjectsByStatus(status?: ProjectStatus): Promise<ProjectWithRelations[]> {
+  static async getProjectsByStatus(organizationId?: string, status?: ProjectStatus): Promise<ProjectWithRelations[]> {
     let query = supabase
       .from('projects')
       .select(`
@@ -65,7 +65,10 @@ export class ProjectsAPI {
         owner:users!projects_owner_user_id_fkey(id, name, email, avatar_url, role),
         initiative:initiatives!projects_initiative_id_fkey(id, name, slug, description)
       `)
-      .eq('organization_id', this.organizationId)
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
 
     if (status) {
       query = query.eq('status', status)
@@ -125,12 +128,15 @@ export class ProjectsAPI {
   }
 
   // Create new project
-  static async createProject(projectData: Omit<Project, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Project> {
+  static async createProject(
+    projectData: Omit<Project, 'id' | 'organization_id' | 'created_at' | 'updated_at'>,
+    organizationId: string
+  ): Promise<Project> {
     const { data, error } = await supabase
       .from('projects')
       .insert({
         ...projectData,
-        organization_id: this.organizationId
+        organization_id: organizationId
       })
       .select()
       .single()
@@ -187,26 +193,36 @@ export class ProjectsAPI {
   }
 
   // Update project status
-  static async updateProjectStatus(projectId: string, status: string): Promise<void> {
-    const { error } = await supabase
+  static async updateProjectStatus(projectId: string, status: string, organizationId?: string): Promise<void> {
+    let query = supabase
       .from('projects')
       .update({ status })
       .eq('id', projectId)
-      .eq('organization_id', this.organizationId)
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    const { error } = await query
     
     if (error) throw error
   }
 
   // Update project business unit (direct initiative assignment)
-  static async updateProjectBusinessUnit(projectId: string, businessUnitId: string | null): Promise<void> {
-    const { error } = await supabase
+  static async updateProjectBusinessUnit(projectId: string, businessUnitId: string | null, organizationId?: string): Promise<void> {
+    let query = supabase
       .from('projects')
       .update({ 
         initiative_id: businessUnitId,
         updated_at: new Date().toISOString()
       })
       .eq('id', projectId)
-      .eq('organization_id', this.organizationId)
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    const { error } = await query
     
     if (error) throw error
 
@@ -225,37 +241,52 @@ export class ProjectsAPI {
   }
 
   // Update project owner
-  static async updateProjectOwner(projectId: string, ownerId: string | null): Promise<void> {
-    const { error } = await supabase
+  static async updateProjectOwner(projectId: string, ownerId: string | null, organizationId?: string): Promise<void> {
+    let query = supabase
       .from('projects')
       .update({ owner_user_id: ownerId })
       .eq('id', projectId)
-      .eq('organization_id', this.organizationId)
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    const { error } = await query
     
     if (error) throw error
   }
 
   // Get available users for owner assignment
-  static async getAvailableUsers(): Promise<any[]> {
-    const { data, error } = await supabase
+  static async getAvailableUsers(organizationId?: string): Promise<any[]> {
+    let query = supabase
       .from('users')
       .select('id, name, email, avatar_url, role')
-      .eq('organization_id', this.organizationId)
       .eq('active', true)
       .order('name')
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+    
+    const { data, error } = await query
     
     if (error) throw error
     return data || []
   }
 
   // Get available business units
-  static async getBusinessUnits(): Promise<any[]> {
-    const { data, error } = await supabase
+  static async getBusinessUnits(organizationId?: string): Promise<any[]> {
+    let query = supabase
       .from('initiatives')
       .select('id, name, description, slug')
-      .eq('organization_id', this.organizationId)
       .eq('active', true)
       .order('name')
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+    
+    const { data, error } = await query
     
     if (error) throw error
     return data || []

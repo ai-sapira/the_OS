@@ -78,17 +78,22 @@ export class InitiativesAPI {
   }
 
   // Get initiative by manager (for BU role)
-  static async getInitiativeByManager(managerId: string): Promise<InitiativeWithManager | null> {
-    const { data, error } = await supabase
+  static async getInitiativeByManager(managerId: string, organizationId?: string): Promise<InitiativeWithManager | null> {
+    let query = supabase
       .from('initiatives')
       .select(`
         *,
         manager:users!initiatives_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
       `)
-      .eq('organization_id', this.organizationId)
       .eq('manager_user_id', managerId)
       .eq('active', true)
       .single()
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       if (error.code === 'PGRST116') return null // Not found
@@ -105,12 +110,15 @@ export class InitiativesAPI {
   }
 
   // Create new initiative
-  static async createInitiative(initiativeData: Omit<Initiative, 'id' | 'organization_id' | 'created_at' | 'updated_at'>): Promise<Initiative> {
+  static async createInitiative(
+    initiativeData: Omit<Initiative, 'id' | 'organization_id' | 'created_at' | 'updated_at'>,
+    organizationId: string
+  ): Promise<Initiative> {
     const { data, error } = await supabase
       .from('initiatives')
       .insert({
         ...initiativeData,
-        organization_id: this.organizationId
+        organization_id: organizationId
       })
       .select()
       .single()
@@ -153,29 +161,39 @@ export class InitiativesAPI {
   }
 
   // Update initiative manager
-  static async updateInitiativeManager(initiativeId: string, managerId: string | null): Promise<void> {
-    const { error } = await supabase
+  static async updateInitiativeManager(initiativeId: string, managerId: string | null, organizationId?: string): Promise<void> {
+    let query = supabase
       .from('initiatives')
       .update({ 
         manager_user_id: managerId,
         updated_at: new Date().toISOString()
       })
       .eq('id', initiativeId)
-      .eq('organization_id', this.organizationId)
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    const { error } = await query
 
     if (error) throw error
   }
 
   // Update initiative status
-  static async updateInitiativeStatus(initiativeId: string, active: boolean): Promise<void> {
-    const { error } = await supabase
+  static async updateInitiativeStatus(initiativeId: string, active: boolean, organizationId?: string): Promise<void> {
+    let query = supabase
       .from('initiatives')
       .update({ 
         active: active,
         updated_at: new Date().toISOString()
       })
       .eq('id', initiativeId)
-      .eq('organization_id', this.organizationId)
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    const { error } = await query
 
     if (error) throw error
   }
@@ -219,12 +237,13 @@ export class InitiativesAPI {
     initiativeId: string,
     action: string,
     actorUserId: string | null,
+    organizationId: string,
     payload?: any
   ): Promise<void> {
     const { error } = await supabase
       .from('initiative_activity')
       .insert({
-        organization_id: this.organizationId,
+        organization_id: organizationId,
         initiative_id: initiativeId,
         actor_user_id: actorUserId,
         action: action,

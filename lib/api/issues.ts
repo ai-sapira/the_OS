@@ -334,21 +334,26 @@ export class IssuesAPI {
   }
 
   // Delete issue by key (e.g., "SAP-1")
-  static async deleteIssueByKey(key: string): Promise<void> {
-    const { error } = await supabase
+  static async deleteIssueByKey(key: string, organizationId?: string): Promise<void> {
+    let query = supabase
       .from('issues')
       .delete()
       .eq('key', key)
-      .eq('organization_id', this.organizationId)
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    const { error } = await query
 
     if (error) throw error
   }
 
   // Get issue by ID with full relations
-  static async getIssueById(issueId: string): Promise<IssueWithRelations | null> {
-    console.log('[IssuesAPI] getIssueById called with:', { issueId, organizationId: this.organizationId });
+  static async getIssueById(issueId: string, organizationId?: string): Promise<IssueWithRelations | null> {
+    console.log('[IssuesAPI] getIssueById called with:', { issueId, organizationId });
     
-    const { data, error } = await supabase
+    let query = supabase
       .from('issues')
       .select(`
         *,
@@ -359,8 +364,13 @@ export class IssuesAPI {
         labels:issue_labels(label_id, labels(*))
       `)
       .eq('id', issueId)
-      .eq('organization_id', this.organizationId)
       .single()
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       console.error('[IssuesAPI] Error loading issue by ID:', error);
@@ -394,12 +404,13 @@ export class IssuesAPI {
     issueId: string, 
     action: string, 
     actorUserId: string, 
+    organizationId: string,
     payload: any
   ): Promise<void> {
     const { error } = await supabase
       .from('issue_activity')
       .insert({
-        organization_id: this.organizationId,
+        organization_id: organizationId,
         issue_id: issueId,
         actor_user_id: actorUserId,
         action: action as any,

@@ -178,6 +178,10 @@ export function NewProjectModal({ open, onOpenChange, onCreateProject }: NewProj
     setIsSubmitting(true)
 
     try {
+      if (!currentOrg?.organization?.id) {
+        throw new Error('No organization selected')
+      }
+
       // Generate slug from name
       const slug = name
         .toLowerCase()
@@ -196,7 +200,7 @@ export function NewProjectModal({ open, onOpenChange, onCreateProject }: NewProj
         progress: null,
         planned_start_at: null,
         planned_end_at: null,
-      })
+      }, currentOrg.organization.id)
 
       // Refresh data
       await refreshData()
