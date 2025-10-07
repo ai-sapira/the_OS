@@ -217,7 +217,7 @@ export function NewInitiativeModal({ open, onOpenChange, onCreateInitiative }: N
           <DialogHeader className="px-6 pt-6 pb-4 border-b border-neutral-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm text-neutral-600">
-                <span className="font-medium">Gonvarri</span>
+                <span className="font-medium">{currentOrg?.organization.name || 'Organización'}</span>
                 <span className="text-neutral-400">›</span>
                 <span className="font-medium text-neutral-900">New business unit</span>
               </div>

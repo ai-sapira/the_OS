@@ -810,7 +810,7 @@ export function NewSurveyModal({ open, onOpenChange, onCreateSurvey }: NewSurvey
         <DialogHeader className="px-6 pt-4 pb-3 border-b border-neutral-200 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-neutral-600">
-              <span className="font-medium">Gonvarri</span>
+              <span className="font-medium">{currentOrg?.organization.name || 'Organización'}</span>
               <span className="text-neutral-400">›</span>
               <span className="font-medium text-neutral-900">New survey</span>
             </div>
