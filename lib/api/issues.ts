@@ -242,12 +242,21 @@ export class IssuesAPI {
                           action.action === 'snooze' ? 'snoozed' : 
                           action.action as any
     
-    await this.createActivity(issueId, activityAction, actorUserId, {
-      reason: action.reason,
-      ...action.accept_data,
-      duplicate_of_id: action.duplicate_of_id,
-      snooze_until: action.snooze_until
-    })
+    // Get organization_id from the issue
+    const organizationId = data.organization_id
+    
+    await this.createActivity(
+      issueId, 
+      activityAction, 
+      actorUserId, 
+      organizationId, // Now passing organizationId as 4th parameter
+      {
+        reason: action.reason,
+        ...action.accept_data,
+        duplicate_of_id: action.duplicate_of_id,
+        snooze_until: action.snooze_until
+      }
+    )
 
     return data
   }
