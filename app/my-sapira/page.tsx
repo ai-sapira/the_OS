@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { IssuesAPI } from "@/lib/api/issues";
 import type { Issue } from "@/lib/database/types";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/context/auth-context";
 
 interface Message {
   id: string;
@@ -130,13 +131,20 @@ export default function MySapiraPage() {
     document.head.appendChild(link);
   }, []);
 
+  const { currentOrg } = useAuth();
+
   // Load recent issues for Pablo Senabre
   useEffect(() => {
     const loadIssues = async () => {
+      if (!currentOrg?.organization?.id) {
+        setLoadingIssues(false);
+        return;
+      }
+      
       try {
         setLoadingIssues(true);
-        // Gonvarri organization ID
-        const organizationId = '01234567-8901-2345-6789-012345678901';
+        // Use current organization ID from auth context
+        const organizationId = currentOrg.organization.id;
         const allIssues = await IssuesAPI.getIssues(organizationId);
         
         console.log('[MySapira] All issues:', allIssues.length);
@@ -177,7 +185,7 @@ export default function MySapiraPage() {
     };
 
     loadIssues();
-  }, []);
+  }, [currentOrg?.organization?.id]); // Reload when organization changes
 
   // Auto scroll to bottom when new messages arrive
   useEffect(() => {

@@ -22,9 +22,11 @@ import {
 } from "lucide-react"
 import { ProjectsAPI, type ProjectWithRelations } from "@/lib/api/projects"
 import { IssuesAPI, type IssueWithRelations } from "@/lib/api/issues"
+import { useAuth } from "@/lib/context/auth-context"
 
 
 export default function RoadmapPage() {
+  const { currentOrg } = useAuth()
   const [projects, setProjects] = useState<ProjectWithRelations[]>([])
   const [issues, setIssues] = useState<IssueWithRelations[]>([])
   const [loading, setLoading] = useState(true)
@@ -33,10 +35,15 @@ export default function RoadmapPage() {
   // Load data on mount
   useEffect(() => {
     const loadData = async () => {
+      if (!currentOrg?.organization?.id) {
+        setLoading(false)
+        return
+      }
+
       try {
         setLoading(true)
-        // Gonvarri organization ID
-        const organizationId = '01234567-8901-2345-6789-012345678901'
+        // Use current organization ID from auth context
+        const organizationId = currentOrg.organization.id
         const [projectsData, issuesData] = await Promise.all([
           ProjectsAPI.getProjects(),
           IssuesAPI.getIssues(organizationId)
@@ -73,7 +80,7 @@ export default function RoadmapPage() {
     }
 
     loadData()
-  }, [])
+  }, [currentOrg?.organization?.id])
 
   // Toggle project expansion
   const toggleProjectExpansion = (projectId: string) => {

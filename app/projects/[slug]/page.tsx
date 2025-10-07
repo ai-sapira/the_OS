@@ -40,6 +40,7 @@ import { Badge } from "@/components/ui/badge";
 // API and Types
 import { ProjectsAPI, ProjectWithRelations } from "@/lib/api/projects";
 import { ProjectStatus } from "@/lib/database/types";
+import { useAuth } from "@/lib/context/auth-context";
 
 // Status Chip Component - Editable
 function StatusChip({ 
@@ -444,19 +445,24 @@ function ProjectInitiativesList({
   projectId: string 
 }) {
   const router = useRouter();
+  const { currentOrg } = useAuth();
   const [initiatives, setInitiatives] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadInitiatives = async () => {
+      if (!currentOrg?.organization?.id) {
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
-        // Import IssuesAPI and auth context
+        // Import IssuesAPI
         const { IssuesAPI } = await import('@/lib/api/issues');
-        const { useAuth } = await import('@/lib/context/auth-context');
         
-        // Get organization ID - hardcode Gonvarri for now
-        const organizationId = '01234567-8901-2345-6789-012345678901';
+        // Get organization ID from auth context
+        const organizationId = currentOrg.organization.id;
         const allInitiatives = await IssuesAPI.getIssues(organizationId);
         
         // Filter initiatives that belong to this project
@@ -474,7 +480,7 @@ function ProjectInitiativesList({
     };
 
     loadInitiatives();
-  }, [projectId]);
+  }, [projectId, currentOrg?.organization?.id]);
 
   // Navigate to initiative detail page
   const handleInitiativeClick = (initiativeId: string) => {

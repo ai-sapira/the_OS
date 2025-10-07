@@ -40,6 +40,7 @@ import {
 import { InitiativesAPI, InitiativeWithManager } from "@/lib/api/initiatives"
 import { ProjectsAPI, ProjectWithRelations } from "@/lib/api/projects"
 import { IssuesAPI, IssueWithRelations } from "@/lib/api/issues"
+import { useAuth } from "@/lib/context/auth-context"
 
 type ViewType = "business_units" | "projects" | "issues"
 
@@ -622,15 +623,21 @@ function ProjectsMetrics() {
 
 // Issues Metrics List
 function IssuesMetrics() {
+  const { currentOrg } = useAuth()
   const [data, setData] = useState<IssueMetric[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const loadData = async () => {
+      if (!currentOrg?.organization?.id) {
+        setLoading(false)
+        return
+      }
+
       try {
         setLoading(true)
-        // Gonvarri organization ID
-        const organizationId = '01234567-8901-2345-6789-012345678901'
+        // Use current organization ID from auth context
+        const organizationId = currentOrg.organization.id
         const issues = await IssuesAPI.getIssues(organizationId)
         
         const metrics: IssueMetric[] = issues.slice(0, 50).map(issue => {
@@ -680,7 +687,7 @@ function IssuesMetrics() {
     }
 
     loadData()
-  }, [])
+  }, [currentOrg?.organization?.id])
 
   const getEngagementColor = (score: number) => {
     if (score >= 90) return "bg-green-100 text-green-800"
