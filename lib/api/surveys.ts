@@ -86,7 +86,8 @@ export class SurveysAPI {
     if (organizationId) {
       query = query.eq('organization_id', organizationId)
     }
-      .order('created_at', { ascending: false })
+    
+    query = query.order('created_at', { ascending: false })
 
     // Apply filters
     if (filters?.status) {
