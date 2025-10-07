@@ -72,7 +72,7 @@ export function Sidebar({
   const pathname = usePathname()
   const { getVisibleSidebarItems, canView, can, getFilterPreset, activeRole, switchRole, getRoleLabel, allRoles } = useRoles()
   const { triageCount } = useSupabaseData()
-  const { currentOrg } = useAuth()
+  const { currentOrg, user } = useAuth()
   const [expandedSections, setExpandedSections] = useState<string[]>(["projects"])
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -159,6 +159,22 @@ export function Sidebar({
 
     // Special handling for Your Profile with badge
     if (item.id === "your-profile") {
+      // Extract user name from email
+      const getUserName = () => {
+        if (!user?.email) return 'Usuario'
+        
+        // Extract name from email (e.g., javiergarcia@cosermo.com -> Javier García)
+        const namePart = user.email.split('@')[0]
+        
+        // Handle specific cases
+        if (namePart.toLowerCase() === 'javiergarcia') return 'Javier García'
+        if (namePart.toLowerCase() === 'guillermo') return 'Guillermo'
+        if (namePart.toLowerCase() === 'pablosenabre') return 'Pablo Senabre'
+        
+        // Generic formatting: capitalize first letter
+        return namePart.charAt(0).toUpperCase() + namePart.slice(1)
+      }
+
       return (
         <Link key={item.id} href={item.href || "#"}>
           <Button
@@ -176,7 +192,7 @@ export function Sidebar({
               <>
                 <span className="flex-1 text-left">{item.label}</span>
                 <Badge variant="outline" className="h-5 px-1.5 text-xs">
-                  Active
+                  {getUserName()}
                 </Badge>
               </>
             )}
@@ -254,8 +270,8 @@ export function Sidebar({
             <Image 
               src={`/logos/${currentOrg.organization.slug}.jpg`}
               alt={`${currentOrg.organization.name} Logo`}
-              width={52} 
-              height={52}
+              width={36} 
+              height={36}
               className="object-contain rounded-md"
               onError={(e) => {
                 e.currentTarget.src = '/placeholder-logo.svg'
