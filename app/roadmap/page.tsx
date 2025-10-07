@@ -45,7 +45,7 @@ export default function RoadmapPage() {
         // Use current organization ID from auth context
         const organizationId = currentOrg.organization.id
         const [projectsData, issuesData] = await Promise.all([
-          ProjectsAPI.getProjects(),
+          ProjectsAPI.getProjects(organizationId),
           IssuesAPI.getIssues(organizationId)
         ])
         

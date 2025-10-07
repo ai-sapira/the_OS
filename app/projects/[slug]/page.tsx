@@ -613,15 +613,21 @@ export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
+  const { currentOrg } = useAuth();
   
   const [project, setProject] = useState<ProjectWithRelations | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadProject = async () => {
+      if (!currentOrg?.organization?.id) {
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
-        const projects = await ProjectsAPI.getProjects();
+        const projects = await ProjectsAPI.getProjects(currentOrg.organization.id);
         const found = projects.find(p => p.slug === slug);
         
         if (found) {
@@ -635,7 +641,7 @@ export default function ProjectDetailPage() {
     };
 
     loadProject();
-  }, [slug]);
+  }, [slug, currentOrg?.organization?.id]);
 
   if (loading) {
     return (

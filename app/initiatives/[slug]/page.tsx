@@ -44,6 +44,7 @@ import { ProjectsAPI, ProjectWithRelations } from "@/lib/api/projects";
 import { EditableProjectStatusDropdown } from "@/components/ui/editable-project-status-dropdown";
 import { EditableProjectOwnerDropdown } from "@/components/ui/editable-project-owner-dropdown";
 import { InitiativeActivityTimeline } from "@/components/initiative-activity-timeline";
+import { useAuth } from "@/lib/context/auth-context";
 
 // Status Chip Component - Editable
 function StatusChip({ 
@@ -338,16 +339,22 @@ function InitiativeProjectsList({
   initiativeId: string 
 }) {
   const router = useRouter();
+  const { currentOrg } = useAuth();
   const [projects, setProjects] = useState<ProjectWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadProjects = async () => {
+      if (!currentOrg?.organization?.id) {
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         
         // Get all projects and filter those belonging to this initiative
-        const allProjects = await ProjectsAPI.getProjects();
+        const allProjects = await ProjectsAPI.getProjects(currentOrg.organization.id);
         
         // Filter projects that belong to this initiative
         const filteredProjects = allProjects.filter(project => {
@@ -364,7 +371,7 @@ function InitiativeProjectsList({
     };
 
     loadProjects();
-  }, [initiativeId]);
+  }, [initiativeId, currentOrg?.organization?.id]);
 
   if (loading) {
     return (

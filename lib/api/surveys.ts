@@ -64,14 +64,15 @@ export interface SubmitResponseInput {
 }
 
 export class SurveysAPI {
-  private static organizationId = '01234567-8901-2345-6789-012345678901' // Gonvarri
-
   // Get all surveys with filters
-  static async getSurveys(filters?: {
-    status?: SurveyStatus
-    creator_id?: string
-    target_bu_id?: string
-  }): Promise<SurveyWithRelations[]> {
+  static async getSurveys(
+    organizationId?: string,
+    filters?: {
+      status?: SurveyStatus
+      creator_id?: string
+      target_bu_id?: string
+    }
+  ): Promise<SurveyWithRelations[]> {
     let query = supabase
       .from('surveys')
       .select(`
@@ -80,7 +81,11 @@ export class SurveysAPI {
         target_bu:initiatives!surveys_target_bu_id_fkey(id, name, slug, description),
         questions:survey_questions(*)
       `)
-      .eq('organization_id', this.organizationId)
+    
+    // Only filter by organization if provided
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
       .order('created_at', { ascending: false })
 
     // Apply filters
@@ -147,12 +152,16 @@ export class SurveysAPI {
   }
 
   // Create a new survey
-  static async createSurvey(input: CreateSurveyInput, creatorUserId: string): Promise<Survey> {
+  static async createSurvey(
+    input: CreateSurveyInput, 
+    creatorUserId: string,
+    organizationId: string
+  ): Promise<Survey> {
     // Create the survey
     const { data: survey, error: surveyError } = await supabase
       .from('surveys')
       .insert({
-        organization_id: this.organizationId,
+        organization_id: organizationId,
         creator_user_id: creatorUserId,
         title: input.title,
         description: input.description || null,
@@ -353,24 +362,35 @@ export class SurveysAPI {
   }
 
   // Get available users for targeting (helper for UI)
-  static async getAvailableUsers(): Promise<User[]> {
-    const { data, error } = await supabase
+  static async getAvailableUsers(organizationId?: string): Promise<User[]> {
+    let query = supabase
       .from('users')
       .select('*')
-      .eq('organization_id', this.organizationId)
       .eq('active', true)
       .order('name', { ascending: true })
+    
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    const { data, error } = await query
 
     if (error) throw error
     return data || []
   }
 
   // Get available BUs for targeting (helper for UI)
-  static async getAvailableBUs(): Promise<Initiative[]> {
-    const { data, error } = await supabase
+  static async getAvailableBUs(organizationId?: string): Promise<Initiative[]> {
+    let query = supabase
       .from('initiatives')
       .select('*')
-      .eq('organization_id', this.organizationId)
+      .eq('active', true)
+    
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    const { data, error } = await query
       .eq('active', true)
       .order('name', { ascending: true })
 

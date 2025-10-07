@@ -40,8 +40,6 @@ export interface TriageAction {
 }
 
 export class IssuesAPI {
-  private static organizationId = '01234567-8901-2345-6789-012345678901' // Gonvarri
-
   // Generate next issue key for organization
   private static async generateIssueKey(organizationId: string): Promise<string> {
     // Get organization slug

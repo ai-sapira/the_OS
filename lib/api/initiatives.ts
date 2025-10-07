@@ -21,17 +21,21 @@ export interface InitiativeWithManager extends Initiative {
 }
 
 export class InitiativesAPI {
-  private static organizationId = '01234567-8901-2345-6789-012345678901' // Gonvarri
-
   // Get all active initiatives
-  static async getInitiatives(): Promise<InitiativeWithManager[]> {
-    const { data, error } = await supabase
+  static async getInitiatives(organizationId?: string): Promise<InitiativeWithManager[]> {
+    let query = supabase
       .from('initiatives')
       .select(`
         *,
         manager:users!initiatives_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
       `)
-      .eq('organization_id', this.organizationId)
+    
+    // Only filter by organization if provided
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    const { data, error } = await query
       .eq('active', true)
       .order('name')
 

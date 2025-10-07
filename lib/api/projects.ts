@@ -16,18 +16,22 @@ export interface ProjectWithRelations extends Project {
 }
 
 export class ProjectsAPI {
-  private static organizationId = '01234567-8901-2345-6789-012345678901' // Gonvarri
-
   // Get all projects
-  static async getProjects(): Promise<ProjectWithRelations[]> {
-    const { data, error } = await supabase
+  static async getProjects(organizationId?: string): Promise<ProjectWithRelations[]> {
+    let query = supabase
       .from('projects')
       .select(`
         *,
         owner:users!projects_owner_user_id_fkey(id, name, email, avatar_url, role),
         initiative:initiatives!projects_initiative_id_fkey(id, name, slug, description)
       `)
-      .eq('organization_id', this.organizationId)
+    
+    // Only filter by organization if provided
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    const { data, error } = await query
       .order('created_at', { ascending: false })
 
     if (error) throw error
