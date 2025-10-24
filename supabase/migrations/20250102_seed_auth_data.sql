@@ -5,17 +5,18 @@
 -- This is just for development/testing
 
 -- 1. Create a second organization for multi-tenant testing
-INSERT INTO organizations (id, name, slug, settings)
-VALUES 
-  ('11111111-1111-1111-1111-111111111111', 'Acme Corp', 'acme', '{
-    "sla_matrix": {
-      "P0": {"hours": 2},
-      "P1": {"hours": 24},
-      "P2": {"hours": 72},
-      "P3": {"hours": 168}
-    }
-  }'::jsonb)
-ON CONFLICT (id) DO NOTHING;
+-- DISABLED: Acme Corp organization removed
+-- INSERT INTO organizations (id, name, slug, settings)
+-- VALUES 
+--   ('11111111-1111-1111-1111-111111111111', 'Acme Corp', 'acme', '{
+--     "sla_matrix": {
+--       "P0": {"hours": 2},
+--       "P1": {"hours": 24},
+--       "P2": {"hours": 72},
+--       "P3": {"hours": 168}
+--     }
+--   }'::jsonb)
+-- ON CONFLICT (id) DO NOTHING;
 
 -- 2. Instructions for creating auth users
 -- Run these commands in Supabase SQL Editor or use Supabase Auth UI:
