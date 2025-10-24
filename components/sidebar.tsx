@@ -263,7 +263,7 @@ export function Sidebar({
         <div className="flex h-[52px] items-center px-4 border-b border-border">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-gray-200">
             <Image 
-              src={`/logos/${currentOrg.organization.slug}.jpg`}
+              src={`/logos/${currentOrg.organization.slug}.jpg?v=2`}
               alt={`${currentOrg.organization.name} Logo`}
               width={90} 
               height={28}
