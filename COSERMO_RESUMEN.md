@@ -203,3 +203,5 @@ Seguir las instrucciones en: `/COSERMO_LOGO_INSTRUCTIONS.md`
 **🎉 ¡Todo listo para Cosermo! Ahora solo falta ejecutar los pasos en Supabase.**
 
 
+
+

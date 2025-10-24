@@ -134,3 +134,5 @@ WHERE organization_id = '33333333-3333-3333-3333-333333333333';
 **¿Problemas?** Consulta: `/SETUP_COSERMO.md` → Troubleshooting
 
 
+
+

@@ -260,13 +260,13 @@ export function Sidebar({
       )}
       {/* Logo - Above Role Selector */}
       {!isCollapsed && currentOrg?.organization.slug && (
-        <div className="flex h-[64px] items-center px-4 border-b border-border">
+        <div className="flex h-[52px] items-center px-4 border-b border-border">
           <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white border border-gray-200">
             <Image 
               src={`/logos/${currentOrg.organization.slug}.jpg`}
               alt={`${currentOrg.organization.name} Logo`}
-              width={36} 
-              height={36}
+              width={32} 
+              height={32}
               className="object-contain rounded-md"
               onError={(e) => {
                 e.currentTarget.src = '/placeholder-logo.svg'

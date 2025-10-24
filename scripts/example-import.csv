@@ -1,0 +1,15 @@
+business_unit_name,business_unit_slug,project_name,project_slug,initiative_title,initiative_description,priority,status,reporter_email,assignee_email,rise_score,tags
+Finance,finance,ERP Migration,erp-migration,Optimize invoice processing,Reduce manual invoice processing time by implementing automation,high,backlog,miguel@gonvarri.com,ana@gonvarri.com,85,"automation,finance"
+Finance,finance,ERP Migration,erp-migration,Automate bank reconciliation,Automatically reconcile bank statements with accounting system,medium,triage,miguel@gonvarri.com,,72,"automation,finance,banking"
+Finance,finance,Cost Optimization,cost-optimization,Reduce cloud infrastructure costs,Optimize AWS spending and implement cost monitoring,high,in_progress,miguel@gonvarri.com,juan@gonvarri.com,88,"infrastructure,cloud,cost"
+Sales,sales,Customer Portal,customer-portal,Add payment gateway integration,Integrate Stripe for credit card payments,critical,in_progress,carlos@gonvarri.com,juan@gonvarri.com,92,"payments,integration,critical"
+Sales,sales,Customer Portal,customer-portal,Implement customer dashboard,Create personalized dashboard for customers,medium,backlog,carlos@gonvarri.com,,75,"ux,dashboard,customer"
+Sales,sales,CRM Enhancement,crm-enhancement,Add email automation,Automate follow-up emails based on customer stage,high,triage,carlos@gonvarri.com,,80,"automation,email,crm"
+HR,hr,Recruitment Platform,recruitment-platform,Improve candidate tracking,Better candidate status visualization and workflow,medium,triage,laura@gonvarri.com,,70,"recruitment,ux,workflow"
+HR,hr,Recruitment Platform,recruitment-platform,Add interview scheduling,Automated interview scheduling with calendar integration,high,backlog,laura@gonvarri.com,ana@gonvarri.com,82,"automation,scheduling,recruitment"
+HR,hr,Employee Portal,employee-portal,Self-service vacation requests,Allow employees to request and track vacations,medium,in_progress,laura@gonvarri.com,juan@gonvarri.com,78,"hr,automation,self-service"
+Operations,operations,Supply Chain Optimization,supply-chain,Track shipment status in real-time,Real-time tracking of shipments and inventory,critical,backlog,miguel@gonvarri.com,,90,"logistics,tracking,critical"
+Operations,operations,Supply Chain Optimization,supply-chain,Optimize warehouse layout,Redesign warehouse for better efficiency,medium,triage,miguel@gonvarri.com,,68,"logistics,warehouse,optimization"
+IT,it,Security Enhancement,security-enhancement,Implement 2FA for all users,Add two-factor authentication system-wide,critical,in_progress,carlos@gonvarri.com,ana@gonvarri.com,95,"security,authentication,critical"
+IT,it,Security Enhancement,security-enhancement,Regular security audits,Establish quarterly security audit process,high,backlog,carlos@gonvarri.com,,85,"security,compliance,audit"
+
