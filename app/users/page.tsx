@@ -201,66 +201,81 @@ export default function UsersPage() {
         }
       >
         <div className="flex-1 overflow-y-auto">
-          <div className="p-6 space-y-6 max-w-5xl">
-            {error && (
-              <div className="rounded-lg border border-destructive bg-destructive/10 p-4 text-sm text-destructive">
-                {error}
-              </div>
-            )}
+          {error && (
+            <div className="mx-5 mt-4 rounded-lg border border-destructive bg-destructive/10 p-4 text-sm text-destructive">
+              {error}
+            </div>
+          )}
 
-            {/* Invitations Section */}
-            {invitations.length > 0 && (
-              <div className="rounded-lg border bg-card shadow-sm">
-                <div className="border-b bg-muted/40 px-6 py-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <div className="text-sm font-semibold">
-                        Invitaciones pendientes ({invitations.length})
+          {/* Invitations Section */}
+          {invitations.length > 0 && (
+            <div className="-mx-5 -mt-4 mb-6">
+              {/* Column Headers */}
+              <div className="py-2.5 border-b border-stroke bg-gray-50/30" style={{ paddingLeft: '28px', paddingRight: '20px' }}>
+                <div className="grid grid-cols-[1fr_140px_200px_120px] gap-6">
+                  <div className="text-[13px] font-medium text-gray-500 pr-4">Invitación</div>
+                  <div className="text-[13px] font-medium text-gray-500">Rol</div>
+                  <div className="text-[13px] font-medium text-gray-500">Fecha invitación</div>
+                  <div className="text-[13px] font-medium text-gray-500">Expira</div>
+                </div>
+              </div>
+
+              {/* Invitations List */}
+              <div className="bg-white" style={{ paddingLeft: '28px', paddingRight: '20px' }}>
+                {invitations.map((inv) => (
+                  <div
+                    key={inv.id}
+                    className="group py-3.5 hover:bg-gray-50/50 transition-colors border-b border-stroke last:border-b-0"
+                  >
+                    <div className="grid grid-cols-[1fr_140px_200px_120px] gap-6 items-center">
+                      {/* Email Column */}
+                      <div className="flex items-center space-x-3 min-w-0 pr-4">
+                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0 border border-border">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium text-gray-900 truncate">{inv.email}</div>
+                        </div>
+                      </div>
+
+                      {/* Role Column */}
+                      <div className="flex items-center">
+                        {getRoleBadge(inv.role)}
+                      </div>
+
+                      {/* Invited Date Column */}
+                      <div className="text-sm text-gray-500">
+                        <span className="text-xs">{formatDate(inv.created_at)}</span>
+                      </div>
+
+                      {/* Expires Date Column */}
+                      <div className="text-sm text-gray-500">
+                        <span className="text-xs">{formatDate(inv.expires_at)}</span>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div className="divide-y">
-                  {invitations.map((inv) => (
-                    <div
-                      key={inv.id}
-                      className="flex items-center justify-between px-6 py-4 hover:bg-muted/30 transition-colors"
-                    >
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center border-2 border-border">
-                          <Mail className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className="text-sm font-semibold">{inv.email}</div>
-                            {getRoleBadge(inv.role)}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Invitado: {formatDate(inv.created_at)} • Expira: {formatDate(inv.expires_at)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                ))}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* Users Section */}
-            <div className="rounded-lg border bg-card shadow-sm">
-              <div className="border-b bg-muted/40 px-6 py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <UsersIcon className="h-4 w-4 text-muted-foreground" />
-                    <div className="text-sm font-semibold">
-                      Usuarios registrados ({users.length})
-                    </div>
-                  </div>
-                </div>
+          {/* Users Section */}
+          <div className={invitations.length > 0 ? "-mx-5" : "-mx-5 -mt-4"}>
+            {/* Column Headers */}
+            <div className="py-2.5 border-b border-stroke bg-gray-50/30" style={{ paddingLeft: '28px', paddingRight: '20px' }}>
+              <div className="grid grid-cols-[1fr_140px_120px_180px_100px] gap-6">
+                <div className="text-[13px] font-medium text-gray-500 pr-4">Usuario</div>
+                <div className="text-[13px] font-medium text-gray-500">Rol</div>
+                <div className="text-[13px] font-medium text-gray-500">Estado</div>
+                <div className="text-[13px] font-medium text-gray-500">Último acceso</div>
+                <div className="text-[13px] font-medium text-gray-500"></div>
               </div>
-              {users.length === 0 ? (
-                <div className="p-12 text-center">
+            </div>
+
+            {/* Users List */}
+            {users.length === 0 ? (
+              <div className="bg-white" style={{ paddingLeft: '28px', paddingRight: '20px' }}>
+                <div className="py-12 text-center">
                   <UsersIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
                   <div className="text-sm font-medium text-foreground mb-1">
                     No hay usuarios registrados
@@ -273,76 +288,91 @@ export default function UsersPage() {
                     Invitar primer usuario
                   </Button>
                 </div>
-              ) : (
-                <div className="divide-y">
-                  {users.map((u) => (
-                    <div
-                      key={u.id}
-                      className="flex items-center justify-between px-6 py-4 hover:bg-muted/30 transition-colors"
-                    >
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
+              </div>
+            ) : (
+              <div className="bg-white" style={{ paddingLeft: '28px', paddingRight: '20px' }}>
+                {users.map((u) => (
+                  <div
+                    key={u.id}
+                    className="group py-3.5 hover:bg-gray-50/50 transition-colors border-b border-stroke last:border-b-0"
+                  >
+                    <div className="grid grid-cols-[1fr_140px_120px_180px_100px] gap-6 items-center">
+                      {/* User Column */}
+                      <div className="flex items-center space-x-3 min-w-0 pr-4">
                         {u.user.avatar_url ? (
-                          <Avatar className="h-12 w-12 border-2 border-border">
+                          <Avatar className="h-8 w-8 border border-border flex-shrink-0">
                             <AvatarImage src={u.user.avatar_url} alt={u.user.name || ""} />
-                            <AvatarFallback>
+                            <AvatarFallback className="text-xs">
                               {u.user.first_name && u.user.last_name
                                 ? `${u.user.first_name[0]}${u.user.last_name[0]}`
                                 : u.user.email?.substring(0, 2).toUpperCase() || "U"}
                             </AvatarFallback>
                           </Avatar>
                         ) : (
-                          <div className="h-12 w-12 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center border-2 border-border">
-                            <UserCheck className="h-6 w-6 text-primary" />
+                          <div className="h-8 w-8 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center border border-border flex-shrink-0">
+                            <UserCheck className="h-4 w-4 text-primary" />
                           </div>
                         )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <div className="text-sm font-semibold">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <div className="text-sm font-medium text-gray-900 truncate">
                               {u.user.first_name && u.user.last_name
                                 ? `${u.user.first_name} ${u.user.last_name}`
                                 : u.user.name || u.user.email?.split("@")[0] || "Usuario"}
                             </div>
-                            {getRoleBadge(u.role)}
-                            {getStatusBadge(u.status)}
                             {u.is_org_admin && (
-                              <Badge variant="outline" className="text-xs font-medium bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400">
+                              <Badge variant="outline" className="text-xs font-medium bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400 h-4 px-1.5">
                                 Admin
                               </Badge>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                            <span className="text-xs text-muted-foreground">{u.user.email}</span>
-                          </div>
-                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            {u.last_login_at ? (
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                Último acceso: {formatDate(u.last_login_at)}
-                              </span>
-                            ) : u.invited_at ? (
-                              <span className="flex items-center gap-1">
-                                <Mail className="h-3 w-3" />
-                                Invitado: {formatDate(u.invited_at)}
-                              </span>
-                            ) : (
-                              <span>Creado: {formatDate(u.created_at)}</span>
-                            )}
-                          </div>
+                          <div className="text-xs text-gray-500 truncate">{u.user.email}</div>
                         </div>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditingUserId(u.id)}
-                        className="ml-4 shrink-0 text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-900"
-                      >
-                        Editar
-                      </Button>
+
+                      {/* Role Column */}
+                      <div className="flex items-center">
+                        {getRoleBadge(u.role)}
+                      </div>
+
+                      {/* Status Column */}
+                      <div className="flex items-center">
+                        {getStatusBadge(u.status)}
+                      </div>
+
+                      {/* Last Access Column */}
+                      <div className="text-sm text-gray-500">
+                        {u.last_login_at ? (
+                          <span className="text-xs flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {formatDate(u.last_login_at)}
+                          </span>
+                        ) : u.invited_at ? (
+                          <span className="text-xs flex items-center gap-1">
+                            <Mail className="h-3 w-3" />
+                            {formatDate(u.invited_at)}
+                          </span>
+                        ) : (
+                          <span className="text-xs">{formatDate(u.created_at)}</span>
+                        )}
+                      </div>
+
+                      {/* Actions Column */}
+                      <div className="flex items-center justify-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingUserId(u.id)}
+                          className="h-7 px-3 text-xs text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-900"
+                        >
+                          Editar
+                        </Button>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </ResizablePageSheet>
