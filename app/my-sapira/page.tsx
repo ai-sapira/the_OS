@@ -133,50 +133,76 @@ export default function MySapiraPage() {
 
   const { currentOrg } = useAuth();
 
-  // Load recent issues for Pablo Senabre
+  const organizationSettings = (currentOrg?.organization?.settings as Record<string, any> | undefined) ?? {}
+  const sapiraContact = organizationSettings.sapira_contact as {
+    name?: string
+    email?: string
+    role?: string
+    calendly_url?: string
+    avatar_url?: string
+    user_id?: string
+  } | undefined
+
+  const contactName = sapiraContact?.name || 'Sapira Team'
+  const contactEmail = sapiraContact?.email || 'support@sapira.ai'
+  const contactRole = sapiraContact?.role || 'Forward Deploy Engineer'
+  const contactCalendlyUrl = sapiraContact?.calendly_url || null
+  const contactAvatarUrl = sapiraContact?.avatar_url || null
+  const contactInitials = contactName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0]?.toUpperCase())
+    .join('') || 'ST'
+  const contactUserId = sapiraContact?.user_id || null
+
+  const openIssuesCount = React.useMemo(
+    () =>
+      recentIssues.filter(
+        (issue) => issue.state && !['done', 'canceled', 'duplicate'].includes(issue.state)
+      ).length,
+    [recentIssues]
+  )
+  const resolvedIssuesCount = React.useMemo(
+    () => recentIssues.filter((issue) => issue.state === 'done').length,
+    [recentIssues]
+  )
+  const conversationCount = messages.length
+
+  // Load recent issues for the Sapira contact
   useEffect(() => {
     const loadIssues = async () => {
       if (!currentOrg?.organization?.id) {
         setLoadingIssues(false);
         return;
       }
-      
+
       try {
         setLoadingIssues(true);
-        // Use current organization ID from auth context
         const organizationId = currentOrg.organization.id;
         const allIssues = await IssuesAPI.getIssues(organizationId);
-        
-        console.log('[MySapira] All issues:', allIssues.length);
-        console.log('[MySapira] Looking for FDI user ID:', fdiUser.id);
-        console.log('[MySapira] Sample issue assignees:', allIssues.slice(0, 3).map((i: Issue) => ({ 
-          key: i.key, 
-          assignee_id: i.assignee_id, 
-          reporter_id: i.reporter_id 
-        })));
-        
-        // Filter issues where assignee is Pablo Senabre (FDI user)
-        // or where reporter is the current user
-        const fdiIssues = allIssues
-          .filter((issue: Issue) => 
-            issue.assignee_id === fdiUser.id || 
-            issue.reporter_id === fdiUser.id
-          )
-          .sort((a: Issue, b: Issue) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime())
-          .slice(0, 5); // Get last 5 issues
-        
-        console.log('[MySapira] Filtered issues:', fdiIssues.length);
-        
-        // If no issues found with the FDI user, show the most recent 5 issues instead
-        if (fdiIssues.length === 0) {
-          console.log('[MySapira] No issues for FDI user, showing most recent issues');
-          const recentIssues = allIssues
-            .sort((a: Issue, b: Issue) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime())
-            .slice(0, 5);
-          setRecentIssues(recentIssues);
-        } else {
-          setRecentIssues(fdiIssues);
+
+        let relevantIssues = allIssues;
+
+        if (contactUserId) {
+          relevantIssues = allIssues.filter((issue: Issue) =>
+            issue.assignee_id === contactUserId || issue.reporter_id === contactUserId
+          );
         }
+
+        if (relevantIssues.length === 0) {
+          relevantIssues = allIssues;
+        }
+
+        const sortedIssues = [...relevantIssues]
+          .sort(
+            (a: Issue, b: Issue) =>
+              new Date(b.updated_at || b.created_at || 0).getTime() -
+              new Date(a.updated_at || a.created_at || 0).getTime()
+          )
+          .slice(0, 5);
+
+        setRecentIssues(sortedIssues);
       } catch (error) {
         console.error('Error loading issues:', error);
       } finally {
@@ -184,8 +210,10 @@ export default function MySapiraPage() {
       }
     };
 
-    loadIssues();
-  }, [currentOrg?.organization?.id]); // Reload when organization changes
+    if (currentOrg?.organization?.id) {
+      loadIssues();
+    }
+  }, [currentOrg?.organization?.id, contactUserId]);
 
   // Auto scroll to bottom when new messages arrive
   useEffect(() => {
@@ -213,16 +241,6 @@ export default function MySapiraPage() {
       e.preventDefault();
       handleSendMessage();
     }
-  };
-
-  // Mock data - Replace with real data from API
-  const fdiUser = {
-    id: "11111111-1111-1111-1111-111111111111",
-    name: "Pablo Senabre",
-    email: "pablo@sapira.ai",
-    avatar_url: null,
-    role: "Forward Deploy Engineer",
-    calendly_url: "https://calendly.com/pablo-senabre-sapira/30min",
   };
 
   return (
@@ -253,10 +271,14 @@ export default function MySapiraPage() {
             <div className="pb-6 mb-6 border-b border-gray-200 -mx-5 px-5">
               <div className="flex items-start gap-3">
                 {/* Avatar cuadrado - altura igual a los 2 botones */}
-                <div className="h-16 w-16 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-gray-900 text-lg font-semibold">
-                    {fdiUser.name.split(' ').map(n => n[0]).join('')}
-                  </span>
+                <div className="h-16 w-16 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {contactAvatarUrl ? (
+                    <img src={contactAvatarUrl} alt={contactName} className="h-16 w-16 object-cover" />
+                  ) : (
+                    <span className="text-gray-900 text-lg font-semibold">
+                      {contactInitials}
+                    </span>
+                  )}
                 </div>
 
                 {/* Name + Email + Role - alineados con los botones */}
@@ -264,39 +286,50 @@ export default function MySapiraPage() {
                   {/* Primera línea - Nombre + Email chip */}
                   <div className="flex items-center gap-2 h-7">
                     <h3 className="text-lg font-semibold text-gray-900">
-                      {fdiUser.name}
+                      {contactName}
                     </h3>
                     <a 
-                      href={`mailto:${fdiUser.email}`}
+                      href={`mailto:${contactEmail}`}
                       className="inline-flex items-center h-6 px-2 text-xs text-gray-600 bg-gray-50 border border-dashed border-gray-200 rounded hover:bg-gray-100 hover:text-blue-600 transition-colors"
                     >
-                      {fdiUser.email}
+                      {contactEmail}
                     </a>
                   </div>
                   
                   {/* Segunda línea - Cargo */}
                   <div className="flex items-center h-7">
                     <p className="text-base text-gray-700">
-                      {fdiUser.role}
+                      {contactRole}
                     </p>
                   </div>
                 </div>
 
                 {/* Action Buttons - definen la grid */}
                 <div className="flex flex-col gap-2 flex-shrink-0">
-                  <Button 
-                    size="sm" 
-                    className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-                    onClick={() => setIsCalendlyOpen(true)}
-                  >
-                    <Calendar className="h-3.5 w-3.5 mr-1.5" />
-                    Book a call
-                  </Button>
+                  {contactCalendlyUrl ? (
+                    <Button 
+                      size="sm" 
+                      className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+                      onClick={() => setIsCalendlyOpen(true)}
+                    >
+                      <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                      Book a call
+                    </Button>
+                  ) : (
+                    <Button 
+                      size="sm"
+                      variant="outline"
+                      disabled
+                      className="h-7 text-xs border-dashed bg-gray-50 border-gray-200 text-gray-400 rounded-lg"
+                    >
+                      Calendly no configurado
+                    </Button>
+                  )}
                   <Button 
                     size="sm" 
                     variant="outline"
                     className="h-7 text-xs border-dashed bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-600 hover:text-gray-700 rounded-lg"
-                    onClick={() => window.location.href = `mailto:${fdiUser.email}`}
+                    onClick={() => window.location.href = `mailto:${contactEmail}`}
                   >
                     <Mail className="h-3.5 w-3.5 mr-1.5" />
                     Send email
@@ -307,9 +340,9 @@ export default function MySapiraPage() {
           </div>
 
           {/* Calendly Modal */}
-          {rootElement && (
+          {rootElement && contactCalendlyUrl && (
             <PopupModal
-              url={fdiUser.calendly_url}
+              url={contactCalendlyUrl}
               onModalClose={() => setIsCalendlyOpen(false)}
               open={isCalendlyOpen}
               rootElement={rootElement}
@@ -330,7 +363,7 @@ export default function MySapiraPage() {
                         <Clock className="h-4 w-4 text-gray-700" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xl font-semibold text-gray-900">3</p>
+                        <p className="text-xl font-semibold text-gray-900">{openIssuesCount}</p>
                         <p className="text-xs text-gray-600">Open tickets</p>
                       </div>
                     </div>
@@ -343,7 +376,7 @@ export default function MySapiraPage() {
                         <CheckCircle2 className="h-4 w-4 text-gray-700" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xl font-semibold text-gray-900">12</p>
+                        <p className="text-xl font-semibold text-gray-900">{resolvedIssuesCount}</p>
                         <p className="text-xs text-gray-600">Resolved</p>
                       </div>
                     </div>
@@ -356,7 +389,7 @@ export default function MySapiraPage() {
                         <MessageSquare className="h-4 w-4 text-gray-700" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xl font-semibold text-gray-900">11</p>
+                        <p className="text-xl font-semibold text-gray-900">{conversationCount}</p>
                         <p className="text-xs text-gray-600">Messages</p>
                       </div>
                     </div>
@@ -369,7 +402,7 @@ export default function MySapiraPage() {
                   <div className="border-b border-gray-200 px-4 py-3 bg-gray-50 rounded-t-lg">
                     <div className="flex items-center gap-2">
                       <MessageSquare className="h-4 w-4 text-gray-600" />
-                      <h3 className="text-sm font-semibold text-gray-900">Chat with {fdiUser.name}</h3>
+                      <h3 className="text-sm font-semibold text-gray-900">Chat with {contactName}</h3>
                     </div>
                   </div>
 
@@ -382,7 +415,7 @@ export default function MySapiraPage() {
                       >
                         {message.sender === 'fdi' && (
                           <div className="h-8 w-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                            <span className="text-gray-900 text-xs font-semibold">PS</span>
+                            <span className="text-gray-900 text-xs font-semibold">{contactInitials}</span>
                           </div>
                         )}
                         <div

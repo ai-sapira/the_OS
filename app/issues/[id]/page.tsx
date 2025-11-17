@@ -53,6 +53,7 @@ import {
 import { TeamsConversation } from "@/components/teams-conversation"
 import { IssuesAPI } from "@/lib/api/issues"
 import { IssueActivityTimeline } from "@/components/issue-activity-timeline"
+import { useAuth } from "@/lib/context/auth-context"
 
 // Timeline Calendar Component
 interface TimelineCalendarProps {
@@ -400,6 +401,7 @@ export default function IssueDetailPage() {
   const params = useParams()
   const router = useRouter()
   const issueId = params.id as string
+  const { currentOrg } = useAuth()
   
   const [issue, setIssue] = useState<any | null>(null)
   const [availableUsers, setAvailableUsers] = useState<any[]>([])
@@ -412,14 +414,19 @@ export default function IssueDetailPage() {
 
   // Load issue and data
   useEffect(() => {
+    const organizationId = currentOrg?.organization?.id
+    if (!issueId || !organizationId) {
+      return
+    }
+
     const loadData = async () => {
       try {
         setLoading(true)
         const [issueData, users, projects, initiatives] = await Promise.all([
-          IssuesAPI.getIssueById(issueId),
-          IssuesAPI.getAvailableUsers(),
-          IssuesAPI.getProjects(),
-          IssuesAPI.getInitiatives()
+          IssuesAPI.getIssueById(issueId, organizationId),
+          IssuesAPI.getAvailableUsers(organizationId),
+          IssuesAPI.getProjects(organizationId),
+          IssuesAPI.getInitiatives(organizationId)
         ])
         
         setIssue(issueData)
@@ -448,10 +455,8 @@ export default function IssueDetailPage() {
       }
     }
     
-    if (issueId) {
-      loadData()
-    }
-  }, [issueId])
+    loadData()
+  }, [issueId, currentOrg?.organization?.id])
 
   // Sync local issue with prop
   useEffect(() => {

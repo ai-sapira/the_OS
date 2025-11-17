@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { motion, AnimatePresence } from "framer-motion"
 import { useSupabaseData } from "@/hooks/use-supabase-data"
 import { Issue, Project, Initiative, User, IssueState, IssuePriority } from "@/lib/database/types"
 import type { IssueWithRelations } from "@/lib/api/issues"
@@ -24,6 +25,7 @@ import {
   ResizablePageSheet
 } from "@/components/layout"
 import { ViewSwitcher } from "@/components/view-switcher"
+import { Spinner } from "@/components/ui/spinner"
 import { EditableIssueStateDropdown } from "@/components/ui/editable-issue-state-dropdown"
 import { EditableIssuePriorityDropdown } from "@/components/ui/editable-issue-priority-dropdown"
 import { EditableIssueAssigneeDropdown } from "@/components/ui/editable-issue-assignee-dropdown"
@@ -458,7 +460,8 @@ export default function IssuesPage() {
     allIssues, 
     projects: allProjects, 
     initiatives: allInitiatives,
-    updateIssue
+    updateIssue,
+    loading
   } = useSupabaseData()
   
   // Debug: Log issues data
@@ -777,8 +780,22 @@ export default function IssuesPage() {
           </div>
         }
       >
-        {/* List View */}
-        {currentView === "list" && (
+        <AnimatePresence mode="wait">
+          {loading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex items-center justify-center py-12"
+            >
+              <Spinner size="md" />
+            </motion.div>
+          ) : (
+            <>
+              {/* List View */}
+              {currentView === "list" && (
           <div className="-mx-5 -mt-4 h-full flex flex-col">
             {/* Column Headers - Sticky */}
             <div className="flex-shrink-0 py-2.5 border-b border-stroke bg-gray-50/30" style={{ paddingLeft: '28px', paddingRight: '20px' }}>
@@ -963,11 +980,14 @@ export default function IssuesPage() {
           </div>
         )}
 
-        {/* Create Initiative Modal */}
-        <NewIssueModal 
-          open={createIssueOpen} 
-          onOpenChange={setCreateIssueOpen} 
-        />
+              {/* Create Issue Modal */}
+              <NewIssueModal 
+                open={createIssueOpen} 
+                onOpenChange={setCreateIssueOpen} 
+              />
+            </>
+          )}
+        </AnimatePresence>
       </ResizablePageSheet>
     </ResizableAppShell>
   )

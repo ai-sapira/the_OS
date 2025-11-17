@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Target,
   Hexagon,
@@ -24,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Command,
   CommandEmpty,
@@ -44,6 +46,7 @@ import { ProjectsAPI, ProjectWithRelations } from "@/lib/api/projects";
 import { EditableProjectStatusDropdown } from "@/components/ui/editable-project-status-dropdown";
 import { EditableProjectOwnerDropdown } from "@/components/ui/editable-project-owner-dropdown";
 import { InitiativeActivityTimeline } from "@/components/initiative-activity-timeline";
+import { NewProjectModal } from "@/components/new-project-modal";
 import { useAuth } from "@/lib/context/auth-context";
 
 // Status Chip Component - Editable
@@ -180,7 +183,13 @@ function ManagerChip({
           <CommandInput placeholder="Buscar..." className="h-7 border-0 focus:ring-0 text-[14px]" />
           <CommandList>
             <CommandEmpty className="text-gray-400 py-3 text-center text-xs">
-              {loading ? "Cargando..." : "No se encontraron managers."}
+              {loading ? (
+                <div className="flex items-center justify-center">
+                  <Spinner size="sm" />
+                </div>
+              ) : (
+                "No se encontraron managers."
+              )}
             </CommandEmpty>
             <CommandGroup>
               <CommandItem
@@ -334,9 +343,11 @@ function MetricsSection({ initiative }: { initiative: InitiativeWithManager }) {
 
 // Projects List Component (similar to projects page)
 function InitiativeProjectsList({ 
-  initiativeId 
+  initiativeId,
+  refreshKey
 }: { 
-  initiativeId: string 
+  initiativeId: string
+  refreshKey?: number
 }) {
   const router = useRouter();
   const { currentOrg } = useAuth();
@@ -371,12 +382,12 @@ function InitiativeProjectsList({
     };
 
     loadProjects();
-  }, [initiativeId, currentOrg?.organization?.id]);
+  }, [initiativeId, currentOrg?.organization?.id, refreshKey]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-muted-foreground text-sm">Loading projects...</div>
+        <Spinner size="md" />
       </div>
     );
   }
@@ -492,6 +503,8 @@ export default function InitiativeDetailPage() {
   
   const [initiative, setInitiative] = useState<InitiativeWithManager | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [projectsRefreshKey, setProjectsRefreshKey] = useState(0);
 
   useEffect(() => {
     const loadInitiative = async () => {
@@ -500,16 +513,27 @@ export default function InitiativeDetailPage() {
         return;
       }
 
+      if (!slug) {
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
-        const initiatives = await InitiativesAPI.getInitiatives(currentOrg.organization.id);
-        const found = initiatives.find(i => i.slug === slug);
+        // Decode the slug in case it's URL encoded
+        const decodedSlug = decodeURIComponent(slug);
+        console.log('[InitiativeDetailPage] Loading initiative with slug:', decodedSlug);
+        
+        const found = await InitiativesAPI.getInitiativeBySlug(decodedSlug, currentOrg.organization.id);
         
         if (found) {
+          console.log('[InitiativeDetailPage] Found initiative:', found.name, found.slug);
           setInitiative(found);
+        } else {
+          console.warn('[InitiativeDetailPage] Initiative not found with slug:', decodedSlug);
         }
       } catch (error) {
-        console.error('Error loading initiative:', error);
+        console.error('[InitiativeDetailPage] Error loading initiative:', error);
       } finally {
         setLoading(false);
       }
@@ -523,7 +547,7 @@ export default function InitiativeDetailPage() {
       <ResizableAppShell>
         <ResizablePageSheet>
           <div className="flex items-center justify-center py-12">
-            <div className="text-muted-foreground text-sm">Cargando...</div>
+            <Spinner size="md" />
           </div>
         </ResizablePageSheet>
       </ResizableAppShell>
@@ -546,7 +570,13 @@ export default function InitiativeDetailPage() {
     <ResizableAppShell>
       <ResizablePageSheet
         header={
-          <div className="flex items-center justify-between w-full h-full" style={{ paddingLeft: '28px', paddingRight: '20px' }}>
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="flex items-center justify-between w-full h-full" 
+            style={{ paddingLeft: '28px', paddingRight: '20px' }}
+          >
             {/* Breadcrumb */}
             <div className="flex items-center gap-2">
               <span className="text-[14px] text-gray-500">Workspace</span>
@@ -555,18 +585,28 @@ export default function InitiativeDetailPage() {
                 onClick={() => router.push('/initiatives')} 
                 className="text-[14px] text-gray-500 hover:text-gray-900 cursor-pointer transition-colors"
               >
-                Business Units
+                Initiatives
               </span>
               <span className="text-[14px] text-gray-400">›</span>
               <span className="text-[14px] font-medium">{initiative.name}</span>
             </div>
-          </div>
+          </motion.div>
         }
       >
         {/* Container que va a los bordes - compensa el padding del sheet */}
-        <div className="-mx-5 -mt-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="-mx-5 -mt-4"
+        >
           {/* Hero Section - Compact con chips editables */}
-          <div className="border-b border-gray-200 pb-4 mb-6 px-5 pt-4">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+            className="border-b border-gray-200 pb-4 mb-6 px-5 pt-4"
+          >
             <div className="flex items-center justify-between">
               {/* Left side - Icon + Título */}
               <div className="flex items-center gap-3">
@@ -609,7 +649,7 @@ export default function InitiativeDetailPage() {
                 />
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Description Section */}
           <div className="px-5">
@@ -630,10 +670,35 @@ export default function InitiativeDetailPage() {
             </div>
           </div>
 
+          {/* Projects Section */}
+          <div className="px-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-900">
+                Projects
+              </h2>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="h-7 text-xs hover:bg-gray-100 hover:text-gray-900 hover:border-gray-300"
+                onClick={() => setShowNewProjectModal(true)}
+              >
+                + New Project
+              </Button>
+            </div>
+            
+            <div className="pb-6 mb-6 border-b border-gray-200 -mx-5 px-5">
+              <div className="border border-gray-200 rounded-lg bg-white">
+                <InitiativeProjectsList 
+                  initiativeId={initiative.id} 
+                  refreshKey={projectsRefreshKey}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Activity Timeline Section */}
           <div className="px-5">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Activity className="h-4 w-4 text-gray-600" />
+            <h2 className="text-sm font-semibold text-gray-900 mb-4">
               Activity Timeline
             </h2>
             <div className="pb-6 mb-6 border-b border-gray-200 -mx-5 px-5">
@@ -656,23 +721,17 @@ export default function InitiativeDetailPage() {
               </div>
             </div>
           </div>
+        </motion.div>
 
-          {/* Projects Section */}
-          <div className="px-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-900">
-                Projects
-              </h2>
-              <Button size="sm" variant="outline" className="h-7 text-xs">
-                + New Project
-              </Button>
-            </div>
-            
-            <div className="border border-gray-200 rounded-lg bg-white">
-              <InitiativeProjectsList initiativeId={initiative.id} />
-            </div>
-          </div>
-        </div>
+        {/* New Project Modal */}
+        <NewProjectModal
+          open={showNewProjectModal}
+          onOpenChange={setShowNewProjectModal}
+          defaultInitiativeId={initiative.id}
+          onCreateProject={() => {
+            setProjectsRefreshKey(prev => prev + 1);
+          }}
+        />
       </ResizablePageSheet>
     </ResizableAppShell>
   );

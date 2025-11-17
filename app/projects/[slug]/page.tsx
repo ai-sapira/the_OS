@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   Hexagon,
   TrendingUp,
@@ -22,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Command,
   CommandEmpty,
@@ -39,6 +41,7 @@ import { Badge } from "@/components/ui/badge";
 
 // API and Types
 import { ProjectsAPI, ProjectWithRelations } from "@/lib/api/projects";
+import { InitiativesAPI } from "@/lib/api/initiatives";
 import { ProjectStatus } from "@/lib/database/types";
 import { useAuth } from "@/lib/context/auth-context";
 
@@ -123,27 +126,34 @@ function OwnerChip({
   currentOwner?: ProjectWithRelations['owner'],
   onOwnerChange?: (newOwner: any) => void
 }) {
+  const { currentOrg } = useAuth();
+  const organizationId = currentOrg?.organization?.id;
   const [open, setOpen] = useState(false);
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (open) {
-      loadUsers();
+  const loadUsers = React.useCallback(async () => {
+    if (!organizationId) {
+      setAvailableUsers([]);
+      return;
     }
-  }, [open]);
 
-  const loadUsers = async () => {
     try {
       setLoading(true);
-      const users = await ProjectsAPI.getAvailableUsers();
+      const users = await InitiativesAPI.getAvailableManagers(organizationId);
       setAvailableUsers(users);
     } catch (error) {
       console.error('Error loading users:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [organizationId]);
+
+  useEffect(() => {
+    if (open) {
+      loadUsers();
+    }
+  }, [open, loadUsers]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -182,7 +192,13 @@ function OwnerChip({
           <CommandInput placeholder="Buscar..." className="h-7 border-0 focus:ring-0 text-[14px]" />
           <CommandList>
             <CommandEmpty className="text-gray-400 py-3 text-center text-xs">
-              {loading ? "Cargando..." : "No se encontraron usuarios."}
+              {loading ? (
+                <div className="flex items-center justify-center py-2">
+                  <Spinner size="sm" />
+                </div>
+              ) : (
+                "No se encontraron usuarios."
+              )}
             </CommandEmpty>
             <CommandGroup>
               <CommandItem
@@ -231,27 +247,34 @@ function BusinessUnitChip({
   currentBU?: ProjectWithRelations['initiative'],
   onBUChange?: (newBU: any) => void
 }) {
+  const { currentOrg } = useAuth();
+  const organizationId = currentOrg?.organization?.id;
   const [open, setOpen] = useState(false);
   const [availableBusinessUnits, setAvailableBusinessUnits] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (open && availableBusinessUnits.length === 0) {
-      loadBusinessUnits();
+  const loadBusinessUnits = React.useCallback(async () => {
+    if (!organizationId) {
+      setAvailableBusinessUnits([]);
+      return;
     }
-  }, [open]);
 
-  const loadBusinessUnits = async () => {
     try {
       setLoading(true);
-      const businessUnits = await ProjectsAPI.getBusinessUnits();
+      const businessUnits = await ProjectsAPI.getBusinessUnits(organizationId);
       setAvailableBusinessUnits(businessUnits);
     } catch (error) {
       console.error('Error loading business units:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [organizationId]);
+
+  useEffect(() => {
+    if (open && availableBusinessUnits.length === 0) {
+      loadBusinessUnits();
+    }
+  }, [open, availableBusinessUnits.length, loadBusinessUnits]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -288,7 +311,13 @@ function BusinessUnitChip({
           <CommandInput placeholder="Buscar..." className="h-7 border-0 focus:ring-0 text-[14px]" />
           <CommandList>
             <CommandEmpty className="text-gray-400 py-3 text-center text-xs">
-              {loading ? "Cargando..." : "No se encontraron business units."}
+              {loading ? (
+                <div className="flex items-center justify-center py-2">
+                  <Spinner size="sm" />
+                </div>
+              ) : (
+                "No se encontraron business units."
+              )}
             </CommandEmpty>
             <CommandGroup>
               <CommandItem
@@ -438,172 +467,74 @@ function MetricsSection({ project }: { project: ProjectWithRelations }) {
   );
 }
 
-// Initiatives List Component
+// Initiatives List Component - Shows the initiative associated with the project
 function ProjectInitiativesList({ 
-  projectId 
+  project 
 }: { 
-  projectId: string 
+  project: ProjectWithRelations 
 }) {
   const router = useRouter();
-  const { currentOrg } = useAuth();
-  const [initiatives, setInitiatives] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const loadInitiatives = async () => {
-      if (!currentOrg?.organization?.id) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        // Import IssuesAPI
-        const { IssuesAPI } = await import('@/lib/api/issues');
-        
-        // Get organization ID from auth context
-        const organizationId = currentOrg.organization.id;
-        const allInitiatives = await IssuesAPI.getIssues(organizationId);
-        
-        // Filter initiatives that belong to this project
-        const filteredInitiatives = allInitiatives.filter(initiative => {
-          return initiative.project_id === projectId;
-        });
-        
-        setInitiatives(filteredInitiatives);
-      } catch (error) {
-        console.error('Error loading initiatives:', error);
-        setInitiatives([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadInitiatives();
-  }, [projectId, currentOrg?.organization?.id]);
-
-  // Navigate to initiative detail page
-  const handleInitiativeClick = (initiativeId: string) => {
-    router.push(`/issues/${initiativeId}`);
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-muted-foreground text-sm">Loading initiatives...</div>
-      </div>
-    );
-  }
-
-  if (initiatives.length === 0) {
+  if (!project.initiative) {
     return (
       <div className="py-12 text-center text-gray-500">
-        <AlertCircle className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-        <p className="text-sm">No initiatives yet</p>
-        <p className="text-xs mt-1">Initiatives will appear here when assigned to this project</p>
+        <Target className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+        <p className="text-sm">No business unit assigned</p>
+        <p className="text-xs mt-1">Assign a business unit to this project to see it here</p>
       </div>
     );
   }
 
-  // Status badge helper
-  const getStatusBadge = (state: string) => {
-    const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-      triage: { label: "Triage", variant: "outline" },
-      todo: { label: "To Do", variant: "secondary" },
-      in_progress: { label: "In Progress", variant: "default" },
-      blocked: { label: "Blocked", variant: "destructive" },
-      waiting_info: { label: "Waiting", variant: "outline" },
-      done: { label: "Done", variant: "secondary" },
-      canceled: { label: "Canceled", variant: "outline" },
-      duplicate: { label: "Duplicate", variant: "outline" },
-    };
-
-    const config = statusConfig[state] || { label: state, variant: "outline" };
-    return <Badge variant={config.variant} className="text-xs">{config.label}</Badge>;
-  };
-
-  // Priority badge helper
-  const getPriorityBadge = (priority: string | null) => {
-    if (!priority) return null;
-    
-    const priorityConfig: Record<string, { color: string }> = {
-      P0: { color: "text-red-600 bg-red-50" },
-      P1: { color: "text-orange-600 bg-orange-50" },
-      P2: { color: "text-yellow-600 bg-yellow-50" },
-      P3: { color: "text-blue-600 bg-blue-50" },
-    };
-
-    const config = priorityConfig[priority] || { color: "text-gray-600 bg-gray-50" };
-    return (
-      <span className={`text-xs font-medium px-2 py-0.5 rounded ${config.color}`}>
-        {priority}
-      </span>
-    );
-  };
+  const initiative = project.initiative;
 
   return (
     <div>
       {/* Column Headers */}
       <div className="py-2 border-b border-gray-200 bg-gray-50/30 px-6">
-        <div className="grid grid-cols-[40px_1fr_120px_100px_140px] gap-4">
-          <div className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">Key</div>
-          <div className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">Title</div>
-          <div className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">Status</div>
-          <div className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">Priority</div>
-          <div className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">Assignee</div>
+        <div className="grid grid-cols-[1fr_180px_140px] gap-4">
+          <div className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">Business Unit</div>
+          <div className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">Manager</div>
+          <div className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">Issues</div>
         </div>
       </div>
 
-      {/* Issue Rows */}
-      <div>
-        {initiatives.map((initiative) => (
-          <div
-            key={initiative.id}
-            onClick={() => handleInitiativeClick(initiative.id)}
-            className="py-3 px-6 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-b-0"
-          >
-            <div className="grid grid-cols-[40px_1fr_120px_100px_140px] gap-4 items-center">
-              {/* Key Column */}
-              <div className="text-xs font-mono text-gray-500">
-                {initiative.key}
-              </div>
-
-              {/* Title Column */}
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-gray-900 truncate">{initiative.title}</div>
-                {initiative.description && (
-                  <div className="text-xs text-gray-500 truncate">{initiative.description}</div>
-                )}
-              </div>
-
-              {/* Status Column */}
-              <div className="flex justify-start">
-                {getStatusBadge(initiative.state || 'triage')}
-              </div>
-
-              {/* Priority Column */}
-              <div className="flex justify-start">
-                {getPriorityBadge(initiative.priority)}
-              </div>
-
-              {/* Assignee Column */}
-              <div className="flex items-center gap-2">
-                {initiative.assignee ? (
-                  <>
-                    <Avatar className="h-5 w-5">
-                      <AvatarFallback className="text-[10px] bg-gray-100 text-gray-600">
-                        {initiative.assignee.name.split(' ').map((n: string) => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-xs text-gray-700 truncate">{initiative.assignee.name}</span>
-                  </>
-                ) : (
-                  <span className="text-xs text-gray-400">Unassigned</span>
-                )}
-              </div>
+      {/* Initiative Row */}
+      <div
+        className="py-3 px-6 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-b-0"
+        onClick={() => router.push(`/initiatives/${initiative.slug}`)}
+      >
+        <div className="grid grid-cols-[1fr_180px_140px] gap-4 items-center">
+          {/* Initiative Column */}
+          <div className="flex items-center space-x-3 min-w-0">
+            <div className="h-7 w-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <Target className="h-3.5 w-3.5 text-gray-600" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-gray-900 truncate">{initiative.name}</div>
+              {initiative.description && (
+                <div className="text-xs text-gray-500 truncate">{initiative.description}</div>
+              )}
             </div>
           </div>
-        ))}
+
+          {/* Manager Column */}
+          <div className="text-sm text-gray-500">
+            <span className="text-xs">—</span>
+          </div>
+
+          {/* Issues Column */}
+          <div className="text-sm min-w-0">
+            {project._count && project._count.issues > 0 ? (
+              <div className="flex items-center space-x-1.5 text-xs text-gray-500">
+                <span>{project._count.issues} total</span>
+                <span>•</span>
+                <span>{project._count.active_issues} active</span>
+              </div>
+            ) : (
+              <span className="text-gray-400 text-xs">No issues</span>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -648,7 +579,7 @@ export default function ProjectDetailPage() {
       <ResizableAppShell>
         <ResizablePageSheet>
           <div className="flex items-center justify-center py-12">
-            <div className="text-muted-foreground text-sm">Cargando...</div>
+            <Spinner size="md" />
           </div>
         </ResizablePageSheet>
       </ResizableAppShell>
@@ -671,7 +602,13 @@ export default function ProjectDetailPage() {
     <ResizableAppShell>
       <ResizablePageSheet
         header={
-          <div className="flex items-center justify-between w-full h-full" style={{ paddingLeft: '28px', paddingRight: '20px' }}>
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="flex items-center justify-between w-full h-full" 
+            style={{ paddingLeft: '28px', paddingRight: '20px' }}
+          >
             {/* Breadcrumb */}
             <div className="flex items-center gap-2">
               <span className="text-[14px] text-gray-500">Workspace</span>
@@ -685,13 +622,23 @@ export default function ProjectDetailPage() {
               <span className="text-[14px] text-gray-400">›</span>
               <span className="text-[14px] font-medium">{project.name}</span>
             </div>
-          </div>
+          </motion.div>
         }
       >
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        >
         {/* Container que va a los bordes - compensa el padding del sheet */}
         <div className="-mx-5 -mt-4">
           {/* Hero Section - Compact con chips editables */}
-          <div className="border-b border-gray-200 pb-4 mb-6 px-5 pt-4">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+            className="border-b border-gray-200 pb-4 mb-6 px-5 pt-4"
+          >
             <div className="flex items-center justify-between">
               {/* Left side - Icon + Título */}
               <div className="flex items-center gap-3">
@@ -749,7 +696,7 @@ export default function ProjectDetailPage() {
                 />
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Description Section */}
           <div className="px-5">
@@ -782,10 +729,11 @@ export default function ProjectDetailPage() {
             </div>
 
             <div className="border border-gray-200 rounded-lg bg-white">
-              <ProjectInitiativesList projectId={project.id} />
+              <ProjectInitiativesList project={project} />
             </div>
           </div>
         </div>
+        </motion.div>
       </ResizablePageSheet>
     </ResizableAppShell>
   );

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   SearchIcon,
   MoreHorizontalIcon,
@@ -24,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ManagerButton } from "@/components/ui/manager-button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Command,
   CommandEmpty,
@@ -40,6 +42,7 @@ import {
 
 // API and Types
 import { ProjectsAPI, ProjectWithRelations } from "@/lib/api/projects";
+import { InitiativesAPI } from "@/lib/api/initiatives";
 import { cn } from "@/lib/utils";
 import { useSupabaseData } from "@/hooks/use-supabase-data";
 import { useAuth } from "@/lib/context/auth-context";
@@ -56,6 +59,8 @@ function ProjectsFiltersBar({
 }: {
   onFiltersChange?: (filters: any[], globalFilter: string) => void
 }) {
+  const { currentOrg } = useAuth();
+  const organizationId = currentOrg?.organization?.id;
   const [globalFilter, setGlobalFilter] = useState("");
   const [open, setOpen] = useState(false);
   const [selectedView, setSelectedView] = useState<string | null>(null);
@@ -81,24 +86,18 @@ function ProjectsFiltersBar({
     setGlobalFilter(value);
   };
 
-  // Load data from database when dropdown opens
-  React.useEffect(() => {
-    if (open && (availableOwners.length === 0 || availableBusinessUnits.length === 0)) {
-      loadFilterData();
+  const loadFilterData = useCallback(async () => {
+    if (!organizationId) {
+      setAvailableOwners([]);
+      setAvailableBusinessUnits([]);
+      return;
     }
-  }, [open]);
 
-  // Refresh filter data when component mounts (to get fresh data)
-  React.useEffect(() => {
-    loadFilterData();
-  }, []);
-
-  const loadFilterData = async () => {
     try {
       setLoadingData(true);
       const [ownersData, businessUnitsData] = await Promise.all([
-        ProjectsAPI.getAvailableUsers(),
-        ProjectsAPI.getBusinessUnits()
+        InitiativesAPI.getAvailableManagers(organizationId),
+        ProjectsAPI.getBusinessUnits(organizationId)
       ]);
       setAvailableOwners(ownersData);
       setAvailableBusinessUnits(businessUnitsData);
@@ -110,7 +109,19 @@ function ProjectsFiltersBar({
     } finally {
       setLoadingData(false);
     }
-  };
+  }, [organizationId]);
+
+  // Load data from database when dropdown opens
+  React.useEffect(() => {
+    if (open && (availableOwners.length === 0 || availableBusinessUnits.length === 0)) {
+      loadFilterData();
+    }
+  }, [open, availableOwners.length, availableBusinessUnits.length, loadFilterData]);
+
+  // Refresh filter data when organization changes
+  React.useEffect(() => {
+    loadFilterData();
+  }, [loadFilterData]);
 
   // Generate filter options dynamically from database data
   const getFilterOptions = () => {
@@ -268,7 +279,13 @@ function ProjectsFiltersBar({
               />
               <CommandList>
                 <CommandEmpty className="text-gray-400 py-3 text-center text-xs">
-                  {loadingData ? "Loading..." : "No filters found."}
+                  {loadingData ? (
+                    <div className="flex items-center justify-center py-2">
+                      <Spinner size="sm" />
+                    </div>
+                  ) : (
+                    "No filters found."
+                  )}
                 </CommandEmpty>
                 {selectedView ? (
                   <CommandGroup>
@@ -342,15 +359,15 @@ function ProjectsFiltersBar({
 // No more sample data - all data comes from the database via ProjectsAPI
 
 // Projects Card List Component  
-function ProjectsCardList({ 
-  filters, 
+function ProjectsCardList({
+  filters,
   globalFilter,
-  refreshKey
-}: { 
-  filters?: any[], 
-  globalFilter?: string,
+  refreshKey,
+}: {
+  filters?: any[]
+  globalFilter?: string
   refreshKey?: number
-}) {
+}): JSX.Element {
   const router = useRouter();
   const { currentOrg } = useAuth();
   const [data, setData] = useState<ProjectWithRelations[]>([]);
@@ -424,6 +441,8 @@ function ProjectsCardList({
                 }
               });
               break;
+            default:
+              break;
           }
         }
       });
@@ -435,7 +454,7 @@ function ProjectsCardList({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-muted-foreground">Loading projects...</div>
+        <Spinner size="md" />
       </div>
     );
   }
@@ -444,49 +463,54 @@ function ProjectsCardList({
     <div>
       {filteredData.length > 0 ? (
         filteredData.map((project, index) => (
-          <div
+          <motion.div
             key={project.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: index * 0.03 }}
             className="py-3 hover:bg-gray-50/50 transition-colors cursor-pointer"
             onClick={() => router.push(`/projects/${project.slug}`)}
           >
             <div className="grid grid-cols-[1fr_120px_160px_180px_140px] gap-4 items-center">
               {/* Project Column */}
-              <div className="flex items-center space-x-3 min-w-0">
+              <motion.div
+                className="flex items-center space-x-3 min-w-0"
+                whileHover={{ x: 2 }}
+                transition={{ duration: 0.2 }}
+              >
                 <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
                   <Hexagon className="h-4 w-4 text-gray-600" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-gray-900 truncate">{project.name}</div>
+                  <div className="text-sm font-medium text-gray-900 truncate">
+                    {project.name}
+                  </div>
                 </div>
-              </div>
+              </motion.div>
 
               {/* Status Column */}
               <div className="flex justify-start" onClick={(e) => e.stopPropagation()}>
                 <EditableProjectStatusDropdown
                   currentStatus={project.status || "planned"}
                   projectId={project.id}
-                  onStatusChange={(newStatus) => {
-                    // Update local state immediately for optimistic UI
-                    // Data now comes from useSupabaseData hook
-                    // It will auto-refresh when role changes
-                    // No need to manually update - useSupabaseData will handle refreshes
-                  }}
+                  onStatusChange={() => {}}
                 />
               </div>
 
               {/* Business Unit Column */}
               <div className="flex justify-start min-w-0" onClick={(e) => e.stopPropagation()}>
                 <EditableProjectBUDropdown
-                  currentBU={project.initiative ? {
-                    id: project.initiative.id,
-                    name: project.initiative.name,
-                    description: project.initiative.description || undefined
-                  } : null}
+                  currentBU={
+                    project.initiative
+                      ? {
+                          id: project.initiative.id,
+                          name: project.initiative.name,
+                          description: project.initiative.description || undefined,
+                        }
+                      : null
+                  }
                   projectId={project.id}
-                  onBUChange={(newBU) => {
-                    // Data now comes from useSupabaseData hook
-                    // No need to manually update - useSupabaseData will handle refreshes
-                  }}
+                  onBUChange={() => {}}
                 />
               </div>
 
@@ -495,10 +519,7 @@ function ProjectsCardList({
                 <EditableProjectOwnerDropdown
                   currentOwner={project.owner}
                   projectId={project.id}
-                  onOwnerChange={(newOwner) => {
-                    // Data now comes from useSupabaseData hook
-                    // No need to manually update - useSupabaseData will handle refreshes
-                  }}
+                  onOwnerChange={() => {}}
                 />
               </div>
 
@@ -519,14 +540,16 @@ function ProjectsCardList({
                   <div className="flex items-center space-x-2 text-xs">
                     <span className="font-medium text-gray-900">{project._count.issues}</span>
                     <span className="text-gray-500">•</span>
-                    <span className="font-medium text-gray-600">{project._count.active_issues} active</span>
+                    <span className="font-medium text-gray-600">
+                      {project._count.active_issues} active
+                    </span>
                   </div>
                 ) : (
                   <span className="text-gray-500 text-xs">No issues</span>
                 )}
               </div>
             </div>
-          </div>
+          </motion.div>
         ))
       ) : (
         <div className="py-12 text-center text-gray-500">
@@ -536,7 +559,7 @@ function ProjectsCardList({
         </div>
       )}
     </div>
-  );
+  )
 }
 
 export default function ProjectsPage() {
