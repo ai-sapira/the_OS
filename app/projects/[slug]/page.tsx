@@ -42,6 +42,7 @@ import { Badge } from "@/components/ui/badge";
 // API and Types
 import { ProjectsAPI, ProjectWithRelations } from "@/lib/api/projects";
 import { InitiativesAPI } from "@/lib/api/initiatives";
+import { IssuesAPI, IssueWithRelations } from "@/lib/api/issues";
 import { ProjectStatus } from "@/lib/database/types";
 import { useAuth } from "@/lib/context/auth-context";
 
@@ -467,75 +468,113 @@ function MetricsSection({ project }: { project: ProjectWithRelations }) {
   );
 }
 
-// Initiatives List Component - Shows the initiative associated with the project
+// Initiatives List Component - Shows the issues (initiatives) associated with the project
 function ProjectInitiativesList({ 
   project 
 }: { 
   project: ProjectWithRelations 
 }) {
   const router = useRouter();
+  const { currentOrg } = useAuth();
+  const [issues, setIssues] = useState<IssueWithRelations[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!project.initiative) {
+  useEffect(() => {
+    const loadIssues = async () => {
+      if (!currentOrg?.organization?.id || !project.id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const projectIssues = await IssuesAPI.getIssuesByProject(
+          currentOrg.organization.id,
+          project.id
+        );
+        setIssues(projectIssues);
+      } catch (error) {
+        console.error('Error loading issues:', error);
+        setIssues([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadIssues();
+  }, [project.id, currentOrg?.organization?.id]);
+
+  if (loading) {
     return (
       <div className="py-12 text-center text-gray-500">
-        <Target className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-        <p className="text-sm">No business unit assigned</p>
-        <p className="text-xs mt-1">Assign a business unit to this project to see it here</p>
+        <Spinner size="md" />
       </div>
     );
   }
 
-  const initiative = project.initiative;
+  if (issues.length === 0) {
+    return (
+      <div className="py-12 text-center text-gray-500">
+        <Target className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+        <p className="text-sm">No initiatives yet</p>
+        <p className="text-xs mt-1">Initiatives will appear here when they are associated with this project</p>
+      </div>
+    );
+  }
 
   return (
     <div>
       {/* Column Headers */}
       <div className="py-2 border-b border-gray-200 bg-gray-50/30 px-6">
         <div className="grid grid-cols-[1fr_180px_140px] gap-4">
+          <div className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">Initiative</div>
           <div className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">Business Unit</div>
-          <div className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">Manager</div>
-          <div className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">Issues</div>
+          <div className="text-[12px] font-medium text-gray-500 uppercase tracking-wide">Status</div>
         </div>
       </div>
 
-      {/* Initiative Row */}
-      <div
-        className="py-3 px-6 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-b-0"
-        onClick={() => router.push(`/initiatives/${initiative.slug}`)}
-      >
-        <div className="grid grid-cols-[1fr_180px_140px] gap-4 items-center">
-          {/* Initiative Column */}
-          <div className="flex items-center space-x-3 min-w-0">
-            <div className="h-7 w-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-              <Target className="h-3.5 w-3.5 text-gray-600" />
+      {/* Issues Rows */}
+      {issues.map((issue) => (
+        <div
+          key={issue.id}
+          className="py-3 px-6 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-b-0"
+          onClick={() => router.push(`/issues/${issue.id}`)}
+        >
+          <div className="grid grid-cols-[1fr_180px_140px] gap-4 items-center">
+            {/* Initiative Column */}
+            <div className="flex items-center space-x-3 min-w-0">
+              <div className="h-7 w-7 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <Target className="h-3.5 w-3.5 text-gray-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-gray-900 truncate">{issue.title}</div>
+                {issue.short_description && (
+                  <div className="text-xs text-gray-500 truncate">{issue.short_description}</div>
+                )}
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium text-gray-900 truncate">{initiative.name}</div>
-              {initiative.description && (
-                <div className="text-xs text-gray-500 truncate">{initiative.description}</div>
+
+            {/* Business Unit Column */}
+            <div className="text-sm text-gray-500">
+              {issue.initiative ? (
+                <span className="text-xs">{issue.initiative.name}</span>
+              ) : (
+                <span className="text-xs text-gray-400">—</span>
               )}
             </div>
-          </div>
 
-          {/* Manager Column */}
-          <div className="text-sm text-gray-500">
-            <span className="text-xs">—</span>
-          </div>
-
-          {/* Issues Column */}
-          <div className="text-sm min-w-0">
-            {project._count && project._count.issues > 0 ? (
-              <div className="flex items-center space-x-1.5 text-xs text-gray-500">
-                <span>{project._count.issues} total</span>
-                <span>•</span>
-                <span>{project._count.active_issues} active</span>
-              </div>
-            ) : (
-              <span className="text-gray-400 text-xs">No issues</span>
-            )}
+            {/* Status Column */}
+            <div className="text-sm min-w-0">
+              <Badge 
+                variant="outline" 
+                className="text-xs"
+              >
+                {issue.state || 'todo'}
+              </Badge>
+            </div>
           </div>
         </div>
-      </div>
+      ))}
     </div>
   );
 }

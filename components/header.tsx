@@ -4,20 +4,19 @@ import type React from "react"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { RoleSwitcher } from "@/components/role-switcher"
 import { 
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Bell, Search, Filter, MoreHorizontal, Sun, Moon, Building2, LogOut } from "lucide-react"
+import { Bell, Search, Filter, Sun, Moon, LogOut, Users } from "lucide-react"
 import { useState } from "react"
 import { useAuth } from "@/lib/context/auth-context"
 import { useRouter } from "next/navigation"
+import { useOrgAdmin } from "@/hooks/use-org-admin"
 import Image from "next/image"
 
 interface HeaderProps {
@@ -29,6 +28,7 @@ interface HeaderProps {
 export function Header({ title, subtitle, actions }: HeaderProps) {
   const [isDark, setIsDark] = useState(true)
   const { currentOrg, signOut, user, isSAPUser } = useAuth()
+  const { isOrgAdmin } = useOrgAdmin()
   const router = useRouter()
 
   const toggleTheme = () => {
@@ -48,15 +48,21 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
     }
   }
 
-  const getUserInitials = () => {
+  const getUserName = () => {
     if (!user?.email) {
-      // Use organization initials if available
-      if (currentOrg?.organization.name) {
-        return currentOrg.organization.name.substring(0, 2).toUpperCase()
-      }
-      return 'US'  // User by default
+      return 'Usuario'
     }
-    return user.email.substring(0, 2).toUpperCase()
+    
+    // Extract name from email (e.g., javiergarcia@cosermo.com -> Javier García)
+    const namePart = user.email.split('@')[0]
+    
+    // Handle specific cases
+    if (namePart.toLowerCase() === 'javiergarcia') return 'Javier García'
+    if (namePart.toLowerCase() === 'guillermo') return 'Guillermo'
+    if (namePart.toLowerCase() === 'pablosenabre') return 'Pablo Senabre'
+    
+    // Generic formatting: capitalize first letter
+    return namePart.charAt(0).toUpperCase() + namePart.slice(1)
   }
 
   return (
@@ -115,30 +121,36 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
           <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 text-xs">3</Badge>
         </Button>
 
-        {/* Avatar - MODO DEMO: Funciona con o sin autenticación */}
+        {/* User Profile Name - MODO DEMO: Funciona con o sin autenticación */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-              <Avatar className="h-7 w-7">
-                <AvatarImage src="/diverse-user-avatars.png" />
-                <AvatarFallback className="text-xs">{getUserInitials()}</AvatarFallback>
-              </Avatar>
+            <Button 
+              type="button"
+              variant="ghost" 
+              size="sm" 
+              className="h-8 px-3 text-sm font-medium text-gray-700 hover:bg-gray-100"
+            >
+              {getUserName()}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">
-                  {user?.email || 'Modo Demo'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {currentOrg?.organization.name || 'Organización'}
-                </p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
+            {isOrgAdmin && (
+              <>
+                <DropdownMenuItem 
+                  onSelect={() => router.push('/users')}
+                  className="cursor-pointer"
+                >
+                  <Users className="mr-2 h-4 w-4" />
+                  Gestión de usuarios
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             {user && (
-              <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 cursor-pointer">
+              <DropdownMenuItem 
+                onSelect={() => handleLogout()} 
+                className="text-red-600 focus:text-red-600 cursor-pointer"
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 Cerrar sesión
               </DropdownMenuItem>

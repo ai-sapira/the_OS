@@ -1,11 +1,18 @@
 "use client"
 
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useRoles, type SidebarItem, type Role } from "@/hooks/use-roles"
 import { useSupabaseData } from "@/hooks/use-supabase-data"
 import { useAuth } from "@/lib/context/auth-context"
@@ -72,6 +79,7 @@ export function Sidebar({
   onToggleCollapse 
 }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const { getVisibleSidebarItems, canView, can, getFilterPreset, activeRole, getRoleLabel, allRoles } = useRoles()
   const { triageCount } = useSupabaseData()
   const { currentOrg, user, signOut } = useAuth()
@@ -97,10 +105,10 @@ export function Sidebar({
   // Group items by section
   const sidebarItems = getVisibleSidebarItems()
   
-  // Filter "users" item to only show for org admins
+  // Filter "users" item - remove it completely from sidebar
   const filteredSidebarItems = sidebarItems.filter(item => {
     if (item.id === "users") {
-      return isOrgAdmin
+      return false // Remove users item from sidebar
     }
     return true
   })
@@ -173,7 +181,7 @@ export function Sidebar({
       )
     }
 
-    // Special handling for Your Profile - show user name only
+    // Special handling for Your Profile - show user name with dropdown menu
     if (item.id === "your-profile") {
       // Extract user name from email
       const getUserName = () => {
@@ -191,24 +199,61 @@ export function Sidebar({
         return namePart.charAt(0).toUpperCase() + namePart.slice(1)
       }
 
+      const handleLogout = async () => {
+        try {
+          await signOut()
+          window.location.href = '/'
+        } catch (error) {
+          console.error('Error during logout:', error)
+          window.location.href = '/'
+        }
+      }
+
       return (
-        <Link key={item.id} href={item.href || "#"}>
-          <Button
-            variant={isActive ? "secondary" : "ghost"}
-            className={cn(
-              baseItemClasses,
-              isActive ? activeClasses : hoverClasses
+        <DropdownMenu key={item.id}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant={isActive ? "secondary" : "ghost"}
+              className={cn(
+                baseItemClasses,
+                isActive ? activeClasses : hoverClasses,
+                "w-full"
+              )}
+            >
+              <Icon className={cn(
+                "h-4 w-4 mr-2 shrink-0 transition-transform duration-200",
+                isActive ? "scale-110" : "group-hover:scale-110"
+              )} />
+              {!isCollapsed && (
+                <span className="flex-1 text-left transition-all duration-200">{getUserName()}</span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56" side={isCollapsed ? "right" : "left"}>
+            {isOrgAdmin && (
+              <>
+                <DropdownMenuItem 
+                  onSelect={() => router.push('/users')}
+                  className="cursor-pointer"
+                >
+                  <Users className="mr-2 h-4 w-4" />
+                  Gestión de usuarios
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
             )}
-          >
-            <Icon className={cn(
-              "h-4 w-4 mr-2 shrink-0 transition-transform duration-200",
-              isActive ? "scale-110" : "group-hover:scale-110"
-            )} />
-            {!isCollapsed && (
-              <span className="flex-1 text-left transition-all duration-200">{getUserName()}</span>
+            {user && (
+              <DropdownMenuItem 
+                onSelect={handleLogout} 
+                className="text-red-600 focus:text-red-600 cursor-pointer"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Cerrar sesión
+              </DropdownMenuItem>
             )}
-          </Button>
-        </Link>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )
     }
 
@@ -409,39 +454,6 @@ export function Sidebar({
         </div>
       )}
 
-      {/* Logout Button */}
-      {user && (
-        <div className="px-4 py-3 border-t border-border">
-          <Button
-            variant="ghost"
-            className={cn(
-              "w-full justify-start h-8 px-2 text-red-600 group",
-              "transition-all duration-200 ease-out",
-              "hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950",
-              "hover:translate-x-0.5 hover:shadow-sm",
-              "active:scale-[0.98] active:transition-transform active:duration-75",
-              isCollapsed && "justify-center"
-            )}
-            onClick={async () => {
-              try {
-                await signOut()
-                window.location.href = '/'
-              } catch (error) {
-                console.error('Error during logout:', error)
-                window.location.href = '/'
-              }
-            }}
-          >
-            <LogOut className={cn(
-              "h-4 w-4 mr-2 shrink-0 transition-transform duration-200",
-              "group-hover:scale-110"
-            )} />
-            {!isCollapsed && (
-              <span className="flex-1 text-left transition-all duration-200">Cerrar sesión</span>
-            )}
-          </Button>
-        </div>
-      )}
     </div>
   )
 }
