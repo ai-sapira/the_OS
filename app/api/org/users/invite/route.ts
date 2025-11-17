@@ -63,9 +63,14 @@ export async function POST(req: NextRequest) {
       .single()
       .catch(() => ({ data: null }))
 
+    // Build redirect URL - ensure it's absolute and uses production URL
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://backofficepharo.vercel.app'
     const redirectTo = orgData?.slug
-      ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://backofficepharo.vercel.app'}/${orgData.slug}/auth/callback?organization_id=${organization_id}&role=${role}${initiative_id ? `&initiative_id=${initiative_id}` : ''}`
-      : `${process.env.NEXT_PUBLIC_APP_URL || 'https://backofficepharo.vercel.app'}/auth/callback?organization_id=${organization_id}&role=${role}${initiative_id ? `&initiative_id=${initiative_id}` : ''}`
+      ? `${baseUrl}/${orgData.slug}/auth/callback?organization_id=${organization_id}&role=${role}${initiative_id ? `&initiative_id=${initiative_id}` : ''}`
+      : `${baseUrl}/auth/callback?organization_id=${organization_id}&role=${role}${initiative_id ? `&initiative_id=${initiative_id}` : ''}`
+
+    console.log('[API /org/users/invite] Redirect URL:', redirectTo)
+    console.log('[API /org/users/invite] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL)
 
     // Use Supabase Auth native invite function
     const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
