@@ -1,6 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import {
   Command,
@@ -24,11 +26,14 @@ import {
   TrendingUp,
   ListFilter,
   Settings as SettingsIcon,
+  SearchIcon,
   X
 } from "lucide-react";
 import { nanoid } from "nanoid";
 import * as React from "react";
 import { AnimateChangeInHeight } from "@/components/ui/filters";
+import { InitiativesAPI } from "@/lib/api/initiatives";
+import { useAuth } from "@/lib/context/auth-context";
 // We'll create our own Filters component for initiatives
 import {
   DueDate,
@@ -63,13 +68,7 @@ export enum InitiativeStatus {
   INACTIVE = "Inactive",
 }
 
-export enum InitiativeManager {
-  ANA_MARTINEZ = "Ana Martínez",
-  LAURA_GARCIA = "Laura García",
-  CARLOS_RODRIGUEZ = "Carlos Rodríguez",
-  MIGUEL_LOPEZ = "Miguel López",
-  NO_MANAGER = "No Manager",
-}
+// Removed hardcoded InitiativeManager enum - now loaded dynamically from database
 
 export enum IssueCountRange {
   NONE = "No issues",
@@ -80,7 +79,7 @@ export enum IssueCountRange {
 
 // Extended FilterOption type for initiatives
 type InitiativeFilterOption = {
-  name: FilterType | Status | Assignee | Labels | Priority | DueDate | InitiativeStatus | InitiativeManager | IssueCountRange | string;
+  name: FilterType | Status | Assignee | Labels | Priority | DueDate | InitiativeStatus | IssueCountRange | string;
   icon: React.ReactNode | undefined;
   label?: string;
 };
@@ -93,12 +92,7 @@ const initiativeStatusOptions: InitiativeFilterOption[] = Object.values(Initiati
   })
 );
 
-const initiativeManagerOptions: InitiativeFilterOption[] = Object.values(InitiativeManager).map(
-  (manager) => ({
-    name: manager,
-    icon: <User className="w-3.5 h-3.5 text-gray-600" />,
-  })
-);
+// initiativeManagerOptions will be generated dynamically from database
 
 const issueCountOptions: InitiativeFilterOption[] = Object.values(IssueCountRange).map(
   (range) => ({
@@ -114,16 +108,16 @@ const dateOptions: InitiativeFilterOption[] = [
   { name: "This year", icon: <Calendar className="w-3.5 h-3.5 text-gray-600" /> },
 ];
 
-// Extended filter mapping for initiatives
-const initiativeFilterViewToFilterOptions: Record<FilterType, InitiativeFilterOption[]> = {
+// Extended filter mapping for initiatives (manager options loaded dynamically)
+const getInitiativeFilterViewToFilterOptions = (managerOptions: InitiativeFilterOption[]): Record<FilterType, InitiativeFilterOption[]> => ({
   [FilterType.STATUS]: initiativeStatusOptions,
-  [FilterType.ASSIGNEE]: initiativeManagerOptions,
+  [FilterType.ASSIGNEE]: managerOptions,
   [FilterType.LABELS]: issueCountOptions, // Repurposing for issue counts
   [FilterType.PRIORITY]: [], // Not used for initiatives
   [FilterType.DUE_DATE]: [], // Not used for initiatives
   [FilterType.CREATED_DATE]: dateOptions,
   [FilterType.UPDATED_DATE]: dateOptions,
-};
+});
 
 // Extended filter view options for initiatives with minimalist icons
 const initiativeFilterViewOptions: InitiativeFilterOption[][] = [
@@ -159,16 +153,18 @@ const initiativeFilterViewOptions: InitiativeFilterOption[][] = [
 function InitiativeFilters({
   filters,
   setFilters,
+  filterViewToFilterOptions,
 }: {
   filters: Filter[];
   setFilters: React.Dispatch<React.SetStateAction<Filter[]>>;
+  filterViewToFilterOptions: Record<FilterType, InitiativeFilterOption[]>;
 }) {
   return (
     <div className="flex gap-2">
       {filters
         .filter((filter) => filter.value?.length > 0)
         .map((filter) => {
-          const options = initiativeFilterViewToFilterOptions[filter.type] || [];
+          const options = filterViewToFilterOptions[filter.type] || [];
           const filterValue = filter.value[0];
           const matchingOption = options.find(option => option.name === filterValue);
 
@@ -214,12 +210,67 @@ export function InitiativesFiltersBar({
 }: {
   onFiltersChange?: (filters: Filter[], globalFilter: string) => void
 }) {
+  const { currentOrg } = useAuth();
+  const organizationId = currentOrg?.organization?.id;
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const [selectedView, setSelectedView] = React.useState<FilterType | null>(null);
   const [commandInput, setCommandInput] = React.useState("");
   const commandInputRef = React.useRef<HTMLInputElement>(null);
   const [filters, setFilters] = React.useState<Filter[]>([]);
+  const [availableManagers, setAvailableManagers] = React.useState<any[]>([]);
+  const [loadingData, setLoadingData] = React.useState(false);
+
+  // Load managers from database
+  const loadFilterData = React.useCallback(async () => {
+    if (!organizationId) {
+      setAvailableManagers([]);
+      return;
+    }
+
+    try {
+      setLoadingData(true);
+      const managersData = await InitiativesAPI.getAvailableManagers(organizationId);
+      setAvailableManagers(managersData.filter((m): m is NonNullable<typeof m> => m !== null && m !== undefined));
+    } catch (error) {
+      console.error('Error loading filter data:', error);
+      setAvailableManagers([]);
+    } finally {
+      setLoadingData(false);
+    }
+  }, [organizationId]);
+
+  // Load data when dropdown opens
+  React.useEffect(() => {
+    if (open && availableManagers.length === 0) {
+      loadFilterData();
+    }
+  }, [open, availableManagers.length, loadFilterData]);
+
+  // Refresh filter data when organization changes
+  React.useEffect(() => {
+    loadFilterData();
+  }, [loadFilterData]);
+
+  // Generate manager options dynamically
+  const managerOptions: InitiativeFilterOption[] = React.useMemo(() => {
+    const managerOpts = availableManagers.map(manager => ({
+      name: manager.name,
+      icon: <User className="w-3.5 h-3.5 text-gray-600" />,
+    }));
+    // Add "No Manager" option
+    managerOpts.push({
+      name: "No Manager",
+      icon: <User className="w-3.5 h-3.5 text-gray-400" />,
+    });
+    return managerOpts;
+  }, [availableManagers]);
+
+  // Get filter options dynamically
+  const filterViewToFilterOptions = React.useMemo(
+    () => getInitiativeFilterViewToFilterOptions(managerOptions),
+    [managerOptions]
+  );
 
   // Notify parent when filters change
   React.useEffect(() => {
@@ -228,12 +279,29 @@ export function InitiativesFiltersBar({
     }
   }, [filters, globalFilter, onFiltersChange]);
 
+  // Handle global filter changes
+  const handleGlobalFilterChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setGlobalFilter(value);
+  };
+
   return (
     <div className="flex items-center justify-between w-full">
       <div className="flex items-center space-x-2">
+        {/* Search Bar */}
+        <div className="relative">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Search business units..."
+            value={globalFilter ?? ""}
+            onChange={handleGlobalFilterChange}
+            className="pl-9 h-7 max-w-sm bg-gray-50 border-gray-200 rounded-lg border-dashed focus:border-gray-200 focus:ring-0 focus:ring-offset-0 focus:shadow-none focus:outline-none text-gray-900 placeholder-gray-500 shadow-none hover:bg-gray-100 transition-colors text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
+          />
+        </div>
+
         {/* Filters Component */}
         <div className="flex gap-2 flex-wrap items-center">
-          <InitiativeFilters filters={filters} setFilters={setFilters} />
+          <InitiativeFilters filters={filters} setFilters={setFilters} filterViewToFilterOptions={filterViewToFilterOptions} />
           {filters.filter((filter) => filter.value?.length > 0).length > 0 && (
             <Button
               variant="outline"
@@ -294,10 +362,18 @@ export function InitiativesFiltersBar({
                     ref={commandInputRef}
                   />
                   <CommandList>
-                    <CommandEmpty className="text-gray-400 py-4 text-center text-sm">No filters found.</CommandEmpty>
+                    <CommandEmpty className="text-gray-400 py-4 text-center text-sm">
+                      {loadingData ? (
+                        <div className="flex items-center justify-center py-2">
+                          <Spinner size="sm" />
+                        </div>
+                      ) : (
+                        "No filters found."
+                      )}
+                    </CommandEmpty>
                     {selectedView ? (
                       <CommandGroup>
-                        {initiativeFilterViewToFilterOptions[selectedView].map(
+                        {filterViewToFilterOptions[selectedView].map(
                           (filter: InitiativeFilterOption) => (
                             <CommandItem
                               className="group text-gray-600 hover:!text-black hover:!bg-gray-100 data-[selected=true]:!bg-gray-100 data-[selected=true]:!text-black aria-selected:!bg-gray-100 aria-selected:!text-black flex items-center px-3 py-1.5 cursor-pointer [&[data-selected='true']]:!bg-gray-100 [&[data-selected='true']]:!text-black mx-1 rounded-xl transition-all duration-150"

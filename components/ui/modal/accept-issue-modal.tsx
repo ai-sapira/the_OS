@@ -34,6 +34,7 @@ import {
 import { IssuesAPI } from "@/lib/api/issues"
 import type { IssuePriority } from "@/lib/database/types"
 import { useAuth } from "@/lib/context/auth-context"
+import { getSapiraProfileLabel } from "@/components/role-switcher"
 
 // PropertyChip component - matching the app's style
 interface PropertyChipProps {
@@ -146,6 +147,7 @@ export function AcceptIssueModal({
   onSnooze
 }: AcceptIssueModalProps) {
   const { currentOrg } = useAuth()
+  const organizationId = currentOrg?.organization?.id
   const [action, setAction] = useState<'accept' | 'decline' | 'snooze'>('accept')
   const [comment, setComment] = useState("")
   const [selectedInitiativeId, setSelectedInitiativeId] = useState<string | null>(null)
@@ -157,24 +159,31 @@ export function AcceptIssueModal({
   const [projects, setProjects] = useState<any[]>([])
   const [initiatives, setInitiatives] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const lastLoadedOrgRef = useRef<string | null>(null)
 
   const commentRef = useRef<HTMLTextAreaElement>(null)
 
   // Load data when modal opens
   useEffect(() => {
+    if (!open || !organizationId) return
+    const hasInitialData = users.length > 0 && projects.length > 0 && initiatives.length > 0
+    const orgChanged = lastLoadedOrgRef.current !== organizationId
+    if (!orgChanged && hasInitialData) {
+      return
+    }
+    
     const loadData = async () => {
-      if (!open) return
-      
       try {
-        setLoading(true)
+        setLoading(!hasInitialData)
         const [usersData, projectsData, initiativesData] = await Promise.all([
-          IssuesAPI.getAvailableUsers(),
-          IssuesAPI.getProjects(),
-          IssuesAPI.getInitiatives()
+          IssuesAPI.getAvailableUsers(organizationId),
+          IssuesAPI.getProjects(organizationId),
+          IssuesAPI.getInitiatives(organizationId)
         ])
         setUsers(usersData)
         setProjects(projectsData)
         setInitiatives(initiativesData)
+        lastLoadedOrgRef.current = organizationId
       } catch (error) {
         console.error('Error loading data:', error)
       } finally {
@@ -183,7 +192,7 @@ export function AcceptIssueModal({
     }
     
     loadData()
-  }, [open])
+  }, [open, organizationId, users.length, projects.length, initiatives.length])
 
   // Reset form when modal opens
   useEffect(() => {
@@ -370,11 +379,20 @@ export function AcceptIssueModal({
                   value={selectedAssignee?.name || "Sin asignar"}
                   options={[
                     { name: "null", label: "Sin asignar", icon: <User className="w-2.5 h-2.5 text-gray-400" /> },
-                    ...users.map(user => ({
-                      name: user.id,
-                      label: user.name,
-                      avatar: user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()
-                    }))
+                    ...users.map(user => {
+                      const isSapira = user.email?.toLowerCase().endsWith('@sapira.ai')
+                      const profileLabel = isSapira && user.sapira_role_type 
+                        ? getSapiraProfileLabel(user.sapira_role_type)
+                        : null
+                      const displayName = profileLabel 
+                        ? `${user.name} (${profileLabel})`
+                        : user.name
+                      return {
+                        name: user.id,
+                        label: displayName,
+                        avatar: user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()
+                      }
+                    })
                   ]}
                   onSelect={(value) => setSelectedAssigneeId(value === "null" ? null : value)}
                   loading={loading}

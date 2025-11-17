@@ -19,6 +19,11 @@ import {
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { IssuesAPI } from "@/lib/api/issues";
+import { getSapiraProfileLabel } from "@/components/role-switcher";
+import { useAuth } from "@/lib/context/auth-context";
+
+const assigneesCache = new Map<string, Assignee[]>();
+const assigneesRequestCache = new Map<string, Promise<Assignee[]>>();
 
 interface Assignee {
   id: string;
@@ -30,6 +35,7 @@ interface Assignee {
   active: boolean | null;
   created_at: string | null;
   updated_at: string | null;
+  sapira_role_type?: string | null;
 }
 
 interface EditableIssueAssigneeDropdownProps {
@@ -45,8 +51,15 @@ export function EditableIssueAssigneeDropdown({
   onAssigneeChange,
   disabled = false
 }: EditableIssueAssigneeDropdownProps) {
+  const { currentOrg } = useAuth();
+  const organizationId = currentOrg?.organization?.id;
   const [open, setOpen] = useState(false);
-  const [assignees, setAssignees] = useState<Assignee[]>([]);
+  const [assignees, setAssignees] = useState<Assignee[]>(() => {
+    if (organizationId) {
+      return assigneesCache.get(organizationId) || [];
+    }
+    return [];
+  });
   const [loading, setLoading] = useState(false);
   
   // Debug: Log current assignee
@@ -54,16 +67,36 @@ export function EditableIssueAssigneeDropdown({
     console.log('[AssigneeDropdown] Current assignee for issue', issueId, ':', currentAssignee);
   }, [currentAssignee, issueId]);
 
-  useEffect(() => {
-    if (open && assignees.length === 0) {
-      loadAssignees();
+  const loadAssignees = React.useCallback(async () => {
+    if (!organizationId) {
+      setAssignees([]);
+      return;
     }
-  }, [open]);
 
-  const loadAssignees = async () => {
+    const cached = assigneesCache.get(organizationId);
+    if (cached) {
+      setAssignees(cached);
+      return;
+    }
+
+    let pendingRequest = assigneesRequestCache.get(organizationId);
+    if (!pendingRequest) {
+      pendingRequest = IssuesAPI.getAvailableUsers(organizationId)
+        .then((data) => {
+          assigneesCache.set(organizationId, data);
+          assigneesRequestCache.delete(organizationId);
+          return data;
+        })
+        .catch((error) => {
+          assigneesRequestCache.delete(organizationId);
+          throw error;
+        });
+      assigneesRequestCache.set(organizationId, pendingRequest);
+    }
+
     try {
       setLoading(true);
-      const data = await IssuesAPI.getAvailableUsers();
+      const data = await pendingRequest;
       setAssignees(data);
     } catch (error) {
       console.error('Error loading assignees:', error);
@@ -71,7 +104,22 @@ export function EditableIssueAssigneeDropdown({
     } finally {
       setLoading(false);
     }
-  };
+  }, [organizationId]);
+
+  useEffect(() => {
+    if (!organizationId) {
+      setAssignees([]);
+      return;
+    }
+
+    const cached = assigneesCache.get(organizationId);
+    if (cached) {
+      setAssignees(cached);
+      return;
+    }
+
+    loadAssignees();
+  }, [organizationId, loadAssignees]);
 
   const handleAssigneeSelect = async (assignee: Assignee) => {
     try {
@@ -133,7 +181,17 @@ export function EditableIssueAssigneeDropdown({
                   }}
                 />
               </div>
-              <span className="text-sm font-medium text-gray-900 pr-3">{currentAssignee.name}</span>
+              <span className="text-sm font-medium text-gray-900 pr-3">
+                {(() => {
+                  const isSapira = currentAssignee.email?.toLowerCase().endsWith('@sapira.ai')
+                  const profileLabel = isSapira && currentAssignee.sapira_role_type 
+                    ? getSapiraProfileLabel(currentAssignee.sapira_role_type)
+                    : null
+                  return profileLabel 
+                    ? `${currentAssignee.name} (${profileLabel})`
+                    : currentAssignee.name
+                })()}
+              </span>
             </>
           ) : (
             <span className="text-gray-500 text-sm px-3">Unassigned</span>
@@ -212,7 +270,15 @@ export function EditableIssueAssigneeDropdown({
                     {/* Assignee Info */}
                     <div className="flex-1 min-w-0">
                       <div className="text-black font-normal text-[14px] truncate">
-                        {assignee.name}
+                        {(() => {
+                          const isSapira = assignee.email?.toLowerCase().endsWith('@sapira.ai')
+                          const profileLabel = isSapira && assignee.sapira_role_type 
+                            ? getSapiraProfileLabel(assignee.sapira_role_type)
+                            : null
+                          return profileLabel 
+                            ? `${assignee.name} (${profileLabel})`
+                            : assignee.name
+                        })()}
                       </div>
                     </div>
                     

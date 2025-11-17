@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ManagerButton } from "@/components/ui/manager-button";
 import {
@@ -17,9 +17,20 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { User, UserPlus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProjectsAPI } from "@/lib/api/projects";
+import { InitiativesAPI } from "@/lib/api/initiatives";
+import { useAuth } from "@/lib/context/auth-context";
+
+const ownerCache = new Map<string, any[]>();
 
 interface Owner {
   id: string;
@@ -31,6 +42,7 @@ interface Owner {
   active: boolean | null;
   created_at: string | null;
   updated_at: string | null;
+  sapira_role_type?: string | null;
 }
 
 interface EditableProjectOwnerDropdownProps {
@@ -46,228 +58,144 @@ export function EditableProjectOwnerDropdown({
   onOwnerChange,
   disabled = false
 }: EditableProjectOwnerDropdownProps) {
-  const [open, setOpen] = useState(false);
-  const [owners, setOwners] = useState<Owner[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  // Sample owners - in real app, this would come from API
-  const sampleOwners: Owner[] = [
-    {
-      id: "user-001",
-      name: "Sarah Johnson",
-      email: "sarah@company.com",
-      avatar_url: null,
-      role: "SAP",
-      organization_id: "org-001",
-      active: true,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-    },
-    {
-      id: "user-002",
-      name: "Michael Chen",
-      email: "michael@company.com",
-      avatar_url: null,
-      role: "CEO",
-      organization_id: "org-001",
-      active: true,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-    },
-    {
-      id: "user-003",
-      name: "Emma Rodriguez",
-      email: "emma@company.com",
-      avatar_url: null,
-      role: "BU",
-      organization_id: "org-001",
-      active: true,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-    },
-    {
-      id: "user-004",
-      name: "Carlos Rodríguez",
-      email: "carlos@company.com",
-      avatar_url: null,
-      role: "BU",
-      organization_id: "org-001",
-      active: true,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-    },
-    {
-      id: "user-005",
-      name: "Miguel López",
-      email: "miguel@company.com",
-      avatar_url: null,
-      role: "BU",
-      organization_id: "org-001",
-      active: true,
-      created_at: "2024-01-01T00:00:00Z",
-      updated_at: "2024-01-01T00:00:00Z",
-    },
-  ];
-
-  useEffect(() => {
-    if (open && owners.length === 0) {
-      loadOwners();
+  const { currentOrg } = useAuth();
+  const organizationId = currentOrg?.organization?.id;
+  const [owners, setOwners] = useState<Owner[]>(() => {
+    if (organizationId) {
+      return ownerCache.get(organizationId) || []
     }
-  }, [open]);
+    return []
+  });
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const loadingRef = React.useRef(false);
 
-  const loadOwners = async () => {
+  const loadOwners = useCallback(async (forceReload = false) => {
+    if (!organizationId) {
+      setOwners([]);
+      return;
+    }
+
+    // Check cache first unless forcing reload
+    if (!forceReload) {
+      const cached = ownerCache.get(organizationId);
+      if (cached && cached.length > 0) {
+        setOwners(cached as Owner[]);
+        return;
+      }
+    }
+
     try {
       setLoading(true);
-      const data = await ProjectsAPI.getAvailableUsers();
-      setOwners(data);
+      loadingRef.current = true;
+      const data = await InitiativesAPI.getAvailableManagers(organizationId);
+      
+      // Filter out null/undefined values and ensure valid owners
+      const validOwners = (data || []).filter((m): m is NonNullable<typeof m> => m !== null && m !== undefined);
+      
+      setOwners(validOwners as Owner[]);
+      // Always update cache, even if empty (to avoid repeated failed requests)
+      ownerCache.set(organizationId, validOwners);
     } catch (error) {
-      console.error('Error loading owners:', error);
-      // Use sample data as fallback
-      setOwners(sampleOwners);
+      console.error('[EditableProjectOwnerDropdown] Error loading owners:', error);
+      setOwners([]);
+      // Don't cache errors
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
-  };
+  }, [organizationId]);
 
-  const handleOwnerSelect = async (owner: Owner) => {
-    try {
-      await ProjectsAPI.updateProjectOwner(projectId, owner.id);
-      onOwnerChange(owner);
-      setOpen(false);
-    } catch (error) {
-      console.error('Error updating project owner:', error);
-      // TODO: Show error toast
+  useEffect(() => {
+    if (!organizationId) {
+      setOwners([]);
+      return;
     }
-  };
 
-  const handleRemoveOwner = async () => {
-    try {
-      await ProjectsAPI.updateProjectOwner(projectId, null);
-      onOwnerChange(null);
-      setOpen(false);
-    } catch (error) {
-      console.error('Error removing project owner:', error);
-      // TODO: Show error toast
+    // Always load owners when organization changes
+    loadOwners();
+  }, [organizationId, loadOwners]);
+
+  // Load owners when dropdown opens
+  useEffect(() => {
+    if (open && organizationId && !loadingRef.current) {
+      // Always try to load when dropdown opens, in case cache is stale
+      loadOwners(true);
+    }
+  }, [open, organizationId, loadOwners]);
+
+  const handleOwnerChange = async (value: string) => {
+    if (value === "unassigned") {
+      try {
+        await ProjectsAPI.updateProjectOwner(projectId, null, organizationId || undefined);
+        onOwnerChange(null);
+      } catch (error) {
+        console.error('Error removing project owner:', error);
+        // TODO: Show error toast
+      }
+    } else {
+      const owner = owners.find(o => o.id === value);
+      if (owner) {
+        try {
+          await ProjectsAPI.updateProjectOwner(projectId, owner.id, organizationId || undefined);
+          onOwnerChange(owner);
+        } catch (error) {
+          console.error('Error updating project owner:', error);
+          // TODO: Show error toast
+        }
+      }
     }
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          className={cn(
-            "h-auto p-0 hover:bg-gray-100 rounded-lg transition-colors justify-start",
-            disabled && "cursor-not-allowed opacity-50"
-          )}
-          disabled={disabled}
-        >
-          {currentOwner ? (
-            <ManagerButton 
-              name={currentOwner.name}
-              initials={currentOwner.name.split(" ").map(n => n[0]).join("")}
-              imageUrl={currentOwner.avatar_url}
-              onClick={() => {}} // Handled by popover trigger
-            />
-          ) : (
-            <span className="text-gray-500 text-sm">Unassigned</span>
-          )}
-        </Button>
-      </PopoverTrigger>
-      
-      <PopoverContent 
-        className="w-[280px] p-1 rounded-2xl border-gray-200 shadow-lg"
-        align="start"
-        side="right"
-        sideOffset={8}
-        style={{
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)',
-          border: '1px solid rgb(229 229 229)',
-          backgroundColor: '#ffffff',
-        }}
+    <Select
+      value={currentOwner?.id ?? "unassigned"}
+      onValueChange={handleOwnerChange}
+      onOpenChange={setOpen}
+      disabled={disabled || loading}
+    >
+      <SelectTrigger 
+        className={cn(
+          "h-auto w-auto min-w-0 border-none bg-transparent p-0 shadow-none focus:ring-0 focus:ring-offset-0 hover:bg-transparent [&>svg]:hidden [&>span]:hidden",
+          disabled && "cursor-not-allowed opacity-50"
+        )}
       >
-        <Command className="[&_[cmdk-item][data-selected='true']]:!bg-gray-100 [&_[cmdk-item][data-selected='true']]:!text-black [&_[cmdk-item]:hover]:!bg-gray-100 [&_[cmdk-item]:hover]:!text-black [&_[cmdk-input-wrapper]]:border-0 [&_[cmdk-input-wrapper]]:px-2 [&_[cmdk-input-wrapper]]:py-1.5 [&_[cmdk-input-wrapper]_svg]:!text-black [&_[cmdk-input-wrapper]_svg]:!opacity-100 [&_[cmdk-input-wrapper]_svg]:!w-4 [&_[cmdk-input-wrapper]_svg]:!h-4 [&_[cmdk-input-wrapper]_svg]:!mr-2 [&_[cmdk-input-wrapper]]:!flex [&_[cmdk-input-wrapper]]:!items-center [&_[cmdk-input-wrapper]_svg]:!stroke-2">
-          <CommandInput
-            placeholder="Search people..."
-            className="h-7 border-0 focus:ring-0 text-[14px] placeholder:text-gray-400 pl-0"
+        <SelectValue className="sr-only">
+          {currentOwner?.name || "Unassigned"}
+        </SelectValue>
+        {currentOwner ? (
+          <ManagerButton
+            name={currentOwner.name}
+            initials={currentOwner.name.split(" ").map(n => n[0]).join("")}
+            imageUrl={currentOwner.avatar_url}
+            onClick={() => {}}
           />
-          
-          <CommandList>
-            <CommandEmpty className="text-gray-400 py-3 text-center text-xs">
-              {loading ? "Loading..." : "No people found."}
-            </CommandEmpty>
-            
-            <CommandGroup>
-              {/* Remove assignment option */}
-              {currentOwner && (
-                <CommandItem
-                  className="group text-gray-600 hover:!text-black hover:!bg-gray-100 data-[selected=true]:!bg-gray-100 data-[selected=true]:!text-black flex items-center px-2 py-1.5 cursor-pointer rounded-lg transition-all duration-150 mx-0 mb-1"
-                  onSelect={handleRemoveOwner}
-                >
-                  <div className="flex items-center gap-2 w-full">
-                    <div className="h-4 w-4 rounded bg-gray-100 flex items-center justify-center text-black flex-shrink-0">
-                      <X className="h-2.5 w-2.5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-black font-normal text-[14px]">
-                        Remove assignment
-                      </div>
-                    </div>
-                  </div>
-                </CommandItem>
-              )}
-              
-              {/* Separator */}
-              {currentOwner && (
-                <div className="h-px bg-gray-100 my-1 mx-2"></div>
-              )}
-              
-              {/* Available owners */}
-              {owners.map((owner) => (
-                <CommandItem
-                  key={owner.id}
-                  className="group text-gray-600 hover:!text-black hover:!bg-gray-100 data-[selected=true]:!bg-gray-100 data-[selected=true]:!text-black flex items-center px-2 py-1.5 cursor-pointer rounded-lg transition-all duration-150 mx-0"
-                  onSelect={() => handleOwnerSelect(owner)}
-                >
-                  <div className="flex items-center gap-2 w-full">
-                    {/* Owner Avatar */}
-                    <div className="h-4 w-4 rounded bg-gray-100 flex items-center justify-center text-black font-medium text-[11px] flex-shrink-0">
-                      {owner.avatar_url ? (
-                        <img 
-                          src={owner.avatar_url} 
-                          alt={owner.name}
-                          className="h-4 w-4 rounded object-cover"
-                        />
-                      ) : (
-                        owner.name.split(" ").map(n => n[0]).join("")
-                      )}
-                    </div>
-                    
-                    {/* Owner Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-black font-normal text-[14px] truncate">
-                        {owner.name}
-                      </div>
-                    </div>
-                    
-                    {/* Role Badge */}
-                    <div className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded flex-shrink-0">
-                      {owner.role}
-                    </div>
-                    
-                    {/* Check mark for current */}
-                    {currentOwner?.id === owner.id && (
-                      <div className="w-4 h-4 flex items-center justify-center text-black flex-shrink-0 font-bold">
-                        ✓
-                      </div>
-                    )}
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+        ) : (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <UserPlus className="h-4 w-4" />
+            <span>Unassigned</span>
+          </div>
+        )}
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="unassigned">Unassigned</SelectItem>
+        {owners.length === 0 && !loading ? (
+          <SelectItem value="__no_owners" disabled>
+            No owners available
+          </SelectItem>
+        ) : (
+          owners.map((owner) => (
+            <SelectItem key={owner.id} value={owner.id}>
+              <span className="flex flex-col">
+                <span className="font-medium">{owner.name}</span>
+                {owner.email && (
+                  <span className="text-xs text-muted-foreground">{owner.email}</span>
+                )}
+              </span>
+            </SelectItem>
+          ))
+        )}
+      </SelectContent>
+    </Select>
   );
 }

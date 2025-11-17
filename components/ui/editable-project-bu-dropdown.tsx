@@ -19,6 +19,9 @@ import {
 import { Target, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProjectsAPI } from "@/lib/api/projects";
+import { useAuth } from "@/lib/context/auth-context";
+
+const buCache = new Map<string, BusinessUnit[]>();
 
 interface BusinessUnit {
   id: string;
@@ -39,35 +42,61 @@ export function EditableProjectBUDropdown({
   onBUChange,
   disabled = false
 }: EditableProjectBUDropdownProps) {
+  const { currentOrg } = useAuth();
+  const organizationId = currentOrg?.organization?.id;
   const [open, setOpen] = useState(false);
-  const [businessUnits, setBusinessUnits] = useState<BusinessUnit[]>([]);
+  const [businessUnits, setBusinessUnits] = useState<BusinessUnit[]>(() => {
+    if (organizationId) {
+      return buCache.get(organizationId) || [];
+    }
+    return [];
+  });
   const [loading, setLoading] = useState(false);
 
-  // AUROVITAS: Sin datos mock - Organización vacía
-  
-  useEffect(() => {
-    if (open && businessUnits.length === 0) {
-      loadBusinessUnits();
+  const loadBusinessUnits = React.useCallback(async () => {
+    if (!organizationId) {
+      setBusinessUnits([]);
+      return;
     }
-  }, [open]);
 
-  const loadBusinessUnits = async () => {
+    if (buCache.has(organizationId)) {
+      setBusinessUnits(buCache.get(organizationId)!);
+      return;
+    }
+
     try {
       setLoading(true);
-      const data = await ProjectsAPI.getBusinessUnits();
+      const data = await ProjectsAPI.getBusinessUnits(organizationId);
       setBusinessUnits(data || []);
+      buCache.set(organizationId, data || []);
     } catch (error) {
       console.error('Error loading business units:', error);
-      // AUROVITAS: No fallback, mostrar vacío
       setBusinessUnits([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [organizationId]);
+
+  useEffect(() => {
+    if (!organizationId) {
+      setBusinessUnits([]);
+      return;
+    }
+
+    const cached = buCache.get(organizationId);
+    if (cached) {
+      setBusinessUnits(cached);
+      return;
+    }
+
+    if (open || businessUnits.length === 0) {
+      loadBusinessUnits();
+    }
+  }, [organizationId, open, businessUnits.length, loadBusinessUnits]);
 
   const handleBUSelect = async (bu: BusinessUnit) => {
     try {
-      await ProjectsAPI.updateProjectBusinessUnit(projectId, bu.id);
+      await ProjectsAPI.updateProjectBusinessUnit(projectId, bu.id, organizationId || undefined);
       onBUChange(bu);
       setOpen(false);
     } catch (error) {
@@ -78,7 +107,7 @@ export function EditableProjectBUDropdown({
 
   const handleRemoveBU = async () => {
     try {
-      await ProjectsAPI.updateProjectBusinessUnit(projectId, null);
+      await ProjectsAPI.updateProjectBusinessUnit(projectId, null, organizationId || undefined);
       onBUChange(null);
       setOpen(false);
     } catch (error) {
