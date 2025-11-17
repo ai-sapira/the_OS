@@ -64,8 +64,8 @@ export async function POST(req: NextRequest) {
       .catch(() => ({ data: null }))
 
     const redirectTo = orgData?.slug
-      ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://project.sapira.ai'}/${orgData.slug}/auth/callback?organization_id=${organization_id}&role=${role}${initiative_id ? `&initiative_id=${initiative_id}` : ''}`
-      : `${process.env.NEXT_PUBLIC_APP_URL || 'https://project.sapira.ai'}/auth/callback?organization_id=${organization_id}&role=${role}${initiative_id ? `&initiative_id=${initiative_id}` : ''}`
+      ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://backofficepharo.vercel.app'}/${orgData.slug}/auth/callback?organization_id=${organization_id}&role=${role}${initiative_id ? `&initiative_id=${initiative_id}` : ''}`
+      : `${process.env.NEXT_PUBLIC_APP_URL || 'https://backofficepharo.vercel.app'}/auth/callback?organization_id=${organization_id}&role=${role}${initiative_id ? `&initiative_id=${initiative_id}` : ''}`
 
     // Use Supabase Auth native invite function
     const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
