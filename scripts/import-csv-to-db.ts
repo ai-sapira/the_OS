@@ -62,6 +62,35 @@ function parseCSVLine(line: string): string[] {
   return result
 }
 
+function mapIssueState(status?: string | null): string {
+  const normalized = (status || '').toLowerCase()
+  switch (normalized) {
+    case 'todo':
+    case 'backlog':
+    case 'to_do':
+      return 'todo'
+    case 'in_progress':
+    case 'progress':
+    case 'doing':
+      return 'in_progress'
+    case 'blocked':
+      return 'blocked'
+    case 'waiting':
+    case 'waiting_info':
+      return 'waiting_info'
+    case 'done':
+    case 'completed':
+      return 'done'
+    case 'canceled':
+    case 'cancelled':
+      return 'canceled'
+    case 'duplicate':
+      return 'duplicate'
+    default:
+      return 'triage'
+  }
+}
+
 async function importCSV(csvPath: string, orgSlug: string) {
   // Initialize Supabase client
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -141,7 +170,7 @@ async function importCSV(csvPath: string, orgSlug: string) {
             name: row.business_unit_name,
             slug: row.business_unit_slug,
             description: `Business Unit: ${row.business_unit_name}`,
-            status: 'active'
+            active: true
           }, {
             onConflict: 'slug,organization_id'
           })
@@ -246,7 +275,7 @@ async function importCSV(csvPath: string, orgSlug: string) {
           title: row.initiative_title,
           description: row.initiative_description || row.initiative_title,
           priority: row.priority || 'medium',
-          status: row.status || 'triage',
+          state: mapIssueState(row.status),
           reporter_id: reporterId,
           assignee_id: assigneeId,
           rise_score: row.rise_score ? parseInt(row.rise_score) : null,
@@ -298,4 +327,7 @@ importCSV(csvPath, orgSlug).catch(err => {
   console.error('Fatal error:', err)
   process.exit(1)
 })
+
+
+
 

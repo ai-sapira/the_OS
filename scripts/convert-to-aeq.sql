@@ -183,3 +183,6 @@ GROUP BY o.id, o.name, o.slug;
    - Ejemplo: npx tsx scripts/import-csv-to-db.ts data.csv aeq
 */
 
+
+
+

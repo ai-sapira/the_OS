@@ -159,3 +159,6 @@ El logo ya está en: /public/logos/aeq.png
 Se mostrará automáticamente cuando inicies sesión con guillermo@ o pablo@
 */
 
+
+
+
