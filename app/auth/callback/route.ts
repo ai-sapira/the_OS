@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   if (!code) {
     // If no code, redirect to client-side callback page to handle hash fragments
     // Preserve query params for organization_id, role, etc.
-    const clientCallbackUrl = new URL('/auth/callback', requestUrl.origin)
+    const clientCallbackUrl = new URL('/auth/callback-client', requestUrl.origin)
     requestUrl.searchParams.forEach((value, key) => {
       if (key !== 'code') {
         clientCallbackUrl.searchParams.set(key, value)
