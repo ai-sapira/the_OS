@@ -2,26 +2,31 @@
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { useRoles, type Role } from "@/hooks/use-roles"
-import { Shield, Crown, Building2, User } from "lucide-react"
+import { useRoles } from "@/hooks/use-roles"
+import { useAuth } from "@/lib/context/auth-context"
+import { Shield } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-const roleIcons: Record<Role, React.ComponentType<any>> = {
-  SAP: Shield,
-  CEO: Crown,
-  BU: Building2,
-  EMP: User,
+// Tipos de perfiles Sapira
+export type SapiraProfile = 'FDE' | 'ADVISORY_LEAD' | 'ACCOUNT_MANAGER' | null
+
+// Helper function to get Sapira profile label (exported for use in other components)
+export function getSapiraProfileLabel(profile: SapiraProfile | string | null | undefined): string {
+  if (!profile) return "Sapira"
+  const labels: Record<string, string> = {
+    'FDE': 'FDE',
+    'ADVISORY_LEAD': 'Advisory Lead',
+    'ACCOUNT_MANAGER': 'Account Manager',
+  }
+  return labels[profile] || profile
 }
 
-const roleColors: Record<Role, string> = {
-  SAP: "bg-gray-500/10 text-gray-700 border-gray-200 dark:bg-gray-500/20 dark:text-gray-400 dark:border-gray-800",
-  CEO: "bg-amber-500/10 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-800",
-  BU: "bg-blue-500/10 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-800",
-  EMP: "bg-green-500/10 text-green-700 border-green-200 dark:bg-green-500/20 dark:text-green-400 dark:border-green-800",
-}
+// Todos los perfiles disponibles
+const SAPIRA_PROFILES: SapiraProfile[] = ['FDE', 'ADVISORY_LEAD', 'ACCOUNT_MANAGER', null]
 
 export function RoleSwitcher() {
-  const { activeRole, switchRole, getRoleLabel, allRoles, isInitialized } = useRoles()
+  const { activeProfile, isInitialized } = useRoles()
+  const { currentOrg } = useAuth()
 
   if (!isInitialized) {
     return (
@@ -31,36 +36,18 @@ export function RoleSwitcher() {
     )
   }
 
-  const IconComponent = roleIcons[activeRole]
+  // El perfil viene directamente de user_organizations.sapira_role_type (asignado)
+  const currentProfile = activeProfile || currentOrg?.sapira_role_type || null
+  const displayLabel = getSapiraProfileLabel(currentProfile)
 
+  // Solo mostrar badge con el perfil asignado (no se puede cambiar)
   return (
-    <div className="flex items-center gap-2">
-      <Badge 
-        variant="outline" 
-        className={cn("h-8 px-3", roleColors[activeRole])}
-      >
-        <IconComponent className="h-3 w-3 mr-1.5" />
-        Viewing as {getRoleLabel(activeRole)}
-      </Badge>
-      
-      <Select value={activeRole} onValueChange={switchRole}>
-        <SelectTrigger className="w-auto h-8 border-none bg-transparent p-0 focus:ring-0 focus:ring-offset-0">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent align="end">
-          {allRoles.map((role) => {
-            const Icon = roleIcons[role]
-            return (
-              <SelectItem key={role} value={role}>
-                <div className="flex items-center gap-2">
-                  <Icon className="h-4 w-4" />
-                  <span>{getRoleLabel(role)}</span>
-                </div>
-              </SelectItem>
-            )
-          })}
-        </SelectContent>
-      </Select>
-    </div>
+    <Badge 
+      variant="outline" 
+      className="bg-gray-500/10 text-gray-700 border-gray-200 dark:bg-gray-500/20 dark:text-gray-400 dark:border-gray-800 h-8 px-3"
+    >
+      <Shield className="h-3 w-3 mr-1.5" />
+      {displayLabel}
+    </Badge>
   )
 }

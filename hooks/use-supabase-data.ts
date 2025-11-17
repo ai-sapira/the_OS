@@ -36,16 +36,20 @@ const GONVARRI_BU_INITIATIVES = {
 }
 
 // Map organizations to their mock users (for multi-org support)
-const MOCK_USERS_BY_ORG: Record<string, Record<Role, string>> = {
-  'gonvarri': GONVARRI_MOCK_USERS,
-  // Add more organizations here as needed
-  // 'aurovitas': AUROVITAS_MOCK_USERS,
-}
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
+const MOCK_USERS_BY_ORG: Record<string, Record<Role, string>> = DEMO_MODE
+  ? {
+      gonvarri: GONVARRI_MOCK_USERS,
+      // Add more organizations here as needed for demo environments
+    }
+  : {}
 
-const MOCK_BU_BY_ORG: Record<string, Record<string, string>> = {
-  'gonvarri': GONVARRI_BU_INITIATIVES,
-  // Add more organizations here as needed
-}
+const MOCK_BU_BY_ORG: Record<string, Record<string, string>> = DEMO_MODE
+  ? {
+      gonvarri: GONVARRI_BU_INITIATIVES,
+      // Add more organizations here as needed for demo environments
+    }
+  : {}
 
 export function useSupabaseData() {
   const { activeRole, isSAPUser } = useRoles()
@@ -62,7 +66,7 @@ export function useSupabaseData() {
   // Otherwise, return real authenticated user ID
   const getCurrentUser = useCallback(() => {
     // SAP users in demo mode: use mock users based on selected role
-    if (isSAPUser && activeRole !== 'SAP' && currentOrg) {
+    if (DEMO_MODE && isSAPUser && activeRole !== 'SAP' && currentOrg) {
       const orgSlug = currentOrg.organization.slug
       const mockUsers = MOCK_USERS_BY_ORG[orgSlug]
       const mockBUs = MOCK_BU_BY_ORG[orgSlug]
@@ -208,66 +212,10 @@ export function useSupabaseData() {
     }
   }, [loadTriageIssues, loadRoleIssues, loadInitiatives, loadProjects])
 
-  // Reload data when role changes
+  // Reload data when dependencies change
   useEffect(() => {
-    console.log('[useSupabaseData] useEffect triggered with activeRole:', activeRole)
-    
-    async function fetchData() {
-      setLoading(true)
-      setError(null)
-
-      try {
-        if (!currentOrg) {
-          console.warn('[useSupabaseData] No currentOrg in useEffect, skipping data load')
-          setTriageIssues([])
-          setRoleIssues([])
-          setInitiatives([])
-          setProjects([])
-          return
-        }
-
-        // Load triage issues (only for SAP, CEO, BU roles)
-        if (['SAP', 'CEO', 'BU'].includes(activeRole)) {
-          const issues = await IssuesAPI.getTriageIssues(currentOrg.organization.id)
-          setTriageIssues(issues)
-        } else {
-          setTriageIssues([])
-        }
-
-        // Load role-filtered issues
-        const { userId, initiativeId } = getCurrentUser()
-        const issues = await IssuesAPI.getIssuesByRole(currentOrg.organization.id, activeRole, userId || undefined, initiativeId || undefined)
-        setRoleIssues(issues)
-
-        // Load initiatives (filtered by role)
-        let filteredInitiatives = await InitiativesAPI.getInitiatives(currentOrg.organization.id)
-        if (activeRole === 'BU' && initiativeId) {
-          filteredInitiatives = filteredInitiatives.filter(i => i.id === initiativeId)
-        } else if (activeRole === 'EMP') {
-          filteredInitiatives = []
-        }
-        setInitiatives(filteredInitiatives)
-
-        // Load projects (filtered by role)
-        let filteredProjects = await ProjectsAPI.getProjects(currentOrg.organization.id)
-        if (activeRole === 'BU' && initiativeId) {
-          filteredProjects = filteredProjects.filter(p => 
-            p.initiative?.id === initiativeId || p.initiative_id === initiativeId
-          )
-        } else if (activeRole === 'EMP') {
-          filteredProjects = []
-        }
-        setProjects(filteredProjects)
-      } catch (err) {
-        console.error('Error loading data:', err)
-        setError('Error loading data')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [activeRole, currentOrg, getCurrentUser])  // Depend on activeRole, currentOrg and getCurrentUser
+    loadData()
+  }, [loadData])
 
   // Helper: Send notification to Teams if issue has Teams context
   const sendTeamsNotification = useCallback(async (

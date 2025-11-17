@@ -21,8 +21,13 @@ export interface InitiativeWithManager extends Initiative {
 }
 
 export class InitiativesAPI {
-  // Get all active initiatives
-  static async getInitiatives(organizationId?: string): Promise<InitiativeWithManager[]> {
+  // Get initiatives (active by default)
+  static async getInitiatives(
+    organizationId?: string,
+    options?: { includeInactive?: boolean }
+  ): Promise<InitiativeWithManager[]> {
+    const includeInactive = options?.includeInactive ?? false
+
     let query = supabase
       .from('initiatives')
       .select(`
@@ -35,8 +40,11 @@ export class InitiativesAPI {
       query = query.eq('organization_id', organizationId)
     }
 
+    if (!includeInactive) {
+      query = query.eq('active', true)
+    }
+
     const { data, error } = await query
-      .eq('active', true)
       .order('name')
 
     if (error) throw error
@@ -66,10 +74,105 @@ export class InitiativesAPI {
       .eq('id', id)
       .single()
 
-    if (error) throw error
+    if (error) {
+      if (error.code === 'PGRST116') return null // Not found
+      throw error
+    }
     if (!data) return null
 
     const counts = await this.getIssueCountsForInitiative(id)
+    
+    return {
+      ...data,
+      _count: counts
+    }
+  }
+
+  // Get initiative by slug
+  static async getInitiativeBySlug(slug: string, organizationId?: string): Promise<InitiativeWithManager | null> {
+    if (!slug) {
+      console.warn('[InitiativesAPI] getInitiativeBySlug called with empty slug');
+      return null;
+    }
+
+    // Try exact match first
+    let query = supabase
+      .from('initiatives')
+      .select(`
+        *,
+        manager:users!initiatives_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
+      `)
+      .eq('slug', slug)
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId)
+    }
+
+    let { data, error } = await query.single()
+
+    // If exact match fails, try case-insensitive search
+    if (error && error.code === 'PGRST116') {
+      console.log('[InitiativesAPI] Exact slug match failed, trying case-insensitive search');
+      
+      let caseInsensitiveQuery = supabase
+        .from('initiatives')
+        .select(`
+          *,
+          manager:users!initiatives_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
+        `)
+        .ilike('slug', slug)
+
+      if (organizationId) {
+        caseInsensitiveQuery = caseInsensitiveQuery.eq('organization_id', organizationId)
+      }
+
+      const result = await caseInsensitiveQuery
+      
+      if (result.data && result.data.length > 0) {
+        data = result.data[0]
+        error = null
+        console.log('[InitiativesAPI] Found initiative with case-insensitive match:', data.slug);
+      } else {
+        // Try to find by name if slug doesn't match
+        console.log('[InitiativesAPI] Slug not found, trying to search by name pattern');
+        const namePattern = slug.replace(/-/g, ' ').replace(/tes-1/i, 'testing the test of the test');
+        
+        let nameQuery = supabase
+          .from('initiatives')
+          .select(`
+            *,
+            manager:users!initiatives_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
+          `)
+          .ilike('name', `%${namePattern}%`)
+
+        if (organizationId) {
+          nameQuery = nameQuery.eq('organization_id', organizationId)
+        }
+
+        const nameResult = await nameQuery.limit(1)
+        
+        if (nameResult.data && nameResult.data.length > 0) {
+          data = nameResult.data[0]
+          error = null
+          console.log('[InitiativesAPI] Found initiative by name pattern:', data.name, data.slug);
+        }
+      }
+    }
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        console.warn('[InitiativesAPI] Initiative not found with slug:', slug, 'organizationId:', organizationId);
+        return null // Not found
+      }
+      console.error('[InitiativesAPI] Error fetching initiative by slug:', error);
+      throw error
+    }
+    if (!data) {
+      console.warn('[InitiativesAPI] No data returned for slug:', slug);
+      return null;
+    }
+
+    const counts = await this.getIssueCountsForInitiative(data.id)
     
     return {
       ...data,
@@ -199,22 +302,107 @@ export class InitiativesAPI {
   }
 
   // Get available users for manager assignment
+  // Includes: ALL Sapira Team users (@sapira.ai) + organization users with SAP/CEO/BU roles
   static async getAvailableManagers(organizationId?: string): Promise<InitiativeWithManager['manager'][]> {
-    let query = supabase
-      .from('users')
-      .select('id, name, email, avatar_url, role, organization_id, active, created_at, updated_at')
-      .eq('active', true)
-      .in('role', ['SAP', 'CEO', 'BU'])
-      .order('name')
+    const baseUserFields = 'id, name, email, avatar_url, role, organization_id, active, created_at, updated_at'
 
-    if (organizationId) {
-      query = query.eq('organization_id', organizationId)
+    // Fetch all Sapira Team users (all @sapira.ai users, regardless of organization)
+    const fetchSapiraUsers = async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select(baseUserFields)
+        .eq('active', true)
+        .ilike('email', '%@sapira.ai')
+        .order('name')
+
+      if (error) throw error
+      return data || []
     }
 
-    const { data, error } = await query
+    if (!organizationId) {
+      // If no organization specified, return all Sapira users + all users with SAP/CEO/BU roles
+      const [{ data: allManagers, error: allError }, sapiraUsers] = await Promise.all([
+        supabase
+          .from('users')
+          .select(baseUserFields)
+          .eq('active', true)
+          .in('role', ['SAP', 'CEO', 'BU'])
+          .order('name'),
+        fetchSapiraUsers()
+      ])
 
-    if (error) throw error
-    return data || []
+      if (allError) throw allError
+
+      // Combine and remove duplicates
+      const combined = [...(allManagers || []).map((u: any) => ({ ...u, sapira_role_type: null }))]
+      const seen = new Set(combined.map((user: any) => user.id))
+      sapiraUsers.forEach(user => {
+        if (!seen.has(user.id)) {
+          combined.push({ ...user, sapira_role_type: null } as any)
+        }
+      })
+
+      return combined.sort((a: any, b: any) => (a.name || a.email || '').localeCompare(b.name || b.email || ''))
+    }
+
+    // Fetch organization users with SAP/CEO/BU roles
+    const [{ data: orgManagers, error: orgError }, sapiraAssignments] = await Promise.all([
+      supabase
+        .from('users')
+        .select(baseUserFields)
+        .eq('active', true)
+        .eq('organization_id', organizationId)
+        .in('role', ['SAP', 'CEO', 'BU'])
+        .order('name'),
+      // Get sapira_role_type from user_organizations for Sapira users
+      supabase
+        .from('user_organizations')
+        .select(`
+          sapira_role_type,
+          users!inner (
+            ${baseUserFields}
+          )
+        `)
+        .eq('organization_id', organizationId)
+        .eq('active', true)
+        .ilike('users.email', '%@sapira.ai')
+    ])
+
+    if (orgError) throw orgError
+
+    // Build map of sapira_role_type by user ID
+    const sapiraRoleTypeMap = new Map<string, string | null>()
+    sapiraAssignments?.data?.forEach((row: any) => {
+      const userId = row.users?.id
+      if (userId) {
+        sapiraRoleTypeMap.set(userId, row.sapira_role_type || null)
+      }
+    })
+
+    // Add sapira_role_type to org managers
+    const orgManagersWithRoleType = (orgManagers || []).map((user: any) => ({
+      ...user,
+      sapira_role_type: sapiraRoleTypeMap.get(user.id) || null
+    }))
+
+    // Fetch all Sapira users and add them
+    const sapiraUsers = await fetchSapiraUsers()
+
+    // Combine organization managers with all Sapira Team users
+    const combined = [...orgManagersWithRoleType]
+    const seen = new Set(combined.map((user: any) => user.id))
+    
+    sapiraUsers.forEach(user => {
+      if (!seen.has(user.id)) {
+        combined.push({
+          ...user,
+          sapira_role_type: sapiraRoleTypeMap.get(user.id) || null
+        } as any)
+        seen.add(user.id)
+      }
+    })
+
+    return combined.sort((a: any, b: any) => (a.name || a.email || '').localeCompare(b.name || b.email || ''))
   }
 
   // Get initiative activities (for showing timeline/history)

@@ -37,8 +37,15 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
   }
 
   const handleLogout = async () => {
-    await signOut()
-    router.push('/login')
+    try {
+      await signOut()
+      // Force redirect to landing page and clear any cached state
+      window.location.href = '/'
+    } catch (error) {
+      console.error('Error during logout:', error)
+      // Force redirect even if signOut fails
+      window.location.href = '/'
+    }
   }
 
   const getUserInitials = () => {
@@ -64,19 +71,23 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
       <div className="flex items-center gap-3">
         {/* Organization Logo and Name */}
         <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md bg-white border border-gray-200">
-          {currentOrg?.organization.slug && (
+          {currentOrg?.organization.logo_url ? (
             <Image 
-              src={`/logos/${currentOrg.organization.slug}.jpg`}
+              src={currentOrg.organization.logo_url}
               alt={`${currentOrg.organization.name} Logo`}
               width={18} 
               height={18}
               className="object-contain"
               onError={(e) => {
-                // Fallback to placeholder if logo not found
-                e.currentTarget.src = '/placeholder-logo.svg'
+                // Hide image on error, show initials instead
+                e.currentTarget.style.display = 'none'
               }}
             />
-          )}
+          ) : currentOrg?.organization.name ? (
+            <div className="w-[18px] h-[18px] rounded flex items-center justify-center bg-gray-100 text-[10px] font-semibold text-gray-700">
+              {currentOrg.organization.name.substring(0, 2).toUpperCase()}
+            </div>
+          ) : null}
           <span className="text-[11px] font-normal text-black">
             {currentOrg?.organization.name || 'Organización'}
           </span>

@@ -147,6 +147,28 @@ export class IssuesAPI {
     return this.transformIssuesWithLabels(data || [])
   }
 
+  // Get issues scoped to a specific project
+  static async getIssuesByProject(organizationId: string, projectId: string): Promise<IssueWithRelations[]> {
+    const { data, error } = await supabase
+      .from('issues')
+      .select(`
+        *,
+        initiative:initiatives(*),
+        project:projects(*),
+        assignee:users!issues_assignee_id_fkey(id, name, email, avatar_url),
+        reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url),
+        labels:issue_labels(label_id, labels(*))
+      `)
+      .eq('organization_id', organizationId)
+      .eq('project_id', projectId)
+      .neq('state', 'triage')
+      .neq('state', 'canceled')
+      .order('updated_at', { ascending: false })
+
+    if (error) throw error
+    return this.transformIssuesWithLabels(data || [])
+  }
+
   // Create new issue
   static async createIssue(organizationId: string, issueData: CreateIssueData): Promise<Issue> {
     const { labels, ...issueFields } = issueData
@@ -440,21 +462,118 @@ export class IssuesAPI {
   }
 
   // Get available users for filters (reporters and assignees)
+  // Includes both organization users and Sapira team members assigned to the organization
   static async getAvailableUsers(organizationId?: string) {
-    let query = supabase
-      .from('users')
-      .select('id, name, email, avatar_url, role')
-      .eq('active', true)
-      .order('name')
+    const baseUserFields = 'id, name, email, avatar_url, role, organization_id, active, created_at, updated_at'
 
-    if (organizationId) {
-      query = query.eq('organization_id', organizationId)
+    const fetchSapiraUsers = async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select(baseUserFields)
+        .eq('active', true)
+        .ilike('email', '%@sapira.ai')
+        .order('name')
+
+      if (error) throw error
+      return data || []
     }
 
-    const { data, error } = await query
+    if (!organizationId) {
+      const [{ data: allUsers, error: allError }, sapiraUsers] = await Promise.all([
+        supabase
+          .from('users')
+          .select(baseUserFields)
+          .eq('active', true)
+          .order('name'),
+        fetchSapiraUsers()
+      ])
 
-    if (error) throw error
-    return data || []
+      if (allError) throw allError
+
+      const combined = [...(allUsers || [])]
+      const seen = new Set(combined.map(user => user.id))
+      sapiraUsers.forEach(user => {
+        if (!seen.has(user.id)) {
+          combined.push(user as any)
+        }
+      })
+
+      return combined
+    }
+
+    const [{ data: orgUsers, error: orgError }, sapiraAssignmentsResult] = await Promise.all([
+      supabase
+        .from('users')
+        .select(baseUserFields)
+        .eq('active', true)
+        .eq('organization_id', organizationId)
+        .order('name'),
+      // Fetch sapira role types separately to avoid complex join issues
+      supabase
+        .from('user_organizations')
+        .select('sapira_role_type, user_id')
+        .eq('organization_id', organizationId)
+        .eq('active', true)
+        .not('user_id', 'is', null)
+    ])
+
+    if (orgError) throw orgError
+
+    // Handle sapiraAssignments error gracefully
+    let sapiraAssignments: any[] = []
+    if (sapiraAssignmentsResult?.error) {
+      console.warn('[IssuesAPI] Error fetching sapira assignments:', sapiraAssignmentsResult.error)
+      // If there's an error, set to empty array
+      sapiraAssignments = []
+    } else if (sapiraAssignmentsResult?.data) {
+      // Ensure it's an array
+      sapiraAssignments = Array.isArray(sapiraAssignmentsResult.data) 
+        ? sapiraAssignmentsResult.data 
+        : []
+    }
+
+    const sapiraRoleType = new Map<string, string | null>()
+    if (sapiraAssignments.length > 0) {
+      // Get user IDs from sapira assignments and fetch their emails
+      const sapiraUserIds = sapiraAssignments.map((row: any) => row.user_id).filter(Boolean)
+      
+      if (sapiraUserIds.length > 0) {
+        // Fetch users to check if they're Sapira users
+        const { data: sapiraUsersData } = await supabase
+          .from('users')
+          .select('id, email')
+          .in('id', sapiraUserIds)
+          .ilike('email', '%@sapira.ai')
+        
+        const sapiraUserIdsSet = new Set((sapiraUsersData || []).map((u: any) => u.id))
+        
+        sapiraAssignments.forEach((row: any) => {
+          const userId = row.user_id
+          if (userId && sapiraUserIdsSet.has(userId)) {
+            sapiraRoleType.set(userId, row.sapira_role_type || null)
+          }
+        })
+      }
+    }
+
+    const combinedUsers = (orgUsers || []).map(user => ({
+      ...user,
+      sapira_role_type: sapiraRoleType.get(user.id) || null
+    }))
+    const seenIds = new Set(combinedUsers.map(user => user.id))
+
+    const sapiraGlobals = await fetchSapiraUsers()
+    sapiraGlobals.forEach(user => {
+      if (!seenIds.has(user.id)) {
+        combinedUsers.push({
+          ...user,
+          sapira_role_type: sapiraRoleType.get(user.id) || null
+        } as any)
+        seenIds.add(user.id)
+      }
+    })
+
+    return combinedUsers.sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || ''))
   }
 
   // Get available projects for filters

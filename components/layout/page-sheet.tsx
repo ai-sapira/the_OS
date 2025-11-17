@@ -26,7 +26,10 @@ export function PageSheet({ children, header, toolbar }: PageSheetProps) {
           className="sticky top-0 z-30"
           style={{
             height: 'var(--header-h)',
-            borderBottom: '1px solid var(--stroke-layout)'
+            borderBottom: '1px solid var(--stroke-layout)',
+            marginLeft: 'calc(-1 * 1px)',
+            marginRight: 'calc(-1 * 1px)',
+            width: 'calc(100% + 2px)'
           }}
         >
           {header}
@@ -40,7 +43,10 @@ export function PageSheet({ children, header, toolbar }: PageSheetProps) {
           style={{
             top: header ? 'var(--header-h)' : '0',
             height: 'var(--toolbar-h)',
-            borderBottom: '1px solid var(--stroke-layout)'
+            borderBottom: '1px solid var(--stroke-layout)',
+            marginLeft: 'calc(-1 * 1px)',
+            marginRight: 'calc(-1 * 1px)',
+            width: 'calc(100% + 2px)'
           }}
         >
           {toolbar}

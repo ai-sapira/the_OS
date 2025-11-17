@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { useRoles, type SidebarItem, type Role } from "@/hooks/use-roles"
 import { useSupabaseData } from "@/hooks/use-supabase-data"
 import { useAuth } from "@/lib/context/auth-context"
+import { useOrgAdmin } from "@/hooks/use-org-admin"
 import { useState, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
@@ -33,6 +34,7 @@ import {
   Circle,
   ClipboardList,
   Handshake,
+  LogOut,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -70,11 +72,11 @@ export function Sidebar({
   onToggleCollapse 
 }: SidebarProps) {
   const pathname = usePathname()
-  const { getVisibleSidebarItems, canView, can, getFilterPreset, activeRole, switchRole, getRoleLabel, allRoles } = useRoles()
+  const { getVisibleSidebarItems, canView, can, getFilterPreset, activeRole, getRoleLabel, allRoles } = useRoles()
   const { triageCount } = useSupabaseData()
-  const { currentOrg, user } = useAuth()
+  const { currentOrg, user, signOut } = useAuth()
+  const { isOrgAdmin } = useOrgAdmin()
   const [expandedSections, setExpandedSections] = useState<string[]>(["projects"])
-  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev => 
@@ -84,41 +86,29 @@ export function Sidebar({
     )
   }
 
+  // Role switching is no longer supported - roles are fixed from the database
+  // This function is kept for compatibility but does nothing
   const handleRoleChange = async (newRole: Role) => {
-    setIsRefreshing(true)
-    
-    // Fade out effect
-    const appElement = document.querySelector('body')
-    if (appElement) {
-      appElement.style.transition = 'opacity 300ms ease-out'
-      appElement.style.opacity = '0.7'
-    }
-    
-    // Wait for fade effect
-    await new Promise(resolve => setTimeout(resolve, 150))
-    
-    // Switch role
-    switchRole(newRole)
-    
-    // Wait a bit more for state updates
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    // Fade back in
-    if (appElement) {
-      appElement.style.opacity = '1'
-      setTimeout(() => {
-        appElement.style.transition = ''
-        setIsRefreshing(false)
-      }, 300)
-    }
+    // Roles are fixed and cannot be changed
+    // This is a legacy function that no longer has functionality
+    console.warn('Role switching is no longer supported. Roles are fixed from the database.')
   }
 
   // Group items by section
   const sidebarItems = getVisibleSidebarItems()
-  const globalItems = sidebarItems.filter(item => item.section === "global")
-  const workspaceItems = sidebarItems.filter(item => item.section === "workspace")
-  const contextItems = sidebarItems.filter(item => item.section === "context")
-  const footerItems = sidebarItems.filter(item => item.section === "footer")
+  
+  // Filter "users" item to only show for org admins
+  const filteredSidebarItems = sidebarItems.filter(item => {
+    if (item.id === "users") {
+      return isOrgAdmin
+    }
+    return true
+  })
+  
+  const globalItems = filteredSidebarItems.filter(item => item.section === "global")
+  const workspaceItems = filteredSidebarItems.filter(item => item.section === "workspace")
+  const contextItems = filteredSidebarItems.filter(item => item.section === "context")
+  const footerItems = filteredSidebarItems.filter(item => item.section === "footer")
 
 
 
@@ -128,6 +118,32 @@ export function Sidebar({
     const hasChildren = item.children && item.children.length > 0
     const isExpanded = expandedSections.includes(item.id)
 
+    // Base classes for all sidebar items with enhanced transitions
+    const baseItemClasses = cn(
+      "w-full justify-start h-8 px-2 relative group",
+      "transition-all duration-200 ease-out",
+      "hover:translate-x-0.5 hover:shadow-lg hover:z-10",
+      "hover:scale-[1.02]",
+      "hover:my-1",
+      "active:scale-[0.98] active:transition-transform active:duration-75",
+      isCollapsed ? "px-2" : "px-2",
+      isChild && "ml-6 h-7 text-sm"
+    )
+
+    // Active state with enhanced styling
+    const activeClasses = cn(
+      "bg-sidebar-accent text-sidebar-accent-foreground",
+      "shadow-sm border-l-2 border-primary",
+      "font-medium"
+    )
+
+    // Hover state with smooth transitions
+    const hoverClasses = cn(
+      "text-sidebar-foreground",
+      "hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground",
+      "hover:shadow-md hover:border-l-2 hover:border-primary/50",
+      "border-l-2 border-transparent"
+    )
 
     // Special handling for Triage with count
     if (item.id === "triage") {
@@ -136,18 +152,18 @@ export function Sidebar({
           <Button
             variant={isActive ? "secondary" : "ghost"}
             className={cn(
-              "w-full justify-start h-8 px-2",
-              isCollapsed ? "px-2" : "px-2",
-              isActive
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              baseItemClasses,
+              isActive ? activeClasses : hoverClasses
             )}
           >
-            <Icon className="h-4 w-4 mr-2 shrink-0" />
+            <Icon className={cn(
+              "h-4 w-4 mr-2 shrink-0 transition-transform duration-200",
+              isActive ? "scale-110" : "group-hover:scale-110"
+            )} />
             {!isCollapsed && (
               <>
-                <span className="flex-1 text-left">{item.label}</span>
-                <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                <span className="flex-1 text-left transition-all duration-200">{item.label}</span>
+                <Badge variant="secondary" className="h-5 px-1.5 text-xs transition-all duration-200 group-hover:scale-105">
                   {triageCount}
                 </Badge>
               </>
@@ -180,16 +196,16 @@ export function Sidebar({
           <Button
             variant={isActive ? "secondary" : "ghost"}
             className={cn(
-              "w-full justify-start h-8 px-2",
-              isCollapsed ? "px-2" : "px-2",
-              isActive
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              baseItemClasses,
+              isActive ? activeClasses : hoverClasses
             )}
           >
-            <Icon className="h-4 w-4 mr-2 shrink-0" />
+            <Icon className={cn(
+              "h-4 w-4 mr-2 shrink-0 transition-transform duration-200",
+              isActive ? "scale-110" : "group-hover:scale-110"
+            )} />
             {!isCollapsed && (
-              <span className="flex-1 text-left">{getUserName()}</span>
+              <span className="flex-1 text-left transition-all duration-200">{getUserName()}</span>
             )}
           </Button>
         </Link>
@@ -203,16 +219,17 @@ export function Sidebar({
           <Button
             variant={isActive ? "secondary" : "ghost"}
             className={cn(
-              "w-full justify-start h-8 px-2",
-              isCollapsed ? "px-2" : "px-2",
-              isChild && "ml-6 h-7 text-sm",
-              isActive
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              baseItemClasses,
+              isActive ? activeClasses : hoverClasses
             )}
           >
-            <Icon className="h-4 w-4 mr-2 shrink-0" />
-            {!isCollapsed && <span className="flex-1 text-left">{item.label}</span>}
+            <Icon className={cn(
+              "h-4 w-4 mr-2 shrink-0 transition-transform duration-200",
+              isActive ? "scale-110" : "group-hover:scale-110"
+            )} />
+            {!isCollapsed && (
+              <span className="flex-1 text-left transition-all duration-200">{item.label}</span>
+            )}
           </Button>
         </Link>
       )
@@ -226,7 +243,7 @@ export function Sidebar({
     if (isCollapsed) return null
     
     return (
-      <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 mb-2">
+      <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 mb-2 transition-opacity duration-200">
         {title}
       </h3>
     )
@@ -249,29 +266,27 @@ export function Sidebar({
       )}
       style={{ background: 'var(--bg-app)' }}
     >
-      {/* Loading overlay */}
-      {isRefreshing && (
-        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-            Switching role...
-          </div>
-        </div>
-      )}
       {/* Logo - Above Role Selector */}
-      {!isCollapsed && currentOrg?.organization.slug && (
+      {!isCollapsed && currentOrg?.organization && (
         <div className="flex h-[52px] items-center px-4 border-b border-border">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-gray-200">
-            <Image 
-              src={`/logos/${currentOrg.organization.slug}.jpg?v=2`}
-              alt={`${currentOrg.organization.name} Logo`}
-              width={90} 
-              height={28}
-              className="object-contain"
-              onError={(e) => {
-                e.currentTarget.src = '/placeholder-logo.svg'
-              }}
-            />
+            {currentOrg.organization.logo_url ? (
+              <Image 
+                src={currentOrg.organization.logo_url}
+                alt={`${currentOrg.organization.name} Logo`}
+                width={90} 
+                height={28}
+                className="object-contain"
+                onError={(e) => {
+                  // Hide image on error, show initials instead
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
+            ) : (
+              <div className="h-7 flex items-center justify-center px-2 bg-gray-100 rounded text-xs font-semibold text-gray-700">
+                {currentOrg.organization.name.substring(0, 2).toUpperCase()}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -280,17 +295,17 @@ export function Sidebar({
       <div className="flex h-12 items-center justify-between px-3 py-2">
         {!isCollapsed ? (
           <div className="flex items-center flex-1 ml-1">
-            <Select value={activeRole} onValueChange={handleRoleChange} disabled={isRefreshing}>
-              <SelectTrigger className="border-none bg-transparent p-0 h-8 focus:ring-0 font-semibold text-sidebar-foreground hover:bg-gray-100 rounded-md px-2 flex items-center gap-2 justify-start">
+            <Select value={activeRole} onValueChange={handleRoleChange} disabled={true}>
+              <SelectTrigger className="border-none bg-transparent p-0 h-8 focus:ring-0 font-semibold text-sidebar-foreground hover:bg-gray-100 rounded-md px-2 flex items-center gap-2 justify-start transition-all duration-200 hover:shadow-sm active:scale-[0.98]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="start">
                 {allRoles.map((role) => {
                   const Icon = iconMap[role === "SAP" ? "Shield" : role === "CEO" ? "Crown" : role === "BU" ? "Building2" : "User"]
                   return (
-                    <SelectItem key={role} value={role}>
+                    <SelectItem key={role} value={role} className="transition-colors duration-150">
                       <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4" />
+                        <Icon className="h-4 w-4 transition-transform duration-200" />
                         <span>{getRoleLabel(role)}</span>
                       </div>
                     </SelectItem>
@@ -303,7 +318,7 @@ export function Sidebar({
           <div className="flex items-center justify-center w-full">
             {(() => {
               const Icon = iconMap[activeRole === "SAP" ? "Shield" : activeRole === "CEO" ? "Crown" : activeRole === "BU" ? "Building2" : "User"]
-              return <Icon className="h-4 w-4" />
+              return <Icon className="h-4 w-4 transition-transform duration-200" />
             })()}
           </div>
         )}
@@ -314,20 +329,20 @@ export function Sidebar({
             <Button 
               variant="ghost" 
               size="sm" 
-              className="h-7 w-7 p-0"
+              className="h-7 w-7 p-0 transition-all duration-200 hover:scale-110 hover:bg-sidebar-accent active:scale-95"
               onClick={onOpenCommandPalette}
               title="Buscar (⌘K)"
             >
-              <Search className="h-3.5 w-3.5" />
+              <Search className="h-3.5 w-3.5 transition-transform duration-200" />
             </Button>
             <Button 
               variant="ghost" 
               size="sm" 
-              className="h-7 w-7 p-0"
+              className="h-7 w-7 p-0 transition-all duration-200 hover:scale-110 hover:bg-sidebar-accent active:scale-95"
               onClick={onToggleCollapse}
               title="Configuración"
             >
-              <Settings className="h-3.5 w-3.5" />
+              <Settings className="h-3.5 w-3.5 transition-transform duration-200" />
             </Button>
           </div>
         )}
@@ -336,10 +351,10 @@ export function Sidebar({
           <Button 
             variant="ghost" 
             size="sm" 
-            className="h-7 w-7 p-0"
+            className="h-7 w-7 p-0 transition-all duration-200 hover:scale-110 hover:bg-sidebar-accent active:scale-95"
             onClick={onToggleCollapse}
           >
-            <ChevronRight className="h-3.5 w-3.5" />
+            <ChevronRight className="h-3.5 w-3.5 transition-transform duration-200" />
           </Button>
         )}
       </div>
@@ -358,7 +373,7 @@ export function Sidebar({
         {globalItems.length > 0 && (
           <div className="px-4 pb-4">
             {renderSectionHeader("Global", isCollapsed)}
-            <div className="space-y-1">
+            <div className="space-y-1 group/item-list">
               {globalItems.map(item => renderSidebarItem(item))}
             </div>
           </div>
@@ -368,7 +383,7 @@ export function Sidebar({
         {workspaceItems.length > 0 && (
           <div className="px-4 pb-4">
             {renderSectionHeader("Workspace", isCollapsed)}
-          <div className="space-y-1">
+          <div className="space-y-1 group/item-list">
               {workspaceItems.map(item => renderSidebarItem(item))}
             </div>
           </div>
@@ -378,7 +393,7 @@ export function Sidebar({
         {contextItems.length > 0 && (
         <div className="px-4 pb-4">
             {renderSectionHeader("Quick Access", isCollapsed)}
-          <div className="space-y-1">
+          <div className="space-y-1 group/item-list">
               {contextItems.map(item => renderSidebarItem(item))}
               </div>
           </div>
@@ -388,9 +403,43 @@ export function Sidebar({
       {/* Footer */}
       {footerItems.length > 0 && (
         <div className="px-4 py-3">
-          <div className="space-y-1">
+          <div className="space-y-1 group/item-list">
             {footerItems.map(item => renderSidebarItem(item))}
           </div>
+        </div>
+      )}
+
+      {/* Logout Button */}
+      {user && (
+        <div className="px-4 py-3 border-t border-border">
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full justify-start h-8 px-2 text-red-600 group",
+              "transition-all duration-200 ease-out",
+              "hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950",
+              "hover:translate-x-0.5 hover:shadow-sm",
+              "active:scale-[0.98] active:transition-transform active:duration-75",
+              isCollapsed && "justify-center"
+            )}
+            onClick={async () => {
+              try {
+                await signOut()
+                window.location.href = '/'
+              } catch (error) {
+                console.error('Error during logout:', error)
+                window.location.href = '/'
+              }
+            }}
+          >
+            <LogOut className={cn(
+              "h-4 w-4 mr-2 shrink-0 transition-transform duration-200",
+              "group-hover:scale-110"
+            )} />
+            {!isCollapsed && (
+              <span className="flex-1 text-left transition-all duration-200">Cerrar sesión</span>
+            )}
+          </Button>
         </div>
       )}
     </div>

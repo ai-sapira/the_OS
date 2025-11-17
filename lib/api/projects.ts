@@ -1,5 +1,6 @@
 import { supabase } from '../supabase/client'
 import { Project, ProjectStatus, Database } from '../database/types'
+import { IssuesAPI } from './issues'
 
 export interface ProjectWithRelations extends Project {
   owner?: Database['public']['Tables']['users']['Row']
@@ -257,21 +258,10 @@ export class ProjectsAPI {
   }
 
   // Get available users for owner assignment
+  // Includes both organization users and Sapira team members assigned to the organization
   static async getAvailableUsers(organizationId?: string): Promise<any[]> {
-    let query = supabase
-      .from('users')
-      .select('id, name, email, avatar_url, role')
-      .eq('active', true)
-      .order('name')
-
-    if (organizationId) {
-      query = query.eq('organization_id', organizationId)
-    }
-    
-    const { data, error } = await query
-    
-    if (error) throw error
-    return data || []
+    // Use the same logic as IssuesAPI.getAvailableUsers
+    return await IssuesAPI.getAvailableUsers(organizationId)
   }
 
   // Get available business units

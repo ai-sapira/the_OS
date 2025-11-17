@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Building2, Target, Users, ArrowDown, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/lib/context/auth-context'
+import Image from 'next/image'
 
 interface OrganizationChartProps {
   data: OrgPerson[]
@@ -72,6 +74,8 @@ function PersonCard({ person, compact = false }: { person: OrgPerson; compact?: 
 }
 
 export function OrganizationChart({ data, view }: OrganizationChartProps) {
+  const { currentOrg } = useAuth()
+  
   // Organize data by layer and side
   const organized = useMemo(() => {
     const sapiraStrategy = data.filter(p => p.side === 'sapira' && p.layer === 'strategy')
@@ -121,7 +125,19 @@ export function OrganizationChart({ data, view }: OrganizationChartProps) {
             <div>
               <div className="bg-black text-white p-2 text-center rounded-t-lg mb-2 flex items-center justify-center gap-2">
                 <h2 className="text-base font-bold">Gonvarri</h2>
-                <img src="/placeholder-logo.png" alt="Gonvarri" className="h-6 w-6 rounded-full bg-white" />
+                {currentOrg?.organization.logo_url ? (
+                  <Image 
+                    src={currentOrg.organization.logo_url}
+                    alt={`${currentOrg.organization.name} Logo`}
+                    width={24}
+                    height={24}
+                    className="h-6 w-6 rounded-full bg-white object-contain"
+                  />
+                ) : (
+                  <div className="h-6 w-6 rounded-full bg-white flex items-center justify-center text-[10px] font-semibold text-gray-700">
+                    {currentOrg?.organization.name?.substring(0, 2).toUpperCase() || 'GO'}
+                  </div>
+                )}
               </div>
               <div className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-3">
                 <div className="bg-black text-white p-2 text-center rounded-md mb-2">

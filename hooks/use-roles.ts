@@ -184,59 +184,40 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
     roles: ["SAP", "CEO", "BU", "EMP"],
     section: "footer",
   },
+  // Org Admin section (visible to org admins only)
+  {
+    id: "users",
+    label: "Gestión de usuarios",
+    icon: "Users",
+    href: "/users",
+    roles: ["SAP", "CEO"], // Will be filtered by is_org_admin check
+    section: "workspace",
+  },
 ]
 
+// Import SapiraProfile type from role-switcher
+export type SapiraProfile = 'FDE' | 'ADVISORY_LEAD' | 'ACCOUNT_MANAGER' | null
+
 export function useRoles() {
-  const [demoRole, setDemoRole] = useState<Role | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
   const searchParams = useSearchParams()
   
   // Get auth context - we need this to check if user is SAP and get their real role
   const { currentOrg, isSAPUser } = useAuth()
 
-  // Active role logic:
-  // - SAP users can switch roles (demo mode) when demoRole is set
-  // - Non-SAP users OR SAP users without demoRole always see their real role
-  const activeRole = isSAPUser && demoRole 
-    ? demoRole 
-    : (currentOrg?.role || 'EMP')
+  // For SAP users: role is always SAP, profile comes from user_organizations.sapira_role_type
+  // For non-SAP users: use their real role
+  const activeRole: Role = isSAPUser ? 'SAP' : (currentOrg?.role || 'EMP')
+  
+  // Active profile is always the assigned one from user_organizations (no switching)
+  const activeProfile: SapiraProfile = isSAPUser && currentOrg 
+    ? (currentOrg.sapira_role_type || null)
+    : null
 
-  // Initialize role from localStorage (only for SAP users)
+  // Initialize
   useEffect(() => {
-    if (typeof window === "undefined") return
-    
-    // Only restore demo role if user is SAP
-    if (isSAPUser && currentOrg) {
-      const orgId = currentOrg.organization.id
-      const storedRole = localStorage.getItem(`os.demoRole.${orgId}`) as Role
-      
-      if (storedRole && ["SAP", "CEO", "BU", "EMP"].includes(storedRole)) {
-        setDemoRole(storedRole)
-      }
-    } else {
-      // Non-SAP users: clear any demo role
-      setDemoRole(null)
-    }
-    
     setIsInitialized(true)
-  }, [isSAPUser, currentOrg])
-
-  // Switch role - only allowed for SAP users
-  const switchRole = (role: Role) => {
-    if (!isSAPUser) {
-      console.warn('Role switching is only available for SAP users')
-      return
-    }
-    
-    if (!currentOrg) {
-      console.warn('No organization selected')
-      return
-    }
-    
-    setDemoRole(role)
-    // Persist demo role per organization
-    localStorage.setItem(`os.demoRole.${currentOrg.organization.id}`, role)
-  }
+  }, [currentOrg])
 
   // Check if user has permission
   const can = (permission: string): boolean => {
@@ -274,7 +255,7 @@ export function useRoles() {
 
   return {
     activeRole,
-    switchRole,
+    activeProfile, // For SAP users: assigned profile from user_organizations.sapira_role_type
     can,
     canView,
     getVisibleSidebarItems,
