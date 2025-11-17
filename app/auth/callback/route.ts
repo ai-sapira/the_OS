@@ -60,8 +60,7 @@ export async function GET(req: NextRequest) {
     .from("users")
     .select("id")
     .eq("auth_user_id", authUserId)
-    .single()
-    .catch(() => ({ data: null }))
+    .maybeSingle()
 
   // Get invitation metadata to retrieve sapira_role_type if exists (before creating user_organizations)
   const { data: invitation } = await admin
@@ -71,7 +70,6 @@ export async function GET(req: NextRequest) {
     .eq("organization_id", orgId)
     .is("accepted_at", null)
     .maybeSingle()
-    .catch(() => ({ data: null }))
 
   const sapiraRoleType = invitation?.sapira_role_type || null
 
@@ -92,7 +90,8 @@ export async function GET(req: NextRequest) {
   }
 
   // Create user_organizations entry
-  const { error: orgError } = await admin
+  let orgError = null
+  const { error: insertOrgError } = await admin
     .from("user_organizations")
     .insert({
       auth_user_id: authUserId,
@@ -102,42 +101,44 @@ export async function GET(req: NextRequest) {
       sapira_role_type: userRole === "SAP" ? sapiraRoleType : null,
       active: true,
     })
-    .catch(async (err) => {
-      // If duplicate, update existing
-      if (err.code === "23505") {
-        return await admin
-          .from("user_organizations")
-          .update({
-            active: true,
-            role: userRole,
-            sapira_role_type: userRole === "SAP" ? sapiraRoleType : null,
-          })
-          .eq("auth_user_id", authUserId)
-          .eq("organization_id", orgId)
-      }
-      return { error: err }
-    })
+
+  if (insertOrgError?.code === "23505") {
+    const { error: updateOrgError } = await admin
+      .from("user_organizations")
+      .update({
+        active: true,
+        role: userRole,
+        sapira_role_type: userRole === "SAP" ? sapiraRoleType : null,
+      })
+      .eq("auth_user_id", authUserId)
+      .eq("organization_id", orgId)
+    orgError = updateOrgError
+  } else {
+    orgError = insertOrgError
+  }
 
   if (orgError) {
     console.error("Error creating user_organization:", orgError)
   }
 
   // Mark invitation as accepted if exists
-  await admin
+  const { error: invitationUpdateError } = await admin
     .from("user_invitations")
     .update({ accepted_at: new Date().toISOString() })
     .eq("email", sessionData.session.user.email?.toLowerCase())
     .eq("organization_id", orgId)
     .is("accepted_at", null)
-    .catch(() => null) // Ignore errors
+
+  if (invitationUpdateError) {
+    console.warn("[auth/callback] Error updating invitation:", invitationUpdateError)
+  }
 
   // Get organization slug for redirect
   const { data: orgData } = await admin
     .from("organizations")
     .select("slug")
     .eq("id", orgId)
-    .single()
-    .catch(() => ({ data: null }))
+    .maybeSingle()
 
   // Redirect to app (or organization-specific route if slug exists)
   const redirectPath = orgData?.slug ? `/${orgData.slug}` : "/"
