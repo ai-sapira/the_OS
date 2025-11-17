@@ -1,15 +1,30 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { Database } from '../database/types'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+let supabaseClient: ReturnType<typeof createBrowserClient<Database>> | null = null
 
-if (!supabaseUrl) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_URL is not defined')
+function getSupabaseClient() {
+  if (supabaseClient) {
+    return supabaseClient
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL is not defined')
+  }
+
+  if (!supabaseAnonKey) {
+    throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is not defined')
+  }
+
+  supabaseClient = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
+  return supabaseClient
 }
 
-if (!supabaseAnonKey) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is not defined')
-}
-
-export const supabase = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
+export const supabase = new Proxy({} as ReturnType<typeof createBrowserClient<Database>>, {
+  get(_target, prop) {
+    return getSupabaseClient()[prop as keyof ReturnType<typeof createBrowserClient<Database>>]
+  }
+})
