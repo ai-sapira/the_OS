@@ -149,3 +149,6 @@ FROM auth.users WHERE email = 'adolfo@sapira.ai';
 
 **¿Listo para ejecutar?** → Ve al **Paso 1** arriba ⬆️
 
+
+
+

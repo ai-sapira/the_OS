@@ -200,3 +200,6 @@ Una vez importados los datos:
 4. Asigna usuarios adicionales si es necesario
 5. Ajusta prioridades y estados según evolucione el trabajo
 
+
+
+
