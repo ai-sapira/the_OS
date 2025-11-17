@@ -9,12 +9,15 @@ interface Organization {
   id: string
   name: string
   slug: string
+  logo_url?: string | null
+  settings?: Record<string, any> | null
 }
 
 interface UserOrganization {
   organization: Organization
   role: Role
   initiative_id: string | null
+  sapira_role_type?: 'FDE' | 'ADVISORY_LEAD' | 'ACCOUNT_MANAGER' | null
 }
 
 interface AuthContextType {
@@ -105,8 +108,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // Use API route instead of direct Supabase query
       console.log('[AuthProvider] Calling API route...')
-      
-      const response = await fetch(`/api/user/organizations?userId=${authUserId}`)
+      const response = await fetch('/api/user/organizations', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+        cache: 'no-store',
+      })
       
       console.log('[AuthProvider] Response status:', response.status, response.statusText)
       console.log('[AuthProvider] Response headers:', Object.fromEntries(response.headers.entries()))
@@ -116,11 +124,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('[AuthProvider] Response text (first 200 chars):', responseText.substring(0, 200))
       
       // Try to parse as JSON
-      let data, error
+      let data, error, defaultOrgId
       try {
         const parsed = JSON.parse(responseText)
         data = parsed.data
         error = parsed.error
+        defaultOrgId = parsed.defaultOrganizationId || null
       } catch (parseError) {
         console.error('[AuthProvider] Failed to parse response as JSON:', parseError)
         console.error('[AuthProvider] Full response:', responseText)
@@ -151,20 +160,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const orgs = (data || []).map((item: any) => ({
         organization: item.organizations as Organization,
         role: item.role as Role,
-        initiative_id: item.initiative_id
+        initiative_id: item.initiative_id,
+        sapira_role_type: item.sapira_role_type || null
       })).filter((org: any) => org.organization) // Filter out any without organization data
 
       console.log('[AuthProvider] Mapped organizations:', orgs)
       setUserOrgs(orgs)
 
-      // If user only has one organization, ALWAYS auto-select it (ignore localStorage)
-      if (orgs.length === 1) {
+      // Check if we're on the select-org page - if so, don't auto-select
+      const isOnSelectOrgPage = typeof window !== 'undefined' && window.location.pathname.startsWith('/select-org')
+
+      // Check if there is a pending slug to select (set during login/signup)
+      const pendingSlug = typeof window !== 'undefined' ? localStorage.getItem('sapira.pendingOrgSlug') : null
+      if (pendingSlug) {
+        const pendingOrg = orgs.find(
+          (o: any) => o.organization?.slug?.toLowerCase() === pendingSlug.toLowerCase()
+        )
+        if (pendingOrg) {
+          console.log('[AuthProvider] Selecting pending org from slug:', pendingSlug)
+          setCurrentOrg(pendingOrg)
+          localStorage.setItem('sapira.currentOrg', pendingOrg.organization.id)
+        }
+        localStorage.removeItem('sapira.pendingOrgSlug')
+      }
+
+      // Don't auto-select if user is on select-org page (they need to choose)
+      if (!pendingSlug && !isOnSelectOrgPage && orgs.length === 1) {
         console.log('[AuthProvider] Auto-selecting single org:', orgs[0].organization.name)
         setCurrentOrg(orgs[0])
         localStorage.setItem('sapira.currentOrg', orgs[0].organization.id)
-      } 
-      // If user has multiple orgs, try to restore from localStorage
-      else if (orgs.length > 1) {
+      }
+      else if (!pendingSlug && !isOnSelectOrgPage && defaultOrgId) {
+        const defaultOrg = orgs.find((o: any) => o.organization?.id === defaultOrgId)
+        if (defaultOrg) {
+          console.log('[AuthProvider] Selecting default org from user profile:', defaultOrg.organization.name)
+          setCurrentOrg(defaultOrg)
+          localStorage.setItem('sapira.currentOrg', defaultOrg.organization.id)
+        }
+      }
+      else if (!pendingSlug && !isOnSelectOrgPage && orgs.length > 1) {
         const savedOrgId = localStorage.getItem('sapira.currentOrg')
         const savedOrg = orgs.find((o: any) => o.organization?.id === savedOrgId)
 
@@ -173,8 +207,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setCurrentOrg(savedOrg)
         } else {
           console.log('[AuthProvider] Multiple orgs, waiting for user selection')
-          // Don't auto-select, let user choose via /select-org
         }
+      }
+      else if (isOnSelectOrgPage) {
+        console.log('[AuthProvider] On select-org page, waiting for user to choose organization')
       }
 
     } catch (err) {
@@ -188,23 +224,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const selectOrganization = (orgId: string) => {
+  const selectOrganization = async (orgId: string) => {
     const org = userOrgs.find(o => o.organization.id === orgId)
     if (org) {
       setCurrentOrg(org)
-      localStorage.setItem('sapira.currentOrg', orgId)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('sapira.currentOrg', orgId)
+        localStorage.setItem('sapira.pendingOrgSlug', org.organization.slug)
+      }
+      try {
+        await fetch('/api/auth/select-org', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ organization_id: orgId }),
+        })
+      } catch (error) {
+        console.error('[AuthProvider] Failed to persist selected org:', error)
+      }
     }
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
-    setCurrentOrg(null)
-    setUserOrgs([])
-    localStorage.removeItem('sapira.currentOrg')
+    try {
+      // Clear local state first
+      setCurrentOrg(null)
+      setUserOrgs([])
+      setUser(null)
+      setLoading(false)
+      
+      // Clear localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('sapira.currentOrg')
+        localStorage.removeItem('sapira.pendingOrgSlug')
+      }
+      
+      // Call API to clear server-side cookies
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      // Sign out from Supabase client
+      await supabase.auth.signOut()
+    } catch (error) {
+      console.error('[AuthProvider] Error during signOut:', error)
+      // Still try to sign out from client even if API fails
+      await supabase.auth.signOut()
+    }
   }
 
   // Check if current user has SAP role in current organization
-  const isSAPUser = currentOrg?.role === 'SAP'
+  // isSAPUser should be true only if:
+  // 1. User has SAP role in current org AND
+  // 2. User email ends with @sapira.ai (actual Sapira team member)
+  const isSAPUser = currentOrg?.role === 'SAP' && user?.email?.toLowerCase().endsWith('@sapira.ai') === true
 
   return (
     <AuthContext.Provider

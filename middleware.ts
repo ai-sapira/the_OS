@@ -2,23 +2,73 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl) {
+  throw new Error('NEXT_PUBLIC_SUPABASE_URL is not defined')
+}
+
+if (!supabaseAnonKey) {
+  throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is not defined')
+}
+
+const RESERVED_SLUGS = new Set(['login', 'api', '_next', 'favicon.ico'])
+
+function extractSlug(pathname: string): string | null {
+  const match = pathname.match(/^\/([^\/]+)(?:\/.*)?$/)
+  if (!match) return null
+  const slug = match[1].toLowerCase()
+  if (RESERVED_SLUGS.has(slug)) return null
+  return slug
+}
+
 export async function middleware(req: NextRequest) {
-  // Skip middleware for API routes - they handle their own auth
-  if (req.nextUrl.pathname.startsWith('/api/')) {
+  const { pathname } = req.nextUrl
+
+  // Skip API routes - they handle their own auth
+  if (pathname.startsWith('/api/')) {
     return NextResponse.next()
   }
 
-  console.log('[Middleware] Request path:', req.nextUrl.pathname)
+  // Skip static assets
+  if (
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/favicon.ico') ||
+    pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico)$/)
+  ) {
+    return NextResponse.next()
+  }
 
+  const slug = extractSlug(pathname)
+  const isOrgLanding = !!slug && (pathname === `/${slug}` || pathname === `/${slug}/`)
+  const isOrgSignup = !!slug && pathname.startsWith(`/${slug}/signup`)
+  const isRoot = pathname === '/' || pathname === ''
+  const isLogin = pathname.startsWith('/login')
+  const isSelectOrg = pathname.startsWith('/select-org')
+  const isAuthPage = isRoot || isLogin
+  const isPublic = isAuthPage || isOrgLanding || isOrgSignup
+
+  // For public routes, only set org slug cookie if needed, no auth check
+  if (isPublic) {
+    const res = NextResponse.next()
+    if (slug && (isOrgLanding || isOrgSignup)) {
+      res.cookies.set({
+        name: 'sapira-org-slug',
+        value: slug,
+        path: '/',
+        sameSite: 'lax',
+      })
+    }
+    return res
+  }
+
+  // For private routes, check session (but only create client when needed)
   let res = NextResponse.next({
     request: {
       headers: req.headers,
     },
   })
-
-  // Use default values for Vercel deployment
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://iaazpsvjiltlkhyeakmx.supabase.co'
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhYXpwc3ZqaWx0bGtoeWVha214Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4Nzk1MTAsImV4cCI6MjA3NDQ1NTUxMH0.kVn7eIZEzNjImOe5yNgqPJOzN-IGUjN2AkzOALflZms'
 
   const supabase = createServerClient(
     supabaseUrl,
@@ -66,35 +116,21 @@ export async function middleware(req: NextRequest) {
     }
   )
 
+  // Only check session for private routes
   const {
     data: { session },
   } = await supabase.auth.getSession()
 
-  console.log('[Middleware] Has session:', !!session, 'User:', session?.user?.id)
-
-  // Public routes that don't require auth
-  const isAuthPage = req.nextUrl.pathname.startsWith('/login') || 
-                     req.nextUrl.pathname.startsWith('/select-org')
-
-  // If not authenticated and trying to access protected route
-  if (!session && !isAuthPage) {
-    console.log('[Middleware] No session, redirecting to /login')
-    const redirectUrl = new URL('/login', req.url)
+  // Redirect authenticated users away from auth pages
+  if (session && (isRoot || isLogin)) {
+    const redirectUrl = new URL('/issues', req.url)
     return NextResponse.redirect(redirectUrl)
   }
 
-  // If authenticated and on login page, redirect to app
-  if (session && req.nextUrl.pathname === '/login') {
-    console.log('[Middleware] Has session on /login, redirecting to /')
+  // Redirect unauthenticated users to landing
+  if (!session) {
     const redirectUrl = new URL('/', req.url)
     return NextResponse.redirect(redirectUrl)
-  }
-
-  // Check if user has selected an organization (except for select-org page itself)
-  if (session && !isAuthPage && req.nextUrl.pathname !== '/select-org') {
-    // Check if user has currentOrg in their session
-    // This will be handled by the AuthProvider in the client
-    // For now, just let them through
   }
 
   return res
@@ -103,13 +139,14 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except:
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public folder
+     * - files with extensions (images, etc.)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$).*)',
   ],
 }
 

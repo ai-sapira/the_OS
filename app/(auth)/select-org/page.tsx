@@ -11,12 +11,16 @@ export default function SelectOrgPage() {
   const router = useRouter()
   const { userOrgs, currentOrg, selectOrganization, loading } = useAuth()
 
-  // If already has an org selected, redirect to app
+  // If already has an org selected and we're not on select-org page, redirect to app
   useEffect(() => {
-    if (!loading && currentOrg) {
-      router.push('/')
+    if (!loading && currentOrg && userOrgs.length > 0) {
+      // Only redirect if user has selected an org and we're not actively selecting
+      const isSelecting = typeof window !== 'undefined' && window.location.pathname === '/select-org'
+      if (!isSelecting) {
+        router.push('/issues')
+      }
     }
-  }, [currentOrg, loading, router])
+  }, [currentOrg, loading, router, userOrgs.length])
 
   // If no organizations, show message
   if (!loading && userOrgs.length === 0) {
@@ -44,10 +48,32 @@ export default function SelectOrgPage() {
     )
   }
 
-  const handleSelectOrg = (orgId: string) => {
+  const handleSelectOrg = async (orgId: string) => {
     selectOrganization(orgId)
-    router.push('/')
+    // Wait a bit for the organization to be set
+    await new Promise(resolve => setTimeout(resolve, 100))
+    router.push('/issues')
     router.refresh()
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <Card className="w-full max-w-2xl">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Cargando organizaciones...</CardTitle>
+            <CardDescription>
+              Obteniendo tus organizaciones disponibles
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
