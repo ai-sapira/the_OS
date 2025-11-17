@@ -11,7 +11,15 @@ export async function GET(req: NextRequest) {
   const initiativeId = requestUrl.searchParams.get("initiative_id")
 
   if (!code) {
-    return NextResponse.redirect(`${requestUrl.origin}/login?error=missing_code`)
+    // If no code, redirect to client-side callback page to handle hash fragments
+    // Preserve query params for organization_id, role, etc.
+    const clientCallbackUrl = new URL('/auth/callback', requestUrl.origin)
+    requestUrl.searchParams.forEach((value, key) => {
+      if (key !== 'code') {
+        clientCallbackUrl.searchParams.set(key, value)
+      }
+    })
+    return NextResponse.redirect(clientCallbackUrl.toString())
   }
 
   const cookieStore = cookies()
@@ -37,7 +45,8 @@ export async function GET(req: NextRequest) {
   const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code)
 
   if (sessionError || !sessionData.session) {
-    return NextResponse.redirect(`${requestUrl.origin}/login?error=session_error`)
+    const errorMessage = sessionError?.message || 'Error al iniciar sesión'
+    return NextResponse.redirect(`${requestUrl.origin}/login?error=${encodeURIComponent(errorMessage)}`)
   }
 
   const authUserId = sessionData.session.user.id
@@ -49,7 +58,12 @@ export async function GET(req: NextRequest) {
   const initId = initiativeId || userMetadata?.initiative_id || null
 
   if (!orgId) {
-    return NextResponse.redirect(`${requestUrl.origin}/login?error=missing_organization`)
+    // If no organization_id, check if user is Sapira and redirect to org selector
+    const userEmail = sessionData.session.user.email?.toLowerCase() || ""
+    if (userEmail.endsWith("@sapira.ai")) {
+      return NextResponse.redirect(`${requestUrl.origin}/select-org`)
+    }
+    return NextResponse.redirect(`${requestUrl.origin}/login?error=${encodeURIComponent('missing_organization')}`)
   }
 
   // Use admin client to create user records
