@@ -94,7 +94,7 @@ export default function SurveyDetailPage() {
               {survey && survey.status === "active" && survey.my_response_status === "pending" && (
                 <Button
                   onClick={() => router.push(`/surveys/${surveyId}/answer`)}
-                  className="bg-blue-500 hover:bg-blue-600"
+                  className="bg-gray-700 hover:bg-gray-800"
                 >
                   Answer Survey
                 </Button>
@@ -106,7 +106,7 @@ export default function SurveyDetailPage() {
         <div className="p-6 max-w-4xl mx-auto">
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
             </div>
           ) : error || !survey ? (
             <Card className="p-8 text-center space-y-4">
@@ -146,8 +146,8 @@ export default function SurveyDetailPage() {
                   {/* Creator */}
                   {survey.creator && (
                     <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                        <span className="text-sm font-medium text-blue-700">
+                      <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center">
+                        <span className="text-sm font-medium text-gray-700">
                           {survey.creator.name.charAt(0).toUpperCase()}
                         </span>
                       </div>
@@ -250,7 +250,7 @@ export default function SurveyDetailPage() {
                 {survey.status === "active" && survey.my_response_status === "pending" && (
                   <Button
                     onClick={() => router.push(`/surveys/${surveyId}/answer`)}
-                    className="bg-blue-500 hover:bg-blue-600"
+                    className="bg-gray-700 hover:bg-gray-800"
                   >
                     Answer Survey
                   </Button>

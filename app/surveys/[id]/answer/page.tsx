@@ -119,18 +119,18 @@ export default function SurveyAnswerPage() {
             value={value}
             onChange={(e) => handleResponseChange(question.id, e.target.value)}
             placeholder="Your answer..."
-            className="min-h-[100px]"
+            className="min-h-[100px] rounded-lg border border-gray-300 bg-background/70 px-4 py-2 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-gray-400/30"
           />
         )
 
       case "multiple_choice":
         return (
           <RadioGroup value={value} onValueChange={(val) => handleResponseChange(question.id, val)}>
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {question.options?.map((option, idx) => (
-                <div key={idx} className="flex items-center space-x-2">
-                  <RadioGroupItem value={option} id={`${question.id}-${idx}`} />
-                  <Label htmlFor={`${question.id}-${idx}`} className="cursor-pointer">
+                <div key={idx} className="flex items-center space-x-3">
+                  <RadioGroupItem value={option} id={`${question.id}-${idx}`} className="border-gray-300" />
+                  <Label htmlFor={`${question.id}-${idx}`} className="cursor-pointer text-sm text-gray-700">
                     {option}
                   </Label>
                 </div>
@@ -142,14 +142,14 @@ export default function SurveyAnswerPage() {
       case "yes_no":
         return (
           <RadioGroup value={value} onValueChange={(val) => handleResponseChange(question.id, val)}>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="yes" id={`${question.id}-yes`} />
-                <Label htmlFor={`${question.id}-yes`} className="cursor-pointer">Yes</Label>
+            <div className="space-y-2.5">
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="yes" id={`${question.id}-yes`} className="border-gray-300" />
+                <Label htmlFor={`${question.id}-yes`} className="cursor-pointer text-sm text-gray-700">Yes</Label>
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="no" id={`${question.id}-no`} />
-                <Label htmlFor={`${question.id}-no`} className="cursor-pointer">No</Label>
+              <div className="flex items-center space-x-3">
+                <RadioGroupItem value="no" id={`${question.id}-no`} className="border-gray-300" />
+                <Label htmlFor={`${question.id}-no`} className="cursor-pointer text-sm text-gray-700">No</Label>
               </div>
             </div>
           </RadioGroup>
@@ -183,6 +183,7 @@ export default function SurveyAnswerPage() {
             value={value}
             onChange={(e) => handleResponseChange(question.id, e.target.value)}
             placeholder="Your answer..."
+            className="h-10 rounded-lg border border-gray-300 bg-background/70 px-4 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-gray-400/30"
           />
         )
     }
@@ -249,7 +250,7 @@ export default function SurveyAnswerPage() {
         <div className="p-6 max-w-3xl mx-auto">
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
             </div>
           ) : error || !survey ? (
             <Card className="p-8 text-center space-y-4">
@@ -269,31 +270,31 @@ export default function SurveyAnswerPage() {
               </Button>
             </Card>
           ) : (
-            <div className="space-y-6">
+            <div className="max-w-4xl mx-auto space-y-6">
               {/* Survey Header */}
-              <div className="space-y-2">
-                <h1 className="text-3xl font-bold text-gray-900">{survey.title}</h1>
+              <div className="border-b border-gray-200 pb-6">
+                <h1 className="text-2xl font-semibold text-gray-900 mb-2">{survey.title}</h1>
                 {survey.description && (
-                  <p className="text-gray-600">{survey.description}</p>
+                  <p className="text-sm text-gray-600 leading-relaxed">{survey.description}</p>
                 )}
                 {survey.allow_anonymous && (
-                  <p className="text-sm text-gray-500 italic">
+                  <p className="text-xs text-gray-500 mt-3 italic">
                     This survey is anonymous. Your responses will not be linked to your identity.
                   </p>
                 )}
               </div>
 
               {/* Questions */}
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {survey.questions?.map((question, index) => (
-                  <Card key={question.id} className="p-6 space-y-4">
-                    <div className="space-y-1">
-                      <div className="flex items-start gap-2">
-                        <span className="text-sm font-medium text-gray-500">
-                          {index + 1}.
-                        </span>
-                        <div className="flex-1">
-                          <h3 className="text-base font-medium text-gray-900">
+                  <div key={question.id} className="border border-gray-200 rounded-lg p-5 bg-white hover:border-gray-300 transition-colors">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="inline-flex size-6 items-center justify-center rounded-sm bg-gray-100 text-xs font-medium text-gray-700 flex-shrink-0 mt-0.5">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-medium text-gray-900 leading-snug">
                             {question.question_text}
                             {question.is_required && (
                               <span className="text-red-500 ml-1">*</span>
@@ -301,16 +302,16 @@ export default function SurveyAnswerPage() {
                           </h3>
                         </div>
                       </div>
+                      <div className="pl-9">
+                        {renderQuestionInput(question)}
+                      </div>
                     </div>
-                    <div className="pl-6">
-                      {renderQuestionInput(question)}
-                    </div>
-                  </Card>
+                  </div>
                 ))}
               </div>
 
               {/* Submit Button */}
-              <div className="flex items-center justify-end gap-3 pt-4">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
                 <Button
                   variant="outline"
                   onClick={() => router.push("/surveys")}
@@ -322,7 +323,7 @@ export default function SurveyAnswerPage() {
                 <Button
                   onClick={handleSubmit}
                   disabled={submitting}
-                  className="bg-blue-500 hover:bg-blue-600"
+                  className="bg-gray-700 hover:bg-gray-800 text-white"
                 >
                   {submitting ? (
                     <>

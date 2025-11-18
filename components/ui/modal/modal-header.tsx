@@ -60,7 +60,7 @@ export function ModalHeader({
           <Tooltip>
             <TooltipTrigger asChild>
               <DialogPrimitive.Close
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-[color:var(--stroke)] bg-[color:var(--surface-3)] text-[color:var(--muted-text)] hover:bg-[color:var(--surface-1)] hover:text-[color:var(--foreground)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--modal-accent)] focus:ring-offset-2"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-[color:var(--stroke)] bg-[color:var(--surface-3)] text-[color:var(--muted-text)] hover:bg-[color:var(--surface-1)] hover:text-[color:var(--foreground)] transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2"
                 onClick={onClose}
               >
                 <X className="h-4 w-4" />

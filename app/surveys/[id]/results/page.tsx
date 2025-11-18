@@ -61,7 +61,7 @@ export default function SurveyResultsPage() {
       <ResizableAppShell>
         <ResizablePageSheet>
           <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
           </div>
         </ResizablePageSheet>
       </ResizableAppShell>
@@ -190,8 +190,8 @@ export default function SurveyResultsPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="p-6 border border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <Users className="h-6 w-6 text-blue-600" />
+                <div className="p-3 bg-gray-100 rounded-lg">
+                  <Users className="h-6 w-6 text-gray-600" />
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Total Responses</p>
@@ -269,7 +269,7 @@ export default function SurveyResultsPage() {
                             </div>
                             <div className="w-full bg-gray-100 rounded-full h-2">
                               <div 
-                                className="bg-blue-500 h-2 rounded-full transition-all"
+                                className="bg-gray-500 h-2 rounded-full transition-all"
                                 style={{ width: `${stat.percentage}%` }}
                               />
                             </div>
@@ -343,7 +343,7 @@ export default function SurveyResultsPage() {
                               </div>
                               <div className="w-full bg-gray-100 rounded-full h-2">
                                 <div 
-                                  className="bg-blue-500 h-2 rounded-full transition-all"
+                                  className="bg-gray-500 h-2 rounded-full transition-all"
                                   style={{ width: `${percentage}%` }}
                                 />
                               </div>

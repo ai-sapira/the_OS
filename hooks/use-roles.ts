@@ -192,14 +192,6 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
     roles: ["SAP", "CEO", "BU"],
     section: "deploy",
   },
-  {
-    id: "devops",
-    label: "DevOps",
-    icon: "Server",
-    href: "/devops",
-    roles: ["SAP", "CEO"],
-    section: "deploy",
-  },
   // Footer
   {
     id: "my-sapira-relationship",

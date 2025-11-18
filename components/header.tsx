@@ -105,23 +105,26 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
         {/* Organization Logo and Name */}
         <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md bg-white border border-gray-200">
           {currentOrg?.organization.logo_url ? (
-            <Image 
-              src={currentOrg.organization.logo_url}
-              alt={`${currentOrg.organization.name} Logo`}
-              width={18} 
-              height={18}
-              className="object-contain"
-              onError={(e) => {
-                // Hide image on error, show initials instead
-                e.currentTarget.style.display = 'none'
-              }}
-            />
+            <div className="relative w-[18px] h-[18px] flex items-center justify-center flex-shrink-0">
+              <Image 
+                src={currentOrg.organization.logo_url}
+                alt={`${currentOrg.organization.name} Logo`}
+                fill
+                sizes="18px"
+                className="object-contain object-center"
+                style={{ objectFit: 'contain' }}
+                onError={(e) => {
+                  // Hide image on error, show initials instead
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
+            </div>
           ) : currentOrg?.organization.name ? (
-            <div className="w-[18px] h-[18px] rounded flex items-center justify-center bg-gray-100 text-[10px] font-semibold text-gray-700">
+            <div className="w-[18px] h-[18px] rounded flex items-center justify-center bg-gray-100 text-[10px] font-semibold text-gray-700 flex-shrink-0">
               {currentOrg.organization.name.substring(0, 2).toUpperCase()}
             </div>
           ) : null}
-          <span className="text-[11px] font-normal text-black">
+          <span className="text-[11px] font-normal text-black whitespace-nowrap">
             {currentOrg?.organization.name || 'Organización'}
           </span>
         </div>

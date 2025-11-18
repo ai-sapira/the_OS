@@ -7,140 +7,1337 @@ import {
   PageHeader,
 } from "@/components/layout"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Plug,
-  ShieldCheck,
-  Settings,
   RefreshCw,
-  Database,
   Building2,
-  ArrowUpRight,
   CheckCircle2,
-  AlertCircle,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Eye,
   Activity,
-  Zap,
-  Link2,
+  Clock,
+  MessageSquare,
+  FileEdit,
+  UserPlus,
+  DollarSign,
+  Plus,
+  Search,
+  X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Modal, ModalBody } from "@/components/ui/modal"
+import { motion, AnimatePresence } from "framer-motion"
 
-type IntegrationCategory = "ERP" | "CRM" | "Productivity"
-type IntegrationStatus = "connected" | "available" | "coming-soon"
 
-interface Integration {
+// Mock data types
+interface PurchaseOrder {
+  PO_ID: string
+  SKU: string
+  totalAmount: number
+  pricePerUnit: number
+  timestamp: string
+}
+
+interface Invoice {
+  Invoice_ID: string
+  dateEmitted: string
+  status: "paid" | "pending" | "overdue"
+  datePaid: string | null
+  totalAmount: number
+  ivaRate: number
+  timestamp: string
+}
+
+interface Lead {
+  companyName: string
+  pointOfContact: string
+  createdAt: string
+  dealGenerated: boolean
+  timestamp: string
+}
+
+interface Deal {
+  companyName: string
+  pointOfContact: string
+  createdAt: string
+  totalAmount: number
+  startDate: string
+  timestamp: string
+}
+
+interface IntegrationEvent {
+  id: string
+  type: "note_added" | "status_changed" | "created" | "updated" | "assigned"
+  user: string
+  entity: string
+  entityId: string
+  description: string
+  timestamp: string
+}
+
+interface ActiveIntegration {
   id: string
   name: string
   provider: string
-  description: string
-  category: IntegrationCategory
-  status: IntegrationStatus
-  dataSync: string
-  lastSync?: string
-  features: string[]
-  requires?: string[]
+  category: "ERP" | "CRM"
+  domain: string
+  lastSync: string
+  isRealTime: boolean
+  purchaseOrders?: PurchaseOrder[]
+  invoices?: Invoice[]
+  leads?: Lead[]
+  deals?: Deal[]
+  events?: IntegrationEvent[]
 }
 
-const INTEGRATIONS: Integration[] = [
+// Mock data generators
+const generatePurchaseOrders = (count: number = 5): PurchaseOrder[] => {
+  return Array.from({ length: count }, (_, i) => ({
+    PO_ID: `PO-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`,
+    SKU: `SKU-${String(Math.floor(Math.random() * 1000)).padStart(4, '0')}`,
+    totalAmount: Math.floor(Math.random() * 50000) + 1000,
+    pricePerUnit: Math.floor(Math.random() * 500) + 10,
+    timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString(),
+  }))
+}
+
+const generateInvoices = (count: number = 5): Invoice[] => {
+  const statuses: ("paid" | "pending" | "overdue")[] = ["paid", "pending", "overdue"]
+  return Array.from({ length: count }, (_, i) => {
+    const status = statuses[Math.floor(Math.random() * statuses.length)]
+    return {
+      Invoice_ID: `INV-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`,
+      dateEmitted: new Date(Date.now() - Math.random() * 30 * 24 * 3600000).toISOString().split('T')[0],
+      status,
+      datePaid: status === "paid" ? new Date(Date.now() - Math.random() * 15 * 24 * 3600000).toISOString().split('T')[0] : null,
+      totalAmount: Math.floor(Math.random() * 100000) + 5000,
+      ivaRate: 21,
+      timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString(),
+    }
+  })
+}
+
+const generateLeads = (count: number = 5): Lead[] => {
+  const companies = ["TechCorp", "InnovateLabs", "DigitalSolutions", "CloudSystems", "DataWorks", "FutureTech", "SmartBiz"]
+  const contacts = ["John Doe", "Jane Smith", "Mike Johnson", "Sarah Williams", "David Brown", "Emily Davis"]
+  
+  return Array.from({ length: count }, (_, i) => ({
+    companyName: companies[Math.floor(Math.random() * companies.length)],
+    pointOfContact: contacts[Math.floor(Math.random() * contacts.length)],
+    createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 3600000).toISOString().split('T')[0],
+    dealGenerated: Math.random() > 0.5,
+    timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString(),
+  }))
+}
+
+const generateDeals = (count: number = 5): Deal[] => {
+  const companies = ["TechCorp", "InnovateLabs", "DigitalSolutions", "CloudSystems", "DataWorks"]
+  const contacts = ["John Doe", "Jane Smith", "Mike Johnson", "Sarah Williams", "David Brown"]
+  
+  return Array.from({ length: count }, (_, i) => ({
+    companyName: companies[Math.floor(Math.random() * companies.length)],
+    pointOfContact: contacts[Math.floor(Math.random() * contacts.length)],
+    createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 3600000).toISOString().split('T')[0],
+    totalAmount: Math.floor(Math.random() * 500000) + 10000,
+    startDate: new Date(Date.now() - Math.random() * 60 * 24 * 3600000).toISOString().split('T')[0],
+    timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString(),
+  }))
+}
+
+const generateEvents = (integrationId: string, count: number = 5): IntegrationEvent[] => {
+  const users = ["María García", "Carlos López", "Ana Martínez", "Pedro Sánchez", "Laura Fernández"]
+  const events: IntegrationEvent[] = []
+  
+  if (integrationId === "sap") {
+    const invoiceIds = Array.from({ length: 5 }, (_, i) => `INV-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`)
+    const poIds = Array.from({ length: 5 }, (_, i) => `PO-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`)
+    
+    events.push(
+      {
+        id: "1",
+        type: "note_added",
+        user: users[Math.floor(Math.random() * users.length)],
+        entity: "Invoice",
+        entityId: invoiceIds[0],
+        description: `Nota añadida a factura ${invoiceIds[0]}`,
+        timestamp: new Date(Date.now() - Math.random() * 1800000).toISOString(),
+      },
+      {
+        id: "2",
+        type: "status_changed",
+        user: users[Math.floor(Math.random() * users.length)],
+        entity: "Invoice",
+        entityId: invoiceIds[1],
+        description: `Estado cambiado a "Pagada"`,
+        timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString(),
+      },
+      {
+        id: "3",
+        type: "note_added",
+        user: users[Math.floor(Math.random() * users.length)],
+        entity: "Purchase Order",
+        entityId: poIds[0],
+        description: `Nota añadida a orden de compra ${poIds[0]}`,
+        timestamp: new Date(Date.now() - Math.random() * 5400000).toISOString(),
+      },
+      {
+        id: "4",
+        type: "updated",
+        user: users[Math.floor(Math.random() * users.length)],
+        entity: "Invoice",
+        entityId: invoiceIds[2],
+        description: `Factura ${invoiceIds[2]} actualizada`,
+        timestamp: new Date(Date.now() - Math.random() * 7200000).toISOString(),
+      },
+      {
+        id: "5",
+        type: "note_added",
+        user: users[Math.floor(Math.random() * users.length)],
+        entity: "Invoice",
+        entityId: invoiceIds[3],
+        description: `Nota añadida a factura ${invoiceIds[3]}`,
+        timestamp: new Date(Date.now() - Math.random() * 9000000).toISOString(),
+      },
+    )
+  } else if (integrationId === "salesforce") {
+    const dealIds = Array.from({ length: 5 }, (_, i) => `DEAL-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`)
+    const leadIds = Array.from({ length: 5 }, (_, i) => `LEAD-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`)
+    
+    events.push(
+      {
+        id: "1",
+        type: "note_added",
+        user: users[Math.floor(Math.random() * users.length)],
+        entity: "Deal",
+        entityId: dealIds[0],
+        description: `Nota añadida a deal ${dealIds[0]}`,
+        timestamp: new Date(Date.now() - Math.random() * 1800000).toISOString(),
+      },
+      {
+        id: "2",
+        type: "created",
+        user: users[Math.floor(Math.random() * users.length)],
+        entity: "Lead",
+        entityId: leadIds[0],
+        description: `Nuevo lead creado: ${leadIds[0]}`,
+        timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString(),
+      },
+      {
+        id: "3",
+        type: "assigned",
+        user: users[Math.floor(Math.random() * users.length)],
+        entity: "Deal",
+        entityId: dealIds[1],
+        description: `Deal ${dealIds[1]} asignado`,
+        timestamp: new Date(Date.now() - Math.random() * 5400000).toISOString(),
+      },
+      {
+        id: "4",
+        type: "note_added",
+        user: users[Math.floor(Math.random() * users.length)],
+        entity: "Lead",
+        entityId: leadIds[1],
+        description: `Nota añadida a lead ${leadIds[1]}`,
+        timestamp: new Date(Date.now() - Math.random() * 7200000).toISOString(),
+      },
+      {
+        id: "5",
+        type: "status_changed",
+        user: users[Math.floor(Math.random() * users.length)],
+        entity: "Deal",
+        entityId: dealIds[2],
+        description: `Estado del deal ${dealIds[2]} cambiado`,
+        timestamp: new Date(Date.now() - Math.random() * 9000000).toISOString(),
+      },
+    )
+  }
+  
+  return events.slice(0, count).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+}
+
+const ACTIVE_INTEGRATIONS: ActiveIntegration[] = [
   {
     id: "sap",
-    name: "SAP S/4HANA",
+    name: "SAP",
     provider: "SAP",
-    description: "Sincroniza órdenes de compra, inventario y estados financieros desde SAP.",
     category: "ERP",
-    status: "connected",
-    dataSync: "Cada 30 min",
+    domain: "sap.com",
     lastSync: "Hace 12 min",
-    features: ["Órdenes", "Inventario", "Centros de coste"],
-  },
-  {
-    id: "netsuite",
-    name: "Oracle NetSuite",
-    provider: "Oracle",
-    description: "Conecta NetSuite para traer pipelines de ventas y contabilidad.",
-    category: "ERP",
-    status: "available",
-    dataSync: "Manual",
-    features: ["Ventas", "Contabilidad", "Cobros"],
-    requires: ["Cuenta admin", "Token SuiteAnalytics"],
-  },
-  {
-    id: "microsoft-dynamics",
-    name: "Microsoft Dynamics 365",
-    provider: "Microsoft",
-    description: "Sincroniza Dynamics 365 para visibilidad de ventas, service y finanzas.",
-    category: "ERP",
-    status: "coming-soon",
-    dataSync: "Programado Q1 2026",
-    features: ["Sales", "Finance", "Field Service"],
+    isRealTime: false,
+    purchaseOrders: generatePurchaseOrders(8),
+    invoices: generateInvoices(8),
+    events: generateEvents("sap", 8),
   },
   {
     id: "salesforce",
     name: "Salesforce",
     provider: "Salesforce",
-    description: "Importa cuentas, oportunidades y health de clientes desde Salesforce.",
     category: "CRM",
-    status: "connected",
-    dataSync: "Streaming",
+    domain: "salesforce.com",
     lastSync: "Tiempo real",
-    features: ["Accounts", "Opportunities", "CSAT"],
-  },
-  {
-    id: "hubspot",
-    name: "HubSpot",
-    provider: "HubSpot",
-    description: "Conecta HubSpot para captar marketing qualified leads y tickets.",
-    category: "CRM",
-    status: "available",
-    dataSync: "Cada hora",
-    features: ["Leads", "Tickets", "Playbooks"],
-    requires: ["Scope CRM + Tickets"],
-  },
-  {
-    id: "zendesk",
-    name: "Zendesk",
-    provider: "Zendesk",
-    description: "Sincroniza tickets y SLAs para detectar cuellos de botella operativos.",
-    category: "Productivity",
-    status: "connected",
-    dataSync: "Cada 10 min",
-    lastSync: "Hace 4 min",
-    features: ["Tickets", "SLA", "Macros"],
+    isRealTime: true,
+    leads: generateLeads(10),
+    deals: generateDeals(8),
+    events: generateEvents("salesforce", 10),
   },
 ]
 
-const METRICS = [
-  { label: "Integraciones activas", value: 3, icon: Plug, sub: "+1 en la última semana" },
-  { label: "Conectores disponibles", value: 6, icon: Link2, sub: "ERP, CRM y soporte" },
-  { label: "Automatizaciones activas", value: 42, icon: Zap, sub: "sourcing · reporting" },
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(amount)
+}
+
+function formatDate(dateString: string): string {
+  return new Date(dateString).toLocaleDateString('es-ES', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  })
+}
+
+function getTimeAgo(timestamp: string): string {
+  const now = new Date()
+  const time = new Date(timestamp)
+  const diffMs = now.getTime() - time.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  
+  if (diffMins < 1) return "Ahora mismo"
+  if (diffMins < 60) return `Hace ${diffMins} min`
+  const diffHours = Math.floor(diffMins / 60)
+  if (diffHours < 24) return `Hace ${diffHours}h`
+  return `Hace ${Math.floor(diffHours / 24)}d`
+}
+
+function getEventBadge(type: string) {
+  const eventConfig = {
+    note_added: {
+      label: "Nota añadida",
+      icon: <MessageSquare className="h-3 w-3" />,
+      className: "bg-blue-50 text-blue-700 border-blue-200",
+    },
+    status_changed: {
+      label: "Estado cambiado",
+      icon: <Activity className="h-3 w-3" />,
+      className: "bg-red-50 text-red-700 border-red-200",
+    },
+    created: {
+      label: "Creado",
+      icon: <UserPlus className="h-3 w-3" />,
+      className: "bg-green-50 text-green-700 border-green-200",
+    },
+    updated: {
+      label: "Actualizado",
+      icon: <FileEdit className="h-3 w-3" />,
+      className: "bg-gray-50 text-gray-700 border-gray-200",
+    },
+    assigned: {
+      label: "Asignado",
+      icon: <DollarSign className="h-3 w-3" />,
+      className: "bg-gray-50 text-gray-700 border-gray-200",
+    },
+  }
+
+  const config = eventConfig[type as keyof typeof eventConfig] || {
+    label: type.replace('_', ' '),
+    icon: <Activity className="h-3 w-3" />,
+    className: "bg-gray-50 text-gray-700 border-gray-200",
+  }
+
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border", config.className)}>
+      {config.icon}
+      {config.label}
+    </span>
+  )
+}
+
+function PurchaseOrdersTable({ orders }: { orders: PurchaseOrder[] }) {
+  const [expanded, setExpanded] = React.useState(false)
+  const [displayingOrders, setDisplayingOrders] = React.useState(orders.slice(0, 3))
+
+  React.useEffect(() => {
+    if (expanded) {
+      setDisplayingOrders(orders)
+    } else {
+      // Delay hiding rows to allow exit animation
+      const timer = setTimeout(() => {
+        setDisplayingOrders(orders.slice(0, 3))
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [expanded, orders])
+
+  const handleEntityClick = (id: string) => {
+    // Navigate to entity detail
+    console.log('Navigate to:', id)
+  }
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-gray-50 px-4 py-2.5 flex items-center justify-between border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-gray-900">Purchase Orders</span>
+          <span className="text-xs text-gray-500">({orders.length})</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 text-xs gap-1 hover:bg-gray-100 hover:text-gray-900"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? (
+            <>
+              Minimizar <ChevronUp className="h-3 w-3" />
+            </>
+          ) : (
+            <>
+              Ver todas <ChevronDown className="h-3 w-3" />
+            </>
+          )}
+        </Button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">PO_ID</th>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">SKU</th>
+              <th className="text-right py-2 px-4 font-semibold text-gray-700">Total amount</th>
+              <th className="text-right py-2 px-4 font-semibold text-gray-700">Price per unit</th>
+              <th className="text-right py-2 px-4 font-semibold text-gray-700">Recibido</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayingOrders.map((order, idx) => {
+              const isNewRow = expanded && idx >= 3 && idx < orders.length
+              const isRemovedRow = !expanded && idx >= 3
+              const animationDelay = idx >= 3 ? (idx - 3) * 30 : 0
+              
+              return (
+              <tr
+                key={`${order.PO_ID}-${expanded ? 'expanded' : 'collapsed'}`}
+                className="border-b border-gray-100 hover:bg-gray-50/50 transition-all duration-300 ease-in-out"
+                style={{
+                  animation: isNewRow 
+                    ? `fadeInSlide 0.3s ease-out ${animationDelay}ms both`
+                    : isRemovedRow
+                    ? `fadeOutSlide 0.3s ease-out ${animationDelay}ms both`
+                    : undefined,
+                }}
+              >
+                <td className="py-3 px-4">
+                  <button
+                    onClick={() => handleEntityClick(order.PO_ID)}
+                    className="font-mono text-sm font-medium text-gray-900 hover:text-gray-700 hover:underline transition-colors"
+                  >
+                    {order.PO_ID}
+                  </button>
+                </td>
+                <td className="py-3 px-4">
+                  <span className="font-mono text-sm text-gray-700">{order.SKU}</span>
+                </td>
+                <td className="py-3 px-4 text-right">
+                  <span className="font-semibold text-sm text-gray-900">{formatCurrency(order.totalAmount)}</span>
+                </td>
+                <td className="py-3 px-4 text-right">
+                  <span className="text-sm text-gray-700">{formatCurrency(order.pricePerUnit)}</span>
+                </td>
+                <td className="py-3 px-4 text-right">
+                  <span className="text-xs text-gray-500">{getTimeAgo(order.timestamp)}</span>
+                </td>
+              </tr>
+            )})}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function InvoicesTable({ invoices }: { invoices: Invoice[] }) {
+  const [expanded, setExpanded] = React.useState(false)
+  const [displayingInvoices, setDisplayingInvoices] = React.useState(invoices.slice(0, 3))
+
+  React.useEffect(() => {
+    if (expanded) {
+      setDisplayingInvoices(invoices)
+    } else {
+      // Delay hiding rows to allow exit animation
+      const timer = setTimeout(() => {
+        setDisplayingInvoices(invoices.slice(0, 3))
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [expanded, invoices])
+
+  const handleEntityClick = (id: string) => {
+    // Navigate to entity detail
+    console.log('Navigate to:', id)
+  }
+
+  const getStatusBadge = (status: string) => {
+    const styles = {
+      paid: "bg-green-50 text-green-700 border-green-200",
+      pending: "bg-yellow-50 text-yellow-700 border-yellow-200",
+      overdue: "bg-red-50 text-red-700 border-red-200",
+    }
+    const labels = {
+      paid: "Pagada",
+      pending: "Pendiente",
+      overdue: "Vencida",
+    }
+    return (
+      <span className={cn("px-1.5 py-0.5 rounded text-xs font-medium border", styles[status as keyof typeof styles])}>
+        {labels[status as keyof typeof labels]}
+      </span>
+    )
+  }
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-gray-50 px-4 py-2.5 flex items-center justify-between border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-gray-900">Invoices</span>
+          <span className="text-xs text-gray-500">({invoices.length})</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 text-xs gap-1 hover:bg-gray-100 hover:text-gray-900"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? (
+            <>
+              Minimizar <ChevronUp className="h-3 w-3" />
+            </>
+          ) : (
+            <>
+              Ver todas <ChevronDown className="h-3 w-3" />
+            </>
+          )}
+        </Button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">Invoice_ID</th>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">Date emitted</th>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">Status</th>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">Date paid</th>
+              <th className="text-right py-2 px-4 font-semibold text-gray-700">Total amount</th>
+              <th className="text-right py-2 px-4 font-semibold text-gray-700">IVA rate</th>
+              <th className="text-right py-2 px-4 font-semibold text-gray-700">Recibido</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayingInvoices.map((invoice, idx) => {
+              const isNewRow = expanded && idx >= 3 && idx < invoices.length
+              const isRemovedRow = !expanded && idx >= 3
+              const animationDelay = idx >= 3 ? (idx - 3) * 30 : 0
+              
+              return (
+              <tr
+                key={`${invoice.Invoice_ID}-${expanded ? 'expanded' : 'collapsed'}`}
+                className="border-b border-gray-100 hover:bg-gray-50/50 transition-all duration-300 ease-in-out"
+                style={{
+                  animation: isNewRow 
+                    ? `fadeInSlide 0.3s ease-out ${animationDelay}ms both`
+                    : isRemovedRow
+                    ? `fadeOutSlide 0.3s ease-out ${animationDelay}ms both`
+                    : undefined,
+                }}
+              >
+                <td className="py-3 px-4">
+                  <button
+                    onClick={() => handleEntityClick(invoice.Invoice_ID)}
+                    className="font-mono text-sm font-medium text-gray-900 hover:text-gray-700 hover:underline transition-colors"
+                  >
+                    {invoice.Invoice_ID}
+                  </button>
+                </td>
+                <td className="py-3 px-4">
+                  <span className="text-sm text-gray-700">{formatDate(invoice.dateEmitted)}</span>
+                </td>
+                <td className="py-3 px-4">{getStatusBadge(invoice.status)}</td>
+                <td className="py-3 px-4">
+                  {invoice.datePaid ? (
+                    <span className="text-sm text-gray-700">{formatDate(invoice.datePaid)}</span>
+                  ) : (
+                    <span className="text-sm text-gray-400">-</span>
+                  )}
+                </td>
+                <td className="py-3 px-4 text-right">
+                  <span className="font-semibold text-sm text-gray-900">{formatCurrency(invoice.totalAmount)}</span>
+                </td>
+                <td className="py-3 px-4 text-right">
+                  <span className="text-sm text-gray-700">{invoice.ivaRate}%</span>
+                </td>
+                <td className="py-3 px-4 text-right">
+                  <span className="text-xs text-gray-500">{getTimeAgo(invoice.timestamp)}</span>
+                </td>
+              </tr>
+            )})}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function LeadsTable({ leads }: { leads: Lead[] }) {
+  const [expanded, setExpanded] = React.useState(false)
+  const [displayingLeads, setDisplayingLeads] = React.useState(leads.slice(0, 3))
+
+  React.useEffect(() => {
+    if (expanded) {
+      setDisplayingLeads(leads)
+    } else {
+      // Delay hiding rows to allow exit animation
+      const timer = setTimeout(() => {
+        setDisplayingLeads(leads.slice(0, 3))
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [expanded, leads])
+
+  const handleUserClick = (user: string) => {
+    // Navigate to user profile
+    console.log('Navigate to user:', user)
+  }
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-gray-50 px-4 py-2.5 flex items-center justify-between border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-gray-900">Leads</span>
+          <span className="text-xs text-gray-500">({leads.length})</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 text-xs gap-1 hover:bg-gray-100 hover:text-gray-900"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? (
+            <>
+              Minimizar <ChevronUp className="h-3 w-3" />
+            </>
+          ) : (
+            <>
+              Ver todas <ChevronDown className="h-3 w-3" />
+            </>
+          )}
+        </Button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">Company name</th>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">Point of Contact</th>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">Created at</th>
+              <th className="text-center py-2 px-4 font-semibold text-gray-700">Deal generated</th>
+              <th className="text-right py-2 px-4 font-semibold text-gray-700">Recibido</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayingLeads.map((lead, idx) => {
+              const isNewRow = expanded && idx >= 3 && idx < leads.length
+              const isRemovedRow = !expanded && idx >= 3
+              const animationDelay = idx >= 3 ? (idx - 3) * 30 : 0
+              
+              return (
+              <tr
+                key={`${lead.companyName}-${lead.pointOfContact}-${expanded ? 'expanded' : 'collapsed'}`}
+                className="border-b border-gray-100 hover:bg-gray-50/50 transition-all duration-300 ease-in-out"
+                style={{
+                  animation: isNewRow 
+                    ? `fadeInSlide 0.3s ease-out ${animationDelay}ms both`
+                    : isRemovedRow
+                    ? `fadeOutSlide 0.3s ease-out ${animationDelay}ms both`
+                    : undefined,
+                }}
+              >
+                <td className="py-3 px-4">
+                  <span className="font-medium text-sm text-gray-900">{lead.companyName}</span>
+                </td>
+                <td className="py-3 px-4">
+                  <button
+                    onClick={() => handleUserClick(lead.pointOfContact)}
+                    className="text-sm font-medium text-gray-900 hover:text-gray-700 hover:underline transition-colors"
+                  >
+                    {lead.pointOfContact}
+                  </button>
+                </td>
+                <td className="py-3 px-4">
+                  <span className="text-sm text-gray-700">{formatDate(lead.createdAt)}</span>
+                </td>
+                <td className="py-3 px-4 text-center">
+                  {lead.dealGenerated ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Sí
+                    </span>
+                  ) : (
+                    <span className="text-sm text-gray-400">-</span>
+                  )}
+                </td>
+                <td className="py-3 px-4 text-right">
+                  <span className="text-xs text-gray-500">{getTimeAgo(lead.timestamp)}</span>
+                </td>
+              </tr>
+            )})}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function DealsTable({ deals }: { deals: Deal[] }) {
+  const [expanded, setExpanded] = React.useState(false)
+  const [displayingDeals, setDisplayingDeals] = React.useState(deals.slice(0, 3))
+
+  React.useEffect(() => {
+    if (expanded) {
+      setDisplayingDeals(deals)
+    } else {
+      // Delay hiding rows to allow exit animation
+      const timer = setTimeout(() => {
+        setDisplayingDeals(deals.slice(0, 3))
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [expanded, deals])
+
+  const handleUserClick = (user: string) => {
+    // Navigate to user profile
+    console.log('Navigate to user:', user)
+  }
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-gray-50 px-4 py-2.5 flex items-center justify-between border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-gray-900">Deals</span>
+          <span className="text-xs text-gray-500">({deals.length})</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 text-xs gap-1 hover:bg-gray-100 hover:text-gray-900"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? (
+            <>
+              Minimizar <ChevronUp className="h-3 w-3" />
+            </>
+          ) : (
+            <>
+              Ver todas <ChevronDown className="h-3 w-3" />
+            </>
+          )}
+        </Button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">Company name</th>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">Point of Contact</th>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">Created at</th>
+              <th className="text-right py-2 px-4 font-semibold text-gray-700">Total amount</th>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">Start date</th>
+              <th className="text-right py-2 px-4 font-semibold text-gray-700">Recibido</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayingDeals.map((deal, idx) => {
+              const isNewRow = expanded && idx >= 3 && idx < deals.length
+              const isRemovedRow = !expanded && idx >= 3
+              const animationDelay = idx >= 3 ? (idx - 3) * 30 : 0
+              
+              return (
+              <tr
+                key={`${deal.companyName}-${deal.pointOfContact}-${expanded ? 'expanded' : 'collapsed'}`}
+                className="border-b border-gray-100 hover:bg-gray-50/50 transition-all duration-300 ease-in-out"
+                style={{
+                  animation: isNewRow 
+                    ? `fadeInSlide 0.3s ease-out ${animationDelay}ms both`
+                    : isRemovedRow
+                    ? `fadeOutSlide 0.3s ease-out ${animationDelay}ms both`
+                    : undefined,
+                }}
+              >
+                <td className="py-3 px-4">
+                  <span className="font-medium text-sm text-gray-900">{deal.companyName}</span>
+                </td>
+                <td className="py-3 px-4">
+                  <button
+                    onClick={() => handleUserClick(deal.pointOfContact)}
+                    className="text-sm font-medium text-gray-900 hover:text-gray-700 hover:underline transition-colors"
+                  >
+                    {deal.pointOfContact}
+                  </button>
+                </td>
+                <td className="py-3 px-4">
+                  <span className="text-sm text-gray-700">{formatDate(deal.createdAt)}</span>
+                </td>
+                <td className="py-3 px-4 text-right">
+                  <span className="font-semibold text-sm text-gray-900">{formatCurrency(deal.totalAmount)}</span>
+                </td>
+                <td className="py-3 px-4">
+                  <span className="text-sm text-gray-700">{formatDate(deal.startDate)}</span>
+                </td>
+                <td className="py-3 px-4 text-right">
+                  <span className="text-xs text-gray-500">{getTimeAgo(deal.timestamp)}</span>
+                </td>
+              </tr>
+            )})}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function EventsTable({ events }: { events: IntegrationEvent[] }) {
+  const [expanded, setExpanded] = React.useState(false)
+  const [displayingEvents, setDisplayingEvents] = React.useState(events.slice(0, 5))
+
+  React.useEffect(() => {
+    if (expanded) {
+      setDisplayingEvents(events)
+    } else {
+      // Delay hiding rows to allow exit animation
+      const timer = setTimeout(() => {
+        setDisplayingEvents(events.slice(0, 5))
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [expanded, events])
+
+  const handleUserClick = (user: string) => {
+    // Navigate to user profile
+    console.log('Navigate to user:', user)
+  }
+
+  const handleEntityClick = (entityId: string, entityType: string) => {
+    // Navigate to entity detail
+    console.log('Navigate to:', entityType, entityId)
+  }
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-gray-50 px-4 py-2.5 flex items-center justify-between border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-gray-900">Eventos</span>
+          <span className="text-xs text-gray-500">({events.length})</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 text-xs gap-1 hover:bg-gray-100 hover:text-gray-900"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? (
+            <>
+              Minimizar <ChevronUp className="h-3 w-3" />
+            </>
+          ) : (
+            <>
+              Ver todas <ChevronDown className="h-3 w-3" />
+            </>
+          )}
+        </Button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="text-left py-2.5 px-4 font-semibold text-gray-700">Usuario</th>
+              <th className="text-left py-2.5 px-4 font-semibold text-gray-700">Evento</th>
+              <th className="text-left py-2.5 px-4 font-semibold text-gray-700">Entidad</th>
+              <th className="text-left py-2.5 px-4 font-semibold text-gray-700">Descripción</th>
+              <th className="text-right py-2.5 px-4 font-semibold text-gray-700">Tiempo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayingEvents.map((event, idx) => {
+              const isNewRow = expanded && idx >= 5 && idx < events.length
+              const isRemovedRow = !expanded && idx >= 5
+              const animationDelay = idx >= 5 ? (idx - 5) * 30 : 0
+              
+              return (
+              <tr
+                key={`${event.id}-${expanded ? 'expanded' : 'collapsed'}`}
+                className="border-b border-gray-100 hover:bg-gray-50/50 transition-all duration-300 ease-in-out"
+                style={{
+                  animation: isNewRow 
+                    ? `fadeInSlide 0.3s ease-out ${animationDelay}ms both`
+                    : isRemovedRow
+                    ? `fadeOutSlide 0.3s ease-out ${animationDelay}ms both`
+                    : undefined,
+                }}
+              >
+                <td className="py-3 px-4">
+                  <button
+                    onClick={() => handleUserClick(event.user)}
+                    className="font-medium text-sm text-gray-900 hover:text-gray-700 hover:underline transition-colors"
+                  >
+                    {event.user}
+                  </button>
+                </td>
+                <td className="py-3 px-4">
+                  {getEventBadge(event.type)}
+                </td>
+                <td className="py-3 px-4">
+                  <button
+                    onClick={() => handleEntityClick(event.entityId, event.entity)}
+                    className="font-mono text-sm font-medium text-gray-900 hover:text-gray-700 hover:underline transition-colors"
+                  >
+                    {event.entityId}
+                  </button>
+                </td>
+                <td className="py-3 px-4">
+                  <span className="text-sm text-gray-700">{event.description}</span>
+                </td>
+                <td className="py-3 px-4 text-right">
+                  <span className="text-xs text-gray-500">{getTimeAgo(event.timestamp)}</span>
+                </td>
+              </tr>
+            )})}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// Available integrations data
+interface AvailableIntegration {
+  id: string
+  name: string
+  description: string
+  category: "ERP" | "CRM" | "Marketing" | "Analytics" | "Communication" | "Finance" | "HR" | "Other"
+  domain: string // Domain for logo loading
+  icon?: string
+  color?: string
+  isPopular?: boolean
+}
+
+const AVAILABLE_INTEGRATIONS: AvailableIntegration[] = [
+  // ERP
+  { id: "sap", name: "SAP", description: "Enterprise Resource Planning", category: "ERP", domain: "sap.com", isPopular: true },
+  { id: "oracle-erp", name: "Oracle ERP Cloud", description: "Enterprise Resource Planning", category: "ERP", domain: "oracle.com", isPopular: true },
+  { id: "microsoft-dynamics", name: "Microsoft Dynamics 365", description: "Enterprise Resource Planning", category: "ERP", domain: "microsoft.com", isPopular: true },
+  { id: "netsuite", name: "NetSuite", description: "Cloud ERP Solution", category: "ERP", domain: "netsuite.com" },
+  { id: "sage", name: "Sage", description: "Business Management Software", category: "ERP", domain: "sage.com" },
+  { id: "infor", name: "Infor", description: "Enterprise Software Solutions", category: "ERP", domain: "infor.com" },
+  
+  // CRM
+  { id: "salesforce", name: "Salesforce", description: "Customer Relationship Management", category: "CRM", domain: "salesforce.com", isPopular: true },
+  { id: "hubspot", name: "HubSpot", description: "CRM and Marketing Platform", category: "CRM", domain: "hubspot.com", isPopular: true },
+  { id: "microsoft-dynamics-crm", name: "Microsoft Dynamics CRM", description: "Customer Relationship Management", category: "CRM", domain: "microsoft.com" },
+  { id: "zoho-crm", name: "Zoho CRM", description: "Cloud-based CRM", category: "CRM", domain: "zoho.com" },
+  { id: "pipedrive", name: "Pipedrive", description: "Sales CRM Software", category: "CRM", domain: "pipedrive.com" },
+  { id: "freshsales", name: "Freshsales", description: "CRM for High-Velocity Sales", category: "CRM", domain: "freshworks.com" },
+  
+  // Marketing
+  { id: "mailchimp", name: "Mailchimp", description: "Email Marketing Platform", category: "Marketing", domain: "mailchimp.com", isPopular: true },
+  { id: "marketo", name: "Marketo", description: "Marketing Automation", category: "Marketing", domain: "marketo.com" },
+  { id: "pardot", name: "Pardot", description: "B2B Marketing Automation", category: "Marketing", domain: "salesforce.com" },
+  { id: "activecampaign", name: "ActiveCampaign", description: "Email Marketing & Automation", category: "Marketing", domain: "activecampaign.com" },
+  
+  // Analytics
+  { id: "google-analytics", name: "Google Analytics", description: "Web Analytics Service", category: "Analytics", domain: "google.com", isPopular: true },
+  { id: "tableau", name: "Tableau", description: "Business Intelligence", category: "Analytics", domain: "tableau.com" },
+  { id: "power-bi", name: "Microsoft Power BI", description: "Business Analytics", category: "Analytics", domain: "microsoft.com" },
+  { id: "looker", name: "Looker", description: "Business Intelligence Platform", category: "Analytics", domain: "looker.com" },
+  
+  // Communication
+  { id: "slack", name: "Slack", description: "Team Communication", category: "Communication", domain: "slack.com", isPopular: true },
+  { id: "microsoft-teams", name: "Microsoft Teams", description: "Collaboration Platform", category: "Communication", domain: "microsoft.com" },
+  { id: "zoom", name: "Zoom", description: "Video Conferencing", category: "Communication", domain: "zoom.us" },
+  
+  // Finance
+  { id: "quickbooks", name: "QuickBooks", description: "Accounting Software", category: "Finance", domain: "intuit.com", isPopular: true },
+  { id: "xero", name: "Xero", description: "Cloud Accounting", category: "Finance", domain: "xero.com" },
+  { id: "stripe", name: "Stripe", description: "Payment Processing", category: "Finance", domain: "stripe.com" },
+  { id: "paypal", name: "PayPal", description: "Payment Platform", category: "Finance", domain: "paypal.com" },
+  
+  // HR
+  { id: "workday", name: "Workday", description: "Human Capital Management", category: "HR", domain: "workday.com" },
+  { id: "bamboohr", name: "BambooHR", description: "HR Management Software", category: "HR", domain: "bamboohr.com" },
+  { id: "adp", name: "ADP", description: "Payroll & HR Solutions", category: "HR", domain: "adp.com" },
 ]
 
-const categoryLabels: Record<IntegrationCategory, string> = {
-  ERP: "ERPs",
-  CRM: "CRMs",
-  Productivity: "Soporte & Ops",
+// Logo component with fallback
+function IntegrationLogo({ 
+  domain, 
+  name, 
+  className 
+}: { 
+  domain: string
+  name: string
+  className?: string 
+}) {
+  const [logoError, setLogoError] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState(true)
+  
+  const logoUrl = `https://logo.clearbit.com/${domain}`
+  
+  return (
+    <div className={cn("relative flex items-center justify-center shrink-0 h-10 w-10", className)}>
+      {isLoading && !logoError && (
+        <div className="absolute inset-0 rounded-lg bg-gray-100 animate-pulse" />
+      )}
+      {!logoError ? (
+        <img
+          src={logoUrl}
+          alt={`${name} logo`}
+          className={cn(
+            "h-10 w-10 rounded-lg object-contain bg-white border border-gray-200 p-1.5 transition-opacity duration-200",
+            isLoading ? "opacity-0" : "opacity-100"
+          )}
+          onLoad={() => setIsLoading(false)}
+          onError={() => {
+            setLogoError(true)
+            setIsLoading(false)
+          }}
+        />
+      ) : (
+        <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-gray-100 text-gray-600 text-sm font-semibold border border-gray-200">
+          {name.charAt(0)}
+        </div>
+      )}
+    </div>
+  )
 }
 
-const statusStyles: Record<IntegrationStatus, { label: string; className: string }> = {
-  connected: { label: "Conectado", className: "bg-green-50 text-green-700 border-green-200" },
-  available: { label: "Disponible", className: "bg-blue-50 text-blue-700 border-blue-200" },
-  "coming-soon": { label: "Próximamente", className: "bg-gray-50 text-gray-600 border-gray-200" },
-}
-
-const iconMap: Record<IntegrationCategory, React.ReactNode> = {
-  ERP: <Building2 className="h-4 w-4 text-gray-500" />,
-  CRM: <Plug className="h-4 w-4 text-gray-500" />,
-  Productivity: <Database className="h-4 w-4 text-gray-500" />,
+function AddIntegrationModal({ 
+  open, 
+  onOpenChange 
+}: { 
+  open: boolean
+  onOpenChange: (open: boolean) => void 
+}) {
+  const [searchQuery, setSearchQuery] = React.useState("")
+  const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null)
+  
+  // Filter out already connected integrations
+  const activeIntegrationIds = ACTIVE_INTEGRATIONS.map(i => i.id)
+  const availableIntegrations = AVAILABLE_INTEGRATIONS.filter(
+    integration => !activeIntegrationIds.includes(integration.id)
+  )
+  
+  const categories = Array.from(new Set(availableIntegrations.map(i => i.category)))
+  
+  const filteredIntegrations = availableIntegrations.filter(integration => {
+    const matchesSearch = integration.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         integration.description.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesCategory = !selectedCategory || integration.category === selectedCategory
+    return matchesSearch && matchesCategory
+  })
+  
+  const handleConnect = (integrationId: string) => {
+    // TODO: Implement connection logic
+    console.log('Connecting to:', integrationId)
+    // For now, just show an alert
+    alert(`Conectando a ${availableIntegrations.find(i => i.id === integrationId)?.name}...`)
+  }
+  
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case "ERP": return <Building2 className="h-4 w-4" />
+      case "CRM": return <Plug className="h-4 w-4" />
+      case "Marketing": return <MessageSquare className="h-4 w-4" />
+      case "Analytics": return <Activity className="h-4 w-4" />
+      case "Communication": return <MessageSquare className="h-4 w-4" />
+      case "Finance": return <DollarSign className="h-4 w-4" />
+      case "HR": return <UserPlus className="h-4 w-4" />
+      default: return <Plug className="h-4 w-4" />
+    }
+  }
+  
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.03,
+        delayChildren: 0.1,
+      }
+    }
+  }
+  
+  const itemVariants = {
+    hidden: { 
+      opacity: 0, 
+      y: 10,
+      scale: 0.95
+    },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      scale: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 24,
+        duration: 0.4
+      }
+    }
+  }
+  
+  return (
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="xl"
+      title="Add Integration"
+      subtitle={`${availableIntegrations.length} integrations available`}
+      icon={<Plug className="h-5 w-5" />}
+      className="data-[state=open]:animate-none data-[state=closed]:animate-none"
+    >
+      <AnimatePresence mode="wait">
+        {open && (
+          <motion.div
+            key="modal-content"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ 
+              duration: 0.5, 
+              ease: [0.23, 1, 0.32, 1],
+              opacity: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+              scale: { duration: 0.5, ease: [0.23, 1, 0.32, 1] },
+              y: { duration: 0.5, ease: [0.23, 1, 0.32, 1] }
+            }}
+            style={{ willChange: 'opacity, transform' }}
+          >
+            <ModalBody className="px-6 py-6">
+              {/* Search and Filters */}
+              <motion.div 
+                className="space-y-4 mb-6"
+                initial={{ opacity: 0, y: -16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ 
+                  duration: 0.5, 
+                  delay: 0.25,
+                  ease: [0.23, 1, 0.32, 1]
+                }}
+              >
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search integrations..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  />
+                  {searchQuery && (
+                    <motion.button
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </motion.button>
+                  )}
+                </div>
+                
+                {/* Category Filters */}
+                <div className="flex flex-wrap gap-2">
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.15 }}
+                    onClick={() => setSelectedCategory(null)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200",
+                      !selectedCategory
+                        ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm"
+                        : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                    )}
+                  >
+                    All
+                  </motion.button>
+                  {categories.map((category, index) => (
+                    <motion.button
+                      key={category}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.15 + index * 0.03 }}
+                      onClick={() => setSelectedCategory(category)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1.5",
+                        selectedCategory === category
+                          ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm"
+                          : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                      )}
+                    >
+                      {getCategoryIcon(category)}
+                      {category}
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+              
+              {/* Integrations Grid */}
+              <motion.div 
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[500px] overflow-y-auto pr-2"
+                style={{
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: '#d1d5db #f3f4f6'
+                }}
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                key={selectedCategory || 'all'}
+              >
+                {filteredIntegrations.map((integration, index) => (
+                  <motion.div
+                    key={integration.id}
+                    variants={itemVariants}
+                    whileHover={{ 
+                      y: -2,
+                      transition: { duration: 0.2 }
+                    }}
+                    className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer group bg-white"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <IntegrationLogo 
+                          domain={integration.domain}
+                          name={integration.name}
+                          className="relative"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-sm font-semibold text-gray-900 truncate">
+                              {integration.name}
+                            </h3>
+                            {integration.isPopular && (
+                              <motion.span 
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: 0.2 + index * 0.03 }}
+                                className="px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-50 text-yellow-700 border border-yellow-200 whitespace-nowrap"
+                              >
+                                Popular
+                              </motion.span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">{integration.description}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        {getCategoryIcon(integration.category)}
+                        {integration.category}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs !border-gray-200 !text-gray-700 hover:!border-gray-300 hover:!text-gray-900 hover:!bg-gray-50 group-hover:!border-gray-300 group-hover:!text-gray-700 group-hover:!bg-gray-50 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleConnect(integration.id)
+                        }}
+                      >
+                        Connect
+                      </Button>
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+              
+              {filteredIntegrations.length === 0 && (
+                <motion.div 
+                  className="text-center py-12"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <p className="text-sm text-gray-500">No integrations found matching your search.</p>
+                </motion.div>
+              )}
+            </ModalBody>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Modal>
+  )
 }
 
 export default function IntegrationsPage() {
-  const [activeTab, setActiveTab] = React.useState<"all" | "connected" | "available" | "coming-soon">("all")
+  const [addIntegrationModalOpen, setAddIntegrationModalOpen] = React.useState(false)
+  
+  // Add animation styles and disable default modal animations
+  React.useEffect(() => {
+    if (typeof document !== 'undefined') {
+      // Remove existing style if present
+      const existingStyle = document.getElementById('integrations-animations')
+      if (existingStyle) {
+        existingStyle.remove()
+      }
+      
+      const style = document.createElement('style')
+      style.id = 'integrations-animations'
+      style.textContent = `
+        @keyframes fadeInSlide {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes fadeOutSlide {
+          from {
+            opacity: 1;
+            transform: translateY(0);
+          }
+          to {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+        }
+        /* Disable default modal animations for AddIntegrationModal */
+        [data-radix-dialog-overlay][data-state="open"],
+        [data-radix-dialog-overlay][data-state="closed"] {
+          animation: none !important;
+        }
+        [data-radix-dialog-content][data-state="open"],
+        [data-radix-dialog-content][data-state="closed"] {
+          animation: none !important;
+        }
+      `
+      document.head.appendChild(style)
+      
+      return () => {
+        const styleToRemove = document.getElementById('integrations-animations')
+        if (styleToRemove) {
+          styleToRemove.remove()
+        }
+      }
+    }
+  }, [])
 
-  const filteredIntegrations = INTEGRATIONS.filter((integration) =>
-    activeTab === "all" ? true : integration.status === activeTab,
-  )
+  const erpIntegrations = ACTIVE_INTEGRATIONS.filter((integration) => integration.category === "ERP")
+  const crmIntegrations = ACTIVE_INTEGRATIONS.filter((integration) => integration.category === "CRM")
 
   return (
     <ResizableAppShell>
@@ -157,11 +1354,14 @@ export default function IntegrationsPage() {
               
               {/* Actions */}
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <Plug className="h-4 w-4" />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 gap-1.5 px-3 border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                  onClick={() => setAddIntegrationModalOpen(true)}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add Integration
                 </Button>
               </div>
             </div>
@@ -169,171 +1369,146 @@ export default function IntegrationsPage() {
         }
       >
         <div className="-mx-5 -mt-4">
-          <div
-            className="border-b border-stroke bg-gray-50/30"
-            style={{ paddingLeft: "28px", paddingRight: "20px", paddingTop: "var(--header-padding-y)", paddingBottom: "var(--header-padding-y)" }}
-          >
-            <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3">
-                {METRICS.map((metric, idx) => {
-                  const Icon = metric.icon
-                  return (
-                    <div key={idx} className="border border-gray-200 rounded-lg bg-white p-3">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="text-xs text-gray-500">{metric.label}</div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="text-lg font-semibold text-gray-900">
-                          {metric.value}
-                        </div>
-                        <Icon className="h-5 w-5 opacity-40 text-gray-400" />
-                      </div>
-                      <div className="text-xs text-gray-400 mt-1">{metric.sub}</div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
-                <ScrollArea>
-                  <TabsList className="mb-3 h-auto -space-x-px bg-background p-0 shadow-sm shadow-black/5 rtl:space-x-reverse">
-                    {["all", "connected", "available", "coming-soon"].map((value) => (
-                      <TabsTrigger
-                        key={value}
-                        value={value}
-                        className="relative overflow-hidden rounded-none border border-border py-2 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 first:rounded-s last:rounded-e data-[state=active]:bg-muted data-[state=active]:after:bg-primary text-xs px-3"
-                      >
-                        {value === "all" && "Todas"}
-                        {value === "connected" && "Conectadas"}
-                        {value === "available" && "Disponibles"}
-                        {value === "coming-soon" && "Próximamente"}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
-                  <ScrollBar orientation="horizontal" />
-                </ScrollArea>
-              </Tabs>
-            </div>
-          </div>
-
           <div style={{ paddingLeft: '28px', paddingRight: '20px', paddingTop: '24px', paddingBottom: '24px' }}>
-            {filteredIntegrations.length === 0 ? (
-              <div className="py-12 text-center text-gray-500">
-                <Plug className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm">No hay integraciones disponibles</p>
-                <p className="text-xs text-gray-400 mt-1">Filtra por otra categoría o estado</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {(["ERP", "CRM", "Productivity"] as IntegrationCategory[]).map((category) => {
-                  const categoryIntegrations = filteredIntegrations.filter((integration) => integration.category === category)
-                  if (categoryIntegrations.length === 0) return null
-
-                  return (
-                    <section key={category} className="space-y-3">
-                      <div className="flex items-center justify-between">
+            <div className="space-y-8">
+              {/* ERP Section */}
+              <section className="space-y-4">
                         <div className="flex items-center gap-2">
                           <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-gray-100">
-                            {iconMap[category]}
-                          </div>
+                    <Building2 className="h-4 w-4 text-gray-500" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-semibold text-gray-900">ERP</h2>
+                    <p className="text-xs text-gray-500">{erpIntegrations.length} integraciones activas</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {erpIntegrations.map((integration) => (
+                    <div key={integration.id} className="border border-gray-200 rounded-lg bg-white p-5 space-y-4">
+                      {/* Integration Header */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <IntegrationLogo 
+                            domain={integration.domain}
+                            name={integration.name}
+                          />
                           <div>
-                            <h2 className="text-sm font-semibold text-gray-900">{categoryLabels[category]}</h2>
-                            <p className="text-xs text-gray-500">{categoryIntegrations.length} conectores disponibles</p>
+                            <h3 className="text-sm font-semibold text-gray-900">{integration.name}</h3>
+                            <p className="text-xs text-gray-500">{integration.provider}</p>
                           </div>
                         </div>
-                        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs">
-                          Ver documentación
-                          <ArrowUpRight className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                      {categoryIntegrations.map((integration) => (
-                        <div key={integration.id} className="border border-gray-200 rounded-lg bg-white p-4 space-y-3 hover:bg-gray-50/50 transition-colors">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-center gap-2">
-                              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold shrink-0">
-                                {integration.provider.charAt(0)}
-                              </div>
-                              <div className="min-w-0">
-                                <h3 className="text-sm font-semibold text-gray-900 truncate">{integration.name}</h3>
-                                <p className="text-xs text-gray-500 truncate">{integration.provider}</p>
-                              </div>
-                            </div>
-                            <div className={cn(
-                              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium border shrink-0",
-                              statusStyles[integration.status].className
-                            )}>
-                              {statusStyles[integration.status].label}
-                            </div>
-                          </div>
-
-                          <p className="text-xs text-gray-500 leading-relaxed">{integration.description}</p>
-
-                          <div className="flex flex-wrap gap-1.5">
-                            {integration.features.map((feature) => (
-                              <span key={feature} className="px-1.5 py-0.5 rounded text-xs text-gray-600 border border-dashed border-gray-300 bg-gray-50">
-                                {feature}
-                              </span>
-                            ))}
-                          </div>
-
-                          <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t" style={{ borderColor: 'var(--stroke)' }}>
-                            <div className="flex items-center gap-1.5">
-                              <ShieldCheck className="h-3.5 w-3.5 text-gray-400" />
-                              <span>{integration.dataSync}</span>
-                            </div>
-                            {integration.lastSync && (
-                              <div className="flex items-center gap-1 text-gray-400">
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                <span>{integration.lastSync}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {integration.requires && integration.requires.length > 0 && (
-                            <div className="flex items-start gap-1.5 text-xs text-gray-500 pt-2 border-t" style={{ borderColor: 'var(--stroke)' }}>
-                              <AlertCircle className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-                              <div className="min-w-0">
-                                <span className="font-medium text-gray-600">Requisitos:</span>{" "}
-                                <span className="text-gray-500">{integration.requires.join(" · ")}</span>
-                              </div>
+                        <div className="flex items-center gap-2">
+                          {integration.isRealTime && (
+                            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-green-50 border border-green-200">
+                              <Activity className="h-3 w-3 text-green-600 animate-pulse" />
+                              <span className="text-xs font-medium text-green-700">Tiempo real</span>
                             </div>
                           )}
+                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                            <Clock className="h-3.5 w-3.5 text-gray-400" />
+                            <span>{integration.lastSync}</span>
+                          </div>
+                        </div>
+                      </div>
 
-                          <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: 'var(--stroke)' }}>
-                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                              <Settings className="h-3.5 w-3.5 text-gray-400" />
-                              <span>Configurable</span>
+                      {/* Data Tables */}
+                      <div className="space-y-4">
+                        {integration.purchaseOrders && integration.purchaseOrders.length > 0 && (
+                          <PurchaseOrdersTable orders={integration.purchaseOrders} />
+                        )}
+                        {integration.invoices && integration.invoices.length > 0 && (
+                          <InvoicesTable invoices={integration.invoices} />
+                        )}
+                        {integration.events && integration.events.length > 0 && (
+                          <EventsTable events={integration.events} />
+                        )}
+                      </div>
+
+                      <div className="pt-2 border-t" style={{ borderColor: 'var(--stroke)' }}>
+                        <Button variant="outline" size="sm" className="h-7 text-xs gap-1 hover:bg-gray-100 hover:text-gray-900">
+                          Ver todos los datos
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                              </div>
+                  ))}
+                              </div>
+              </section>
+
+              {/* CRM Section */}
+              <section className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-gray-100">
+                    <Plug className="h-4 w-4 text-gray-500" />
                             </div>
-                            {integration.status === "connected" ? (
-                              <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
-                                Gestionar
-                                <ChevronRight className="h-3.5 w-3.5" />
+                  <div>
+                    <h2 className="text-sm font-semibold text-gray-900">CRM</h2>
+                    <p className="text-xs text-gray-500">{crmIntegrations.length} integraciones activas</p>
+                            </div>
+                          </div>
+
+                <div className="space-y-6">
+                  {crmIntegrations.map((integration) => (
+                    <div key={integration.id} className="border border-gray-200 rounded-lg bg-white p-5 space-y-4">
+                      {/* Integration Header */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <IntegrationLogo 
+                            domain={integration.domain}
+                            name={integration.name}
+                          />
+                          <div>
+                            <h3 className="text-sm font-semibold text-gray-900">{integration.name}</h3>
+                            <p className="text-xs text-gray-500">{integration.provider}</p>
+                          </div>
+                              </div>
+                        <div className="flex items-center gap-2">
+                          {integration.isRealTime && (
+                            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-green-50 border border-green-200">
+                              <Activity className="h-3 w-3 text-green-600 animate-pulse" />
+                              <span className="text-xs font-medium text-green-700">Tiempo real</span>
+                            </div>
+                          )}
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                            <Clock className="h-3.5 w-3.5 text-gray-400" />
+                            <span>{integration.lastSync}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Data Tables */}
+                      <div className="space-y-4">
+                        {integration.leads && integration.leads.length > 0 && (
+                          <LeadsTable leads={integration.leads} />
+                        )}
+                        {integration.deals && integration.deals.length > 0 && (
+                          <DealsTable deals={integration.deals} />
+                        )}
+                        {integration.events && integration.events.length > 0 && (
+                          <EventsTable events={integration.events} />
+                        )}
+                            </div>
+
+                      <div className="pt-2 border-t" style={{ borderColor: 'var(--stroke)' }}>
+                        <Button variant="outline" size="sm" className="h-7 text-xs gap-1 hover:bg-gray-100 hover:text-gray-900">
+                          Ver todos los datos
+                          <Eye className="h-3.5 w-3.5" />
                               </Button>
-                            ) : integration.status === "available" ? (
-                              <Button size="sm" className="h-7 text-xs gap-1">
-                                Conectar
-                                <Plug className="h-3.5 w-3.5" />
-                              </Button>
-                            ) : (
-                              <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-gray-500" disabled>
-                                En roadmap
-                              </Button>
-                            )}
                           </div>
                         </div>
                       ))}
                     </div>
                   </section>
-                )
-              })}
               </div>
-            )}
           </div>
         </div>
       </ResizablePageSheet>
+      
+      <AddIntegrationModal 
+        open={addIntegrationModalOpen} 
+        onOpenChange={setAddIntegrationModalOpen} 
+      />
     </ResizableAppShell>
   )
 }
-

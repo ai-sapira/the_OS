@@ -19,17 +19,21 @@ import {
   MessageSquare,
   User,
   ChevronRight,
-  Check
+  Check,
+  ClipboardList
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog"
 import { 
   Popover, 
   PopoverContent, 
   PopoverTrigger 
 } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { InitiativesAPI } from "@/lib/api/initiatives"
 import { SurveysAPI, type CreateSurveyInput, type CreateQuestionInput } from "@/lib/api/surveys"
@@ -249,19 +253,19 @@ function AudienceSelector({
                     setOpen(false)
                   }}
                   className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg hover:bg-gray-100 transition-colors text-left ${
-                    targetAudience === 'all' ? 'bg-blue-50' : ''
+                    targetAudience === 'all' ? 'bg-gray-50' : ''
                   }`}
                 >
                   <UsersIcon className="w-4 h-4 text-gray-600" />
                   <span className="flex-1">All employees</span>
-                  {targetAudience === 'all' && <Check className="h-4 w-4 text-blue-600" />}
+                  {targetAudience === 'all' && <Check className="h-4 w-4 text-gray-600" />}
                 </button>
 
                 {/* Specific BU - with navigation */}
                 <button
                   onClick={() => setView('bu')}
                   className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg hover:bg-gray-100 transition-colors text-left ${
-                    targetAudience === 'bu_specific' ? 'bg-blue-50' : ''
+                    targetAudience === 'bu_specific' ? 'bg-gray-50' : ''
                   }`}
                 >
                   <Target className="w-4 h-4 text-gray-600" />
@@ -273,7 +277,7 @@ function AudienceSelector({
                 <button
                   onClick={() => setView('users')}
                   className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg hover:bg-gray-100 transition-colors text-left ${
-                    targetAudience === 'role_specific' ? 'bg-blue-50' : ''
+                    targetAudience === 'role_specific' ? 'bg-gray-50' : ''
                   }`}
                 >
                   <User className="w-4 h-4 text-gray-600" />
@@ -317,12 +321,12 @@ function AudienceSelector({
                       setOpen(false)
                     }}
                     className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg hover:bg-gray-100 transition-colors text-left ${
-                      targetBuId === initiative.id ? 'bg-blue-50' : ''
+                      targetBuId === initiative.id ? 'bg-gray-50' : ''
                     }`}
                   >
                     <Target className="w-4 h-4 text-gray-600 flex-shrink-0" />
                     <span className="flex-1 truncate">{initiative.name}</span>
-                    {targetBuId === initiative.id && <Check className="h-4 w-4 text-blue-600" />}
+                    {targetBuId === initiative.id && <Check className="h-4 w-4 text-gray-600" />}
                   </button>
                 ))}
               </div>
@@ -375,7 +379,7 @@ function AudienceSelector({
                         key={user.id}
                         onClick={() => toggleUserSelection(user.id)}
                         className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg hover:bg-gray-100 transition-colors text-left ${
-                          selectedUserIds.includes(user.id) ? 'bg-blue-50' : ''
+                          selectedUserIds.includes(user.id) ? 'bg-gray-50' : ''
                         }`}
                       >
                         <Avatar className="h-6 w-6 flex-shrink-0">
@@ -390,7 +394,7 @@ function AudienceSelector({
                           )}
                         </div>
                         {selectedUserIds.includes(user.id) && (
-                          <Check className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                          <Check className="h-4 w-4 text-gray-600 flex-shrink-0" />
                         )}
                       </button>
                     ))
@@ -420,7 +424,7 @@ function AudienceSelector({
                         onBuChange(null)
                         setOpen(false)
                       }}
-                      className="h-7 text-xs bg-blue-500 hover:bg-blue-600 text-white"
+                      className="h-7 text-xs bg-gray-700 hover:bg-gray-800 text-white"
                     >
                       Done
                     </Button>
@@ -547,7 +551,7 @@ function QuestionEditor({ question, index, onUpdate, onRemove, canRemove }: Ques
                     setTypeOpen(false)
                   }}
                   className={`w-full flex items-start gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors text-left ${
-                    question.question_type === type.value ? 'bg-blue-50' : ''
+                    question.question_type === type.value ? 'bg-gray-50' : ''
                   }`}
                 >
                   <div className="mt-0.5 flex-shrink-0">{type.icon}</div>
@@ -556,7 +560,7 @@ function QuestionEditor({ question, index, onUpdate, onRemove, canRemove }: Ques
                     <div className="text-xs text-gray-500">{type.description}</div>
                   </div>
                   {question.question_type === type.value && (
-                    <Check className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <Check className="h-4 w-4 text-gray-600 flex-shrink-0 mt-0.5" />
                   )}
                 </button>
               ))}
@@ -585,7 +589,7 @@ function QuestionEditor({ question, index, onUpdate, onRemove, canRemove }: Ques
                       value={option}
                       onChange={(e) => updateOption(idx, e.target.value)}
                       placeholder={`Option ${idx + 1}`}
-                      className="flex-1 text-sm text-gray-700 placeholder:text-gray-400 border-b border-transparent hover:border-gray-200 focus:border-blue-500 outline-none transition-colors py-1"
+                      className="flex-1 text-sm text-gray-700 placeholder:text-gray-400 border-b border-transparent hover:border-gray-200 focus:border-gray-500 outline-none transition-colors py-1"
                     />
                     {localOptions.length > 1 && (
                       <button
@@ -803,150 +807,237 @@ export function NewSurveyModal({ open, onOpenChange, onCreateSurvey }: NewSurvey
     { name: "email", label: "Email", icon: <Mail className="w-2.5 h-2.5 text-gray-600" /> },
   ]
 
+  const displayTitle = title.trim() || "Survey"
+  const selectedBu = targetBuId ? initiatives.find(i => i.id === targetBuId) : null
+  const selectedUsers = users.filter(u => selectedUserIds.includes(u.id))
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl p-0 gap-0 border border-gray-200 max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header - Simple con solo close button */}
-        <DialogHeader className="px-6 pt-4 pb-3 border-b border-neutral-200 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm text-neutral-600">
-              <span className="font-medium">{currentOrg?.organization.name || 'Organización'}</span>
-              <span className="text-neutral-400">›</span>
-              <span className="font-medium text-neutral-900">New survey</span>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-neutral-500 hover:bg-gray-100 hover:text-neutral-700"
-              onClick={() => onOpenChange(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          {/* Hidden for accessibility */}
-          <DialogTitle className="sr-only">Create New Survey</DialogTitle>
-          <DialogDescription className="sr-only">
-            Create a new survey to gather feedback from employees
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="px-6 py-5 space-y-4">
-            {/* Título - Sin encuadre, editable inline */}
-            <input
-              type="text"
-              placeholder="Survey title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full text-xl font-medium text-neutral-900 placeholder:text-neutral-400 border-none outline-none focus:outline-none focus:ring-0 p-0"
-              autoFocus
-            />
-
-            {/* Descripción - Sin encuadre, editable inline con auto-resize */}
-            <textarea
-              placeholder="Add description..."
-              value={description}
-              onChange={(e) => {
-                setDescription(e.target.value)
-                // Auto-resize
-                e.target.style.height = 'auto'
-                e.target.style.height = e.target.scrollHeight + 'px'
+      <AnimatePresence>
+        {open && (
+          <DialogContent className="overflow-hidden p-0 sm:max-w-2xl max-h-[85vh] gap-0 data-[state=open]:animate-none data-[state=closed]:animate-none flex flex-col">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97, y: 4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.97, y: 4 }}
+              transition={{ 
+                duration: 0.3, 
+                ease: [0.16, 1, 0.3, 1],
+                opacity: { duration: 0.2 }
               }}
-              className="w-full min-h-[32px] text-sm text-neutral-900 placeholder:text-neutral-400 border-none outline-none focus:outline-none focus:ring-0 p-0 resize-none overflow-hidden"
-              rows={1}
-            />
-
-            {/* Settings - Con chips de bordes punteados - MÁS CERCA */}
-            <div className="space-y-3 pt-1">
-              {/* Row 1: Canal y Audience - En la misma línea */}
-              <div className="flex items-center gap-4 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500 font-medium">Channel</span>
-                  <PropertyChip
-                    icon={channel === "teams" ? <MessageSquare className="h-3.5 w-3.5 text-gray-500" /> : <Mail className="h-3.5 w-3.5 text-gray-500" />}
-                    value={channel === "teams" ? "Microsoft Teams" : "Email"}
-                    options={channelOptions}
-                    onSelect={(value) => setChannel(value as "teams" | "email")}
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500 font-medium">Send to</span>
-                  <AudienceSelector
-                    targetAudience={targetAudience}
-                    targetBuId={targetBuId}
-                    selectedUserIds={selectedUserIds}
-                    initiatives={initiatives}
-                    users={users}
-                    onAudienceChange={setTargetAudience}
-                    onBuChange={setTargetBuId}
-                    onUsersChange={setSelectedUserIds}
-                  />
-                </div>
-              </div>
-
-              {/* Row 2: Anonymous toggle */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-neutral-600">Allow anonymous responses</span>
-                <Switch
-                  checked={allowAnonymous}
-                  onCheckedChange={setAllowAnonymous}
-                  className="data-[state=checked]:bg-blue-500 scale-90"
-                />
-              </div>
-            </div>
-
-            {/* Questions Section */}
-            <div className="pt-4 space-y-4">
-              <AnimatePresence mode="popLayout">
-                {questions.map((question, index) => (
-                  <QuestionEditor
-                    key={index}
-                    question={question}
-                    index={index}
-                    onUpdate={(updates) => updateQuestion(index, updates)}
-                    onRemove={() => removeQuestion(index)}
-                    canRemove={questions.length > 1}
-                  />
-                ))}
-              </AnimatePresence>
-
-              {/* Add Question Button */}
-              <motion.button
-                type="button"
-                onClick={addQuestion}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full h-12 border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 text-gray-600 hover:text-blue-600 transition-colors rounded-xl flex items-center justify-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Add question
-              </motion.button>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-neutral-200 flex items-center justify-end gap-3 flex-shrink-0 bg-white">
-          <Button 
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            className="text-gray-600"
-          >
-            Cancel
-          </Button>
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button 
-              onClick={handleSubmit}
-              disabled={!title.trim() || isSubmitting}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6"
+              className="flex flex-col max-h-[85vh] overflow-hidden"
             >
-              {isSubmitting ? "Creating..." : "Create survey"}
-            </Button>
-          </motion.div>
-        </div>
-      </DialogContent>
+              <DialogHeader className="border-b px-6 py-3 mb-0">
+                <DialogTitle className="text-base">New survey</DialogTitle>
+                <p className="text-xs text-muted-foreground">
+                  Gather feedback from your team with structured questions.
+                </p>
+              </DialogHeader>
+
+              <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </DialogClose>
+
+              <form
+                onSubmit={async (event) => {
+                  event.preventDefault()
+                  await handleSubmit()
+                }}
+                className="flex flex-col flex-1 min-h-0 overflow-hidden"
+              >
+                <div className="flex flex-col-reverse md:flex-row flex-1 overflow-y-auto min-h-0">
+                  <div className="md:w-80 md:border-r">
+                    <div className="border-t p-3 md:border-none">
+                      <div className="flex items-center space-x-2">
+                        <div className="inline-flex shrink-0 items-center justify-center rounded-sm bg-muted p-2">
+                          <ClipboardList className="size-4 text-foreground" aria-hidden />
+                        </div>
+                        <div className="space-y-0.5">
+                          <h3 className="text-sm font-medium text-foreground">{displayTitle}</h3>
+                          <p className="text-xs text-muted-foreground">
+                            {currentOrg?.organization.name || "Organization workspace"}
+                          </p>
+                        </div>
+                      </div>
+                      <Separator className="my-2" />
+                      <h4 className="text-xs font-medium text-foreground">Description</h4>
+                      <p className="mt-1 text-xs leading-4 text-muted-foreground">
+                        Surveys help you collect structured feedback and insights from your team members.
+                      </p>
+                      <h4 className="mt-3 text-xs font-medium text-foreground">Audience</h4>
+                      <p className="mt-1 text-xs leading-4 text-muted-foreground">
+                        {targetAudience === "all" && "This survey will be sent to all employees."}
+                        {targetAudience === "bu_specific" && selectedBu && `Targeting ${selectedBu.name} business unit.`}
+                        {targetAudience === "role_specific" && selectedUsers.length > 0 && `Targeting ${selectedUsers.length} selected employee${selectedUsers.length > 1 ? 's' : ''}.`}
+                        {targetAudience === "role_specific" && selectedUsers.length === 0 && "Select specific employees to target."}
+                      </p>
+                      {questions.length > 0 && (
+                        <>
+                          <h4 className="mt-3 text-xs font-medium text-foreground">Questions</h4>
+                          <p className="mt-1 text-xs leading-4 text-muted-foreground">
+                            {questions.length} question{questions.length > 1 ? 's' : ''} configured.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-1 flex-col p-3 md:px-5 md:pb-4 md:pt-3">
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.1, duration: 0.2 }}
+                      className="flex-1 space-y-3"
+                    >
+                      <motion.div 
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.15, duration: 0.25 }}
+                        className="space-y-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <div className="inline-flex size-5 items-center justify-center rounded-sm bg-muted text-xs text-foreground">
+                            1
+                          </div>
+                          <div>
+                            <Label htmlFor="survey-title" className="text-sm font-medium text-foreground">
+                              Title & description
+                            </Label>
+                            <p className="text-xs text-muted-foreground">Give your survey a clear title.</p>
+                          </div>
+                        </div>
+                        <Input
+                          id="survey-title"
+                          placeholder="Survey title"
+                          value={title}
+                          onChange={(event) => setTitle(event.target.value)}
+                          className="h-10 rounded-lg border border-border bg-background/70 px-4 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-primary/30"
+                          autoFocus
+                        />
+                        <Textarea
+                          id="survey-description"
+                          placeholder="Add description..."
+                          value={description}
+                          onChange={(event) => setDescription(event.target.value)}
+                          className="min-h-[60px] rounded-lg border border-border bg-background/70 px-4 py-2 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-primary/30"
+                        />
+                      </motion.div>
+
+                      <motion.div 
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.25, duration: 0.25 }}
+                        className="space-y-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <div className="inline-flex size-5 items-center justify-center rounded-sm bg-muted text-xs text-foreground">
+                            2
+                          </div>
+                          <div>
+                            <Label className="text-sm font-medium text-foreground">
+                              Channel & audience
+                            </Label>
+                            <p className="text-xs text-muted-foreground">Choose how to deliver and who receives it.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500 font-medium">Channel</span>
+                            <PropertyChip
+                              icon={channel === "teams" ? <MessageSquare className="h-3.5 w-3.5 text-gray-500" /> : <Mail className="h-3.5 w-3.5 text-gray-500" />}
+                              value={channel === "teams" ? "Microsoft Teams" : "Email"}
+                              options={channelOptions}
+                              onSelect={(value) => setChannel(value as "teams" | "email")}
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500 font-medium">Send to</span>
+                            <AudienceSelector
+                              targetAudience={targetAudience}
+                              targetBuId={targetBuId}
+                              selectedUserIds={selectedUserIds}
+                              initiatives={initiatives}
+                              users={users}
+                              onAudienceChange={setTargetAudience}
+                              onBuChange={setTargetBuId}
+                              onUsersChange={setSelectedUserIds}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <Switch
+                            checked={allowAnonymous}
+                            onCheckedChange={setAllowAnonymous}
+                            className="data-[state=checked]:bg-gray-700"
+                          />
+                          <Label htmlFor="anonymous" className="text-xs text-muted-foreground cursor-pointer">
+                            Allow anonymous responses
+                          </Label>
+                        </div>
+                      </motion.div>
+
+                      <motion.div 
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3, duration: 0.25 }}
+                        className="space-y-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <div className="inline-flex size-5 items-center justify-center rounded-sm bg-muted text-xs text-foreground">
+                            3
+                          </div>
+                          <div>
+                            <Label className="text-sm font-medium text-foreground">
+                              Questions
+                            </Label>
+                            <p className="text-xs text-muted-foreground">Add questions to gather feedback.</p>
+                          </div>
+                        </div>
+                        <div className="space-y-3 pt-2">
+                          <AnimatePresence mode="popLayout">
+                            {questions.map((question, index) => (
+                              <QuestionEditor
+                                key={index}
+                                question={question}
+                                index={index}
+                                onUpdate={(updates) => updateQuestion(index, updates)}
+                                onRemove={() => removeQuestion(index)}
+                                canRemove={questions.length > 1}
+                              />
+                            ))}
+                          </AnimatePresence>
+                          <motion.button
+                            type="button"
+                            onClick={addQuestion}
+                            whileHover={{ scale: 1.01 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="w-full h-10 border-2 border-dashed border-gray-300 hover:border-gray-500 hover:bg-gray-50 text-gray-600 hover:text-gray-700 transition-colors rounded-lg flex items-center justify-center gap-2 text-sm"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Add question
+                          </motion.button>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.35, duration: 0.2 }}
+                      className="mt-3 flex items-center justify-end pt-2"
+                    >
+                      <Button type="submit" size="sm" disabled={!title.trim() || isSubmitting}>
+                        {isSubmitting ? "Creating..." : "Create survey"}
+                      </Button>
+                    </motion.div>
+                  </div>
+                </div>
+              </form>
+            </motion.div>
+          </DialogContent>
+        )}
+      </AnimatePresence>
     </Dialog>
   )
 }

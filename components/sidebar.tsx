@@ -411,21 +411,24 @@ export function Sidebar({
       {/* Logo - Above Role Selector */}
       {!isCollapsed && currentOrg?.organization && (
         <div className="flex h-[52px] items-center px-4 border-b border-border">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-gray-200">
+          <div className="flex items-center justify-center w-full max-w-[200px] h-8 px-3 py-1 rounded-md bg-white border border-gray-200">
             {currentOrg.organization.logo_url ? (
-              <Image 
-                src={currentOrg.organization.logo_url}
-                alt={`${currentOrg.organization.name} Logo`}
-                width={90} 
-                height={28}
-                className="object-contain"
-                onError={(e) => {
-                  // Hide image on error, show initials instead
-                  e.currentTarget.style.display = 'none'
-                }}
-              />
+              <div className="relative w-full h-full max-h-6 flex items-center justify-center">
+                <Image 
+                  src={currentOrg.organization.logo_url}
+                  alt={`${currentOrg.organization.name} Logo`}
+                  fill
+                  sizes="(max-width: 200px) 200px, 200px"
+                  className="object-contain object-center"
+                  style={{ objectFit: 'contain' }}
+                  onError={(e) => {
+                    // Hide image on error, show initials instead
+                    e.currentTarget.style.display = 'none'
+                  }}
+                />
+              </div>
             ) : (
-              <div className="h-7 flex items-center justify-center px-2 bg-gray-100 rounded text-xs font-semibold text-gray-700">
+              <div className="h-6 flex items-center justify-center px-2 bg-gray-100 rounded text-xs font-semibold text-gray-700">
                 {currentOrg.organization.name.substring(0, 2).toUpperCase()}
               </div>
             )}

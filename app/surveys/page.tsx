@@ -8,7 +8,6 @@ import { ResizableAppShell, ResizablePageSheet } from "@/components/layout"
 import { NewSurveyModal } from "@/components/new-survey-modal"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card } from "@/components/ui/card"
 import { SurveysAPI, type SurveyWithRelations } from "@/lib/api/surveys"
 import { 
   Plus, 
@@ -21,7 +20,9 @@ import {
   MoreVertical,
   Play,
   Lock,
-  Eye
+  Eye,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react"
 
 export default function SurveysPage() {
@@ -87,7 +88,7 @@ export default function SurveysPage() {
       case "draft":
         return <Badge className="bg-gray-100 text-gray-700 border-gray-200">Draft</Badge>
       case "closed":
-        return <Badge className="bg-blue-100 text-blue-700 border-blue-200">Closed</Badge>
+        return <Badge className="bg-gray-100 text-gray-700 border-gray-200">Closed</Badge>
       case "archived":
         return <Badge className="bg-gray-100 text-gray-600 border-gray-200">Archived</Badge>
       default:
@@ -121,7 +122,7 @@ export default function SurveysPage() {
                 {canCreateSurvey && (
                   <Button 
                     size="sm" 
-                    className="h-8 bg-blue-500 hover:bg-blue-600 text-white gap-2"
+                    className="h-8 bg-gray-700 hover:bg-gray-800 text-white gap-2"
                     onClick={() => setCreateSurveyOpen(true)}
                   >
                     <Plus className="h-4 w-4" />
@@ -195,95 +196,16 @@ export default function SurveysPage() {
         <div className="p-6">
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500"></div>
             </div>
           ) : filteredSurveys.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredSurveys.map((survey) => (
-                <Card
-                  key={survey.id}
-                  className="group relative bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm transition-all duration-200 cursor-pointer overflow-hidden"
-                  onClick={() => {
-                    // Navigate based on context
-                    if (activeTab === "my-surveys" && canViewResults) {
-                      // Go to results page for own surveys
-                      router.push(`/surveys/${survey.id}/results`)
-                    } else if (survey.status === "active" && survey.my_response_status === "pending") {
-                      // Go to answer page for active surveys
-                      router.push(`/surveys/${survey.id}/answer`)
-                    } else if (survey.my_response_status === "completed") {
-                      // View your response
-                      router.push(`/surveys/${survey.id}/response`)
-                    } else {
-                      // Default: view details
-                      router.push(`/surveys/${survey.id}`)
-                    }
-                  }}
-                >
-                  {/* Header con status badge */}
-                  <div className="px-5 pt-5 pb-3 border-b border-gray-100">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-base font-semibold text-gray-900 line-clamp-2 mb-1">
-                          {survey.title}
-                        </h3>
-                        {survey.description && (
-                          <p className="text-sm text-gray-500 line-clamp-1">
-                            {survey.description}
-                          </p>
-                        )}
-                      </div>
-                      {getStatusBadge(survey.status)}
-                    </div>
-                  </div>
-
-                  {/* Body */}
-                  <div className="px-5 py-4 space-y-3">
-                    {/* Creator & BU */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {survey.creator && (
-                        <div className="h-6 px-2.5 rounded-md border border-dashed border-gray-300 bg-gray-50 flex items-center gap-1.5">
-                          <div className="h-4 w-4 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                            <span className="text-[9px] font-medium text-gray-700">
-                              {survey.creator.name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <span className="text-xs text-gray-700 truncate max-w-[120px]">{survey.creator.name}</span>
-                        </div>
-                      )}
-                      {survey.target_bu && (
-                        <div className="h-6 px-2.5 rounded-md border border-dashed border-gray-300 bg-gray-50 flex items-center gap-1.5">
-                          <Target className="h-3 w-3 text-gray-600 flex-shrink-0" />
-                          <span className="text-xs text-gray-700 truncate max-w-[120px]">{survey.target_bu.name}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Stats */}
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                        <Users className="h-3.5 w-3.5" />
-                        <span>{survey.response_count || 0}</span>
-                      </div>
-                      {survey.questions && (
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                          <ClipboardList className="h-3.5 w-3.5" />
-                          <span>{survey.questions.length} questions</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Response Status */}
-                    {survey.my_response_status === "completed" && (
-                      <div className="flex items-center gap-1.5 text-xs text-green-600 font-medium pt-1">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        <span>Completed</span>
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              ))}
-            </div>
+            <SurveysTable 
+              surveys={filteredSurveys}
+              activeTab={activeTab}
+              canViewResults={canViewResults}
+              router={router}
+              getStatusBadge={getStatusBadge}
+            />
           ) : (
             <EmptySurveysState
               icon={getEmptyIcon(activeTab)}
@@ -292,7 +214,7 @@ export default function SurveysPage() {
               action={
                 activeTab === "my-surveys" && canCreateSurvey ? (
                   <Button 
-                    className="mt-4 bg-blue-500 hover:bg-blue-600 text-white gap-2"
+                    className="mt-4 bg-gray-700 hover:bg-gray-800 text-white gap-2"
                     onClick={() => setCreateSurveyOpen(true)}
                   >
                     <Plus className="h-4 w-4" />
@@ -314,6 +236,176 @@ export default function SurveysPage() {
         />
       </ResizablePageSheet>
     </ResizableAppShell>
+  )
+}
+
+// Surveys Table Component
+interface SurveysTableProps {
+  surveys: SurveyWithRelations[]
+  activeTab: string
+  canViewResults: boolean
+  router: ReturnType<typeof useRouter>
+  getStatusBadge: (status: string) => React.ReactNode | null
+}
+
+function SurveysTable({ surveys, activeTab, canViewResults, router, getStatusBadge }: SurveysTableProps) {
+  const [expanded, setExpanded] = useState(false)
+  const [displayingSurveys, setDisplayingSurveys] = useState(surveys.slice(0, 10))
+
+  useEffect(() => {
+    if (expanded) {
+      setDisplayingSurveys(surveys)
+    } else {
+      const timer = setTimeout(() => {
+        setDisplayingSurveys(surveys.slice(0, 10))
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [expanded, surveys])
+
+  const handleSurveyClick = (survey: SurveyWithRelations) => {
+    if (activeTab === "my-surveys" && canViewResults) {
+      router.push(`/surveys/${survey.id}/results`)
+    } else if (survey.status === "active" && survey.my_response_status === "pending") {
+      router.push(`/surveys/${survey.id}/answer`)
+    } else if (survey.my_response_status === "completed") {
+      router.push(`/surveys/${survey.id}/response`)
+    } else {
+      router.push(`/surveys/${survey.id}`)
+    }
+  }
+
+  const formatDate = (date: string | Date | null | undefined) => {
+    if (!date) return "-"
+    const d = new Date(date)
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  }
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-gray-50 px-4 py-2.5 flex items-center justify-between border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-gray-900">Surveys</span>
+          <span className="text-xs text-gray-500">({surveys.length})</span>
+        </div>
+        {surveys.length > 10 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-xs gap-1 hover:bg-gray-100 hover:text-gray-900"
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? (
+              <>
+                Minimizar <ChevronUp className="h-3 w-3" />
+              </>
+            ) : (
+              <>
+                Ver todas <ChevronDown className="h-3 w-3" />
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">Title</th>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">Status</th>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">Creator</th>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">Business Unit</th>
+              <th className="text-right py-2 px-4 font-semibold text-gray-700">Responses</th>
+              <th className="text-right py-2 px-4 font-semibold text-gray-700">Questions</th>
+              <th className="text-left py-2 px-4 font-semibold text-gray-700">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayingSurveys.map((survey, idx) => {
+              const isNewRow = expanded && idx >= 10 && idx < surveys.length
+              const isRemovedRow = !expanded && idx >= 10
+              const animationDelay = idx >= 10 ? (idx - 10) * 30 : 0
+              
+              return (
+                <tr
+                  key={`${survey.id}-${expanded ? 'expanded' : 'collapsed'}`}
+                  className="border-b border-gray-100 hover:bg-gray-50/50 transition-all duration-300 ease-in-out cursor-pointer"
+                  style={{
+                    animation: isNewRow 
+                      ? `fadeInSlide 0.3s ease-out ${animationDelay}ms both`
+                      : isRemovedRow
+                      ? `fadeOutSlide 0.3s ease-out ${animationDelay}ms both`
+                      : undefined,
+                  }}
+                  onClick={() => handleSurveyClick(survey)}
+                >
+                  <td className="py-3 px-4">
+                    <div className="flex flex-col gap-0.5">
+                      <button
+                        className="font-medium text-sm text-gray-900 hover:text-gray-700 hover:underline transition-colors text-left"
+                      >
+                        {survey.title}
+                      </button>
+                      {survey.description && (
+                        <span className="text-xs text-gray-500 line-clamp-1">{survey.description}</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-3 px-4">
+                    {getStatusBadge(survey.status)}
+                    {survey.my_response_status === "completed" && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <CheckCircle2 className="h-3 w-3 text-green-600" />
+                        <span className="text-xs text-green-600">Completed</span>
+                      </div>
+                    )}
+                  </td>
+                  <td className="py-3 px-4">
+                    {survey.creator ? (
+                      <div className="flex items-center gap-2">
+                        <div className="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                          <span className="text-[9px] font-medium text-gray-700">
+                            {survey.creator.name.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <span className="text-sm text-gray-700">{survey.creator.name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4">
+                    {survey.target_bu ? (
+                      <div className="flex items-center gap-1.5">
+                        <Target className="h-3.5 w-3.5 text-gray-500" />
+                        <span className="text-sm text-gray-700">{survey.target_bu.name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-400">All</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4 text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Users className="h-3.5 w-3.5 text-gray-400" />
+                      <span className="text-sm text-gray-700">{survey.response_count || 0}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 px-4 text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <ClipboardList className="h-3.5 w-3.5 text-gray-400" />
+                      <span className="text-sm text-gray-700">{survey.questions?.length || 0}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 px-4">
+                    <span className="text-sm text-gray-700">{formatDate(survey.created_at)}</span>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   )
 }
 
