@@ -13,6 +13,7 @@ interface Organization {
   name: string
   slug: string
   logo_url: string | null
+  id?: string
 }
 
 function getCookie(name: string): string | null {
@@ -51,6 +52,7 @@ export default function LoginPage() {
               name: data.organization.name || data.orgName || orgSlug.toUpperCase(),
               slug: data.organization.slug || orgSlug,
               logo_url: data.organization.logo_url || null,
+              id: data.organization.id || data.organizationId || undefined,
             })
           } else if (data.orgName) {
             // Fallback if organization object is not present
@@ -192,13 +194,6 @@ export default function LoginPage() {
             </h1>
           </div>
 
-          <div className="z-10 mt-auto">
-            {organization && (
-              <footer className="font-mono text-sm font-semibold text-muted-foreground">
-                ~ {organization.name}
-              </footer>
-            )}
-          </div>
 
           {/* Floating paths background */}
           <div className="absolute inset-0">
@@ -235,6 +230,29 @@ export default function LoginPage() {
               )}
               <p className="text-xl font-semibold text-foreground">Sapira Pharo</p>
             </div>
+
+            {/* Corporate Logo - Prominent placement */}
+            {(organization?.logo_url || orgSlug) && (
+              <div className="flex justify-center lg:justify-start mb-6 -mt-2 transition-all duration-300">
+                <img
+                  src={
+                    organization?.logo_url || 
+                    (orgSlug === 'gonvarri' ? '/gonvarri_vector.png' : `/logos/${orgSlug}.svg`)
+                  }
+                  alt={organization?.name || orgSlug || 'Organization'}
+                  className="h-14 lg:h-16 w-auto object-contain"
+                  onError={(e) => {
+                    // Fallback to gonvarri logo if logo_url fails
+                    const target = e.target as HTMLImageElement;
+                    if (orgSlug === 'gonvarri') {
+                      target.src = '/gonvarri_vector.png';
+                    } else {
+                      target.style.display = 'none';
+                    }
+                  }}
+                />
+              </div>
+            )}
 
             {/* Title */}
             <div className="flex flex-col space-y-1">
