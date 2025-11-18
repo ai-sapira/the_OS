@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminSupabaseClient, getAuthUserId, isOrgAdmin } from "@/lib/supabase/server"
 
+export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url)
-    const organizationId = searchParams.get('organization_id')
+    const organizationId = req.nextUrl.searchParams.get('organization_id')
 
     if (!organizationId) {
       return NextResponse.json({ error: 'Missing organization_id' }, { status: 400 })
