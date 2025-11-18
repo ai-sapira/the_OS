@@ -98,6 +98,139 @@
   --sheet-halo-y-sm: 4px;
 }
 
+/* Auth page background animations - smoke effect */
+@keyframes smoke-float {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    opacity: 0.3;
+  }
+  25% {
+    transform: translate(40px, -50px) scale(1.3) rotate(5deg);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate(-30px, -80px) scale(1.5) rotate(-3deg);
+    opacity: 0.4;
+  }
+  75% {
+    transform: translate(20px, -60px) scale(1.2) rotate(2deg);
+    opacity: 0.45;
+  }
+  100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    opacity: 0.3;
+  }
+}
+
+@keyframes smoke-float-2 {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    opacity: 0.25;
+  }
+  33% {
+    transform: translate(-50px, 30px) scale(1.4) rotate(-4deg);
+    opacity: 0.4;
+  }
+  66% {
+    transform: translate(30px, 50px) scale(1.6) rotate(6deg);
+    opacity: 0.35;
+  }
+  100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    opacity: 0.25;
+  }
+}
+
+@keyframes smoke-float-3 {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    opacity: 0.2;
+  }
+  50% {
+    transform: translate(60px, -40px) scale(1.7) rotate(8deg);
+    opacity: 0.38;
+  }
+  100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    opacity: 0.2;
+  }
+}
+
+.animate-smoke-gradient {
+  animation: smoke-float 20s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.animate-smoke-gradient-2 {
+  animation: smoke-float-2 25s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.animate-smoke-gradient-3 {
+  animation: smoke-float-3 30s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Input energy flow border animation */
+@keyframes energy-flow {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 200% 0%;
+  }
+}
+
+.input-energy-border {
+  position: relative;
+  border-radius: 0.5rem;
+}
+
+.input-energy-border::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 35%,
+    rgba(17, 24, 39, 0.3) 47%,
+    rgba(3, 7, 18, 0.5) 50%,
+    rgba(17, 24, 39, 0.3) 53%,
+    transparent 65%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: energy-flow 3s linear infinite;
+  pointer-events: none;
+  opacity: 0.5;
+  z-index: 0;
+}
+
+.input-energy-border:focus-within::before,
+.input-energy-border:has(input:focus)::before,
+.input-energy-border:has(textarea:focus)::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 30%,
+    rgba(17, 24, 39, 0.6) 47%,
+    rgba(3, 7, 18, 0.9) 50%,
+    rgba(17, 24, 39, 0.6) 53%,
+    transparent 70%,
+    transparent 100%
+  );
+  animation: energy-flow 2s linear infinite;
+  opacity: 0.9;
+}
+
 .dark {
   /* Dark mode with refined grays and subtle purple accents */
   --background: oklch(0.08 0 0); /* Pure dark gray */

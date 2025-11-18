@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
+import { FloatingPaths } from "@/components/floating-paths"
 
 interface ResolveOrgResponse {
   email: string
@@ -122,67 +123,111 @@ export default function HomeLanding() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-gray-950 via-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
-      {/* Background effects */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.1),transparent_50%)] pointer-events-none"></div>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(139,92,246,0.08),transparent_50%)] pointer-events-none"></div>
-      
-      {/* Logo and title */}
-      <div className="mb-8 text-center relative z-10">
-        <h1 className="text-4xl font-bold mb-2">
-          <span className="text-white">Sapira </span>
-          <span className="text-gray-400 font-normal">Pharo</span>
-        </h1>
-        <p className="text-lg text-gray-200 mt-4">Bienvenido</p>
-        <p className="text-sm text-gray-400 mt-1">
-          Introduce tu email corporativo para acceder a la instancia de tu organización
-        </p>
+    <main className="relative md:h-screen md:overflow-hidden lg:grid lg:grid-cols-2">
+      {/* Left side - Branding with floating paths */}
+      <div className="bg-gradient-to-br from-gray-50 via-gray-50/80 to-gray-50/60 relative hidden h-full flex-col p-10 lg:flex overflow-hidden">
+        <div className="absolute inset-0 z-10" style={{ background: 'linear-gradient(to right, transparent 0%, transparent 50%, rgba(255,255,255,0.05) 60%, rgba(255,255,255,0.15) 70%, rgba(255,255,255,0.35) 80%, rgba(255,255,255,0.55) 88%, rgba(255,255,255,0.75) 93%, rgba(255,255,255,0.88) 96%, rgba(255,255,255,0.95) 98%, white 100%)' }} />
+        <div className="absolute inset-0 z-10 opacity-15" style={{ background: 'radial-gradient(ellipse 60% 100% at left center, transparent 0%, transparent 40%, rgba(0,0,0,0.01) 55%, rgba(0,0,0,0.02) 70%, rgba(0,0,0,0.03) 85%, rgba(0,0,0,0.02) 92%, rgba(0,0,0,0.01) 96%, transparent 100%)' }} />
+        <div className="from-background absolute inset-0 z-10 bg-gradient-to-t to-transparent" />
+        
+        {/* Logo and title in top left corner */}
+        <div className="z-10">
+          <h1 className="text-4xl font-bold">
+            <span className="text-foreground">Sapira </span>
+            <span className="text-muted-foreground font-normal">Pharo</span>
+          </h1>
+        </div>
+
+        {/* Floating paths background */}
+        <div className="absolute inset-0">
+          <FloatingPaths position={1} />
+          <FloatingPaths position={-1} />
+        </div>
       </div>
 
-      {/* Form Card */}
-      <div className="w-full max-w-md bg-white/10 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-white/10 relative z-10">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-3">
-            <label htmlFor="email" className="text-sm font-medium text-gray-200 block">
-              Email corporativo
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              placeholder="tu.email@empresa.com"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              disabled={loading}
-              className="w-full h-12 px-4 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:ring-1 focus:ring-white/10 focus:outline-none rounded-md transition-all"
-            />
+      {/* Right side - Form */}
+      <div className="relative flex min-h-screen flex-col justify-center p-4 bg-white">
+        {/* Animated background effects - blue/purple gradient */}
+        <div
+          aria-hidden
+          className="absolute inset-0 isolate contain-strict -z-10 opacity-60"
+        >
+          <div className="bg-[radial-gradient(68.54%_68.72%_at_55.02%_31.46%,rgba(99,102,241,0.06)_0,hsla(0,0%,55%,.02)_50%,rgba(99,102,241,0.01)_80%)] absolute top-0 right-0 h-80 w-56 -translate-y-24 rounded-full" />
+          <div className="bg-[radial-gradient(50%_50%_at_50%_50%,rgba(99,102,241,0.04)_0,rgba(99,102,241,0.01)_80%,transparent_100%)] absolute top-0 right-0 h-80 w-60 [translate:5%_-50%] rounded-full" />
+          <div className="bg-[radial-gradient(50%_50%_at_50%_50%,rgba(139,92,246,0.04)_0,rgba(139,92,246,0.01)_80%,transparent_100%)] absolute top-0 right-0 h-80 w-60 -translate-y-24 rounded-full" />
+        </div>
+
+        <div className="mx-auto space-y-6 sm:w-sm w-full max-w-md">
+          {/* Mobile logo */}
+          <div className="flex items-center gap-2 lg:hidden">
+            <p className="text-xl font-semibold text-foreground">Sapira Pharo</p>
           </div>
 
-          {error && (
-            <div className="p-4 text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg">
-              {error}
-            </div>
-          )}
+          {/* Title */}
+          <div className="flex flex-col space-y-1">
+            <h1 className="text-2xl font-bold tracking-wide text-zinc-800 dark:text-zinc-200 font-sans">
+              Bienvenido
+            </h1>
+            <p className="text-zinc-500 dark:text-zinc-400 text-base font-sans">
+              Introduce tu email corporativo para acceder a la instancia de tu organización
+            </p>
+          </div>
 
-          {info && (
-            <div className="p-4 text-sm text-yellow-400 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-              {info}
-            </div>
-          )}
+          {/* Form Card */}
+          <div className="bg-card rounded-2xl shadow-lg p-10 border border-border relative input-energy-border">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Email field */}
+              <div className="mb-3">
+                <label
+                  htmlFor="email"
+                  className="mb-1.5 block text-zinc-500 dark:text-zinc-400 font-sans"
+                >
+                  Email corporativo
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  placeholder="tu.email@empresa.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                  disabled={loading}
+                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 ring-1 ring-transparent transition-shadow focus:outline-0 focus:ring-blue-700 font-sans"
+                />
+              </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full h-12 bg-white hover:bg-gray-100 text-gray-900 font-medium text-base rounded-lg shadow-lg transition-all disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {loading ? "Buscando tu organización…" : "Continuar"}
-          </button>
-        </form>
+              {error && (
+                <div className="p-4 text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-lg backdrop-blur-sm font-sans">
+                  {error}
+                </div>
+              )}
+
+              {info && (
+                <div className="p-4 text-sm text-yellow-700 bg-yellow-50/80 border border-yellow-200/60 rounded-lg backdrop-blur-sm font-sans">
+                  {info}
+                </div>
+              )}
+
+              {/* Continue button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-12 !bg-gradient-to-br !from-gray-700 !via-gray-600 !via-gray-600 !to-gray-700 hover:!from-gray-600 hover:!via-gray-500 hover:!to-gray-600 !text-white font-sans font-medium text-base rounded-lg shadow-lg shadow-gray-700/40 transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {loading ? "Buscando tu organización…" : "Continuar"}
+              </button>
+            </form>
+          </div>
+
+          {/* Support message */}
+          <div className="text-center text-xs text-muted-foreground font-sans">
+            ¿Tu organización aún no está activa? Escríbenos a{' '}
+            <a href="mailto:soporte@sapira.ai" className="text-primary hover:text-primary/80 underline underline-offset-4 font-medium">
+              soporte@sapira.ai
+            </a>
+          </div>
+        </div>
       </div>
-
-      <div className="mt-6 text-center text-xs text-gray-400 relative z-10">
-        ¿Tu organización aún no está activa? Escríbenos a <span className="font-medium text-gray-300">soporte@sapira.ai</span>
-      </div>
-    </div>
+    </main>
   )
 }

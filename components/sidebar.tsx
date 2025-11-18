@@ -6,6 +6,7 @@ import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +43,12 @@ import {
   ClipboardList,
   Handshake,
   LogOut,
+  LayoutDashboard,
+  TrendingUp,
+  Globe,
+  Plug,
+  CheckCircle2,
+  Server,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -70,6 +77,12 @@ const iconMap: Record<string, React.ComponentType<any>> = {
   HelpCircle,
   ClipboardList,
   Handshake,
+  LayoutDashboard,
+  TrendingUp,
+  Globe,
+  Plug,
+  CheckCircle2,
+  Server,
 }
 
 export function Sidebar({ 
@@ -85,6 +98,83 @@ export function Sidebar({
   const { currentOrg, user, signOut } = useAuth()
   const { isOrgAdmin } = useOrgAdmin()
   const [expandedSections, setExpandedSections] = useState<string[]>(["projects"])
+  const [userData, setUserData] = useState<{ name?: string | null; first_name?: string | null; last_name?: string | null } | null>(null)
+  const [fdeData, setFdeData] = useState<{
+    name?: string
+    email?: string
+    avatar_url?: string
+    user_id?: string
+  } | null>(null)
+
+  // Load user data from users table
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (!user?.id) {
+        setUserData(null)
+        return
+      }
+
+      try {
+        const { supabase } = await import('@/lib/supabase/client')
+        const { data } = await supabase
+          .from('users')
+          .select('name, first_name, last_name')
+          .eq('auth_user_id', user.id)
+          .maybeSingle()
+        
+        setUserData(data)
+      } catch (error) {
+        console.error('Error loading user data:', error)
+        setUserData(null)
+      }
+    }
+
+    loadUserData()
+  }, [user?.id])
+
+  // Load FDE data from adolfo@sapira.ai user
+  useEffect(() => {
+    const loadFdeData = async () => {
+      try {
+        const { supabase } = await import('@/lib/supabase/client')
+        const { data } = await supabase
+          .from('users')
+          .select('id, auth_user_id, email, name, first_name, last_name, avatar_url')
+          .eq('email', 'adolfo@sapira.ai')
+          .maybeSingle()
+        
+        if (data) {
+          const userData = data as {
+            id: string
+            auth_user_id?: string | null
+            email?: string | null
+            name?: string | null
+            first_name?: string | null
+            last_name?: string | null
+            avatar_url?: string | null
+          }
+          
+          const fullName = userData.first_name && userData.last_name
+            ? `${userData.first_name} ${userData.last_name}`
+            : userData.name || 'Adolfo'
+          
+          setFdeData({
+            name: fullName,
+            email: userData.email || 'adolfo@sapira.ai',
+            avatar_url: userData.avatar_url || undefined,
+            user_id: userData.auth_user_id || userData.id,
+          })
+        } else {
+          setFdeData(null)
+        }
+      } catch (error) {
+        console.error('Error loading FDE data:', error)
+        setFdeData(null)
+      }
+    }
+
+    loadFdeData()
+  }, [])
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev => 
@@ -113,10 +203,18 @@ export function Sidebar({
     return true
   })
   
+  const homeItems = filteredSidebarItems.filter(item => item.section === "home")
   const globalItems = filteredSidebarItems.filter(item => item.section === "global")
   const workspaceItems = filteredSidebarItems.filter(item => item.section === "workspace")
-  const contextItems = filteredSidebarItems.filter(item => item.section === "context")
+  const deployItems = filteredSidebarItems.filter(item => item.section === "deploy")
   const footerItems = filteredSidebarItems.filter(item => item.section === "footer")
+  
+  // Separate My Sapira and Your Profile from other footer items
+  const mySapiraItem = footerItems.find(item => item.id === "my-sapira-relationship")
+  const yourProfileItem = footerItems.find(item => item.id === "your-profile")
+  const otherFooterItems = footerItems.filter(item => 
+    item.id !== "my-sapira-relationship" && item.id !== "your-profile"
+  )
 
 
 
@@ -183,19 +281,18 @@ export function Sidebar({
 
     // Special handling for Your Profile - show user name with dropdown menu
     if (item.id === "your-profile") {
-      // Extract user name from email
+      // Get user name from users table (first_name + last_name or name)
       const getUserName = () => {
+        if (userData?.first_name && userData?.last_name) {
+          return `${userData.first_name} ${userData.last_name}`
+        }
+        if (userData?.name) {
+          return userData.name
+        }
         if (!user?.email) return 'Your Profile'
         
-        // Extract name from email (e.g., javiergarcia@cosermo.com -> Javier García)
+        // Fallback: Extract name from email
         const namePart = user.email.split('@')[0]
-        
-        // Handle specific cases
-        if (namePart.toLowerCase() === 'javiergarcia') return 'Javier García'
-        if (namePart.toLowerCase() === 'guillermo') return 'Guillermo'
-        if (namePart.toLowerCase() === 'pablosenabre') return 'Pablo Senabre'
-        
-        // Generic formatting: capitalize first letter
         return namePart.charAt(0).toUpperCase() + namePart.slice(1)
       }
 
@@ -414,10 +511,19 @@ export function Sidebar({
           </div>
         )}
 
-        {/* Global Section */}
+        {/* Home Section */}
+        {homeItems.length > 0 && (
+          <div className="px-4 pb-4">
+            <div className="space-y-1 group/item-list">
+              {homeItems.map(item => renderSidebarItem(item))}
+            </div>
+          </div>
+        )}
+
+        {/* Discovery Section */}
         {globalItems.length > 0 && (
           <div className="px-4 pb-4">
-            {renderSectionHeader("Global", isCollapsed)}
+            {renderSectionHeader("Discovery", isCollapsed)}
             <div className="space-y-1 group/item-list">
               {globalItems.map(item => renderSidebarItem(item))}
             </div>
@@ -434,25 +540,74 @@ export function Sidebar({
           </div>
         )}
 
-        {/* Context Presets Section */}
-        {contextItems.length > 0 && (
-        <div className="px-4 pb-4">
-            {renderSectionHeader("Quick Access", isCollapsed)}
-          <div className="space-y-1 group/item-list">
-              {contextItems.map(item => renderSidebarItem(item))}
-              </div>
+        {/* Deploy Section */}
+        {deployItems.length > 0 && (
+          <div className="px-4 pb-4">
+            {renderSectionHeader("Deploy", isCollapsed)}
+            <div className="space-y-1 group/item-list">
+              {deployItems.map(item => renderSidebarItem(item))}
+            </div>
           </div>
         )}
       </div>
 
       {/* Footer */}
-      {footerItems.length > 0 && (
-        <div className="px-4 py-3">
-          <div className="space-y-1 group/item-list">
-            {footerItems.map(item => renderSidebarItem(item))}
+      <div className="px-4 py-3 space-y-2 border-t border-border">
+        {/* My Sapira Card - Separated from profile */}
+        {mySapiraItem && !isCollapsed && fdeData && (
+          <Link href={mySapiraItem.href || "#"} className="mb-3 block">
+            <Button
+              variant="ghost"
+              className={cn(
+                "w-full h-auto p-2.5 rounded-lg border border-border bg-transparent hover:bg-sidebar-accent/50 transition-colors",
+                "flex items-center gap-2.5 justify-start",
+                pathname === mySapiraItem.href && "bg-sidebar-accent/50"
+              )}
+            >
+              <Avatar className="h-8 w-8 shrink-0">
+                {fdeData.avatar_url ? (
+                  <AvatarImage src={fdeData.avatar_url} alt={fdeData.name || "Adolfo Güell"} />
+                ) : null}
+                <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-xs font-medium">
+                  {(fdeData.name || "Adolfo Güell")
+                    .split(" ")
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((n) => n[0]?.toUpperCase())
+                    .join("") || "AG"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                <div className="text-left">
+                  <div className="text-xs font-medium text-sidebar-foreground">
+                    {fdeData.name || "Adolfo Güell"}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    FDE
+                  </div>
+                </div>
+                <div className="text-[10px] font-medium text-sidebar-foreground shrink-0">
+                  Contactar
+                </div>
+              </div>
+            </Button>
+          </Link>
+        )}
+        
+        {/* Your Profile - Separated from My Sapira */}
+        {yourProfileItem && (
+          <div className="pt-2 border-t border-border">
+            {renderSidebarItem(yourProfileItem)}
           </div>
-        </div>
-      )}
+        )}
+        
+        {/* Other Footer Items */}
+        {otherFooterItems.length > 0 && (
+          <div className="space-y-1 group/item-list">
+            {otherFooterItems.map(item => renderSidebarItem(item))}
+          </div>
+        )}
+      </div>
 
     </div>
   )

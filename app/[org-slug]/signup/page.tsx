@@ -163,15 +163,19 @@ export default function SignupPage() {
 
   if (checkingOrg) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-gray-950 via-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
-        {/* Background effects */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.1),transparent_50%)] pointer-events-none"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(139,92,246,0.08),transparent_50%)] pointer-events-none"></div>
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-white relative overflow-hidden">
+      {/* Animated background effects - blue/purple gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-purple-50/15 to-indigo-50/20 pointer-events-none"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_25%_30%,rgba(99,102,241,0.08),transparent_65%)] pointer-events-none animate-smoke-gradient"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_75%_70%,rgba(139,92,246,0.06),transparent_70%)] pointer-events-none animate-smoke-gradient-2" style={{ animationDelay: '5s' }}></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_50%,rgba(99,102,241,0.05),transparent_75%)] pointer-events-none animate-smoke-gradient-3" style={{ animationDelay: '10s' }}></div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_75%,rgba(139,92,246,0.04),transparent_70%)] pointer-events-none animate-smoke-gradient" style={{ animationDelay: '15s' }}></div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_25%,rgba(99,102,241,0.04),transparent_70%)] pointer-events-none animate-smoke-gradient-2" style={{ animationDelay: '8s' }}></div>
         <div className="text-center space-y-4 relative z-10">
           <div className="inline-flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           </div>
-          <p className="text-white font-medium">Verificando organización...</p>
+          <p className="text-foreground font-medium">Verificando organización...</p>
         </div>
       </div>
     )
@@ -179,21 +183,25 @@ export default function SignupPage() {
 
   if (error && !orgName) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-gray-950 via-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
-        {/* Background effects */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.1),transparent_50%)] pointer-events-none"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(139,92,246,0.08),transparent_50%)] pointer-events-none"></div>
-        <div className="w-full max-w-md bg-white/10 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-white/10 relative z-10">
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-white relative overflow-hidden">
+      {/* Animated background effects - blue/purple gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 via-purple-50/15 to-indigo-50/20 pointer-events-none"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_25%_30%,rgba(99,102,241,0.08),transparent_65%)] pointer-events-none animate-smoke-gradient"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_75%_70%,rgba(139,92,246,0.06),transparent_70%)] pointer-events-none animate-smoke-gradient-2" style={{ animationDelay: '5s' }}></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_50%,rgba(99,102,241,0.05),transparent_75%)] pointer-events-none animate-smoke-gradient-3" style={{ animationDelay: '10s' }}></div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_75%,rgba(139,92,246,0.04),transparent_70%)] pointer-events-none animate-smoke-gradient" style={{ animationDelay: '15s' }}></div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_25%,rgba(99,102,241,0.04),transparent_70%)] pointer-events-none animate-smoke-gradient-2" style={{ animationDelay: '8s' }}></div>
+        <div className="w-full max-w-md bg-card rounded-2xl shadow-lg p-8 border border-border relative z-10">
           <div className="text-center space-y-4">
-            <h2 className="text-2xl font-semibold text-white mb-2">
+            <h2 className="text-2xl font-semibold text-card-foreground mb-2">
               Error
             </h2>
-            <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+            <p className="text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg p-4">
               {error}
             </p>
             <Button
               onClick={() => router.push('/')}
-              className="w-full h-12 bg-white hover:bg-gray-100 text-gray-900 font-medium"
+              className="!bg-gradient-to-br !from-gray-700 !via-gray-600 !via-gray-600 !to-gray-700 hover:!from-gray-600 hover:!via-gray-500 hover:!to-gray-600 !text-white font-medium shadow-lg shadow-gray-700/40 transition-all w-full h-12"
             >
               Volver al inicio
             </Button>
@@ -204,38 +212,40 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-gray-950 via-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
-      {/* Background effects */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.1),transparent_50%)] pointer-events-none"></div>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(139,92,246,0.08),transparent_50%)] pointer-events-none"></div>
-      
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-white relative overflow-hidden">
+      {/* Animated background effects - blue/purple gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/40 via-purple-50/30 to-indigo-50/40 pointer-events-none"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,rgba(99,102,241,0.08),rgba(139,92,246,0.05)_40%,transparent_70%)] pointer-events-none animate-smoke-gradient"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_80%,rgba(139,92,246,0.06),rgba(99,102,241,0.04)_45%,transparent_75%)] pointer-events-none animate-smoke-gradient-2" style={{ animationDelay: '5s' }}></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_50%,rgba(99,102,241,0.05),rgba(168,85,247,0.03)_50%,transparent_80%)] pointer-events-none animate-smoke-gradient-3" style={{ animationDelay: '10s' }}></div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_70%,rgba(139,92,246,0.04),transparent_60%)] pointer-events-none animate-smoke-gradient" style={{ animationDelay: '15s' }}></div>
       {/* Logo and title */}
       <div className="mb-8 text-center relative z-10">
         <h1 className="text-4xl font-bold mb-2">
-          <span className="text-white">Sapira </span>
-          <span className="text-gray-400 font-normal">Pharo</span>
+          <span className="text-foreground">Sapira </span>
+          <span className="text-muted-foreground font-normal">Pharo</span>
         </h1>
-        <p className="text-lg text-gray-200 mt-4">Crear cuenta</p>
+        <p className="text-lg text-foreground mt-4">Crear cuenta</p>
         {orgName && (
-          <p className="text-sm text-gray-400 mt-1">
-            Únete a <span className="font-medium text-white">{orgName}</span>
+          <p className="text-sm text-muted-foreground mt-1">
+            Únete a <span className="font-medium text-foreground">{orgName}</span>
           </p>
         )}
       </div>
 
       {/* Signup Card */}
-      <div className="w-full max-w-md bg-white/10 backdrop-blur-md rounded-2xl shadow-2xl p-6 border border-white/10 relative z-10">
-        <h2 className="text-xl font-semibold text-white mb-1">
+      <div className="w-full max-w-md bg-card rounded-2xl shadow-lg p-6 border border-border relative z-10 input-energy-border">
+        <h2 className="text-xl font-semibold text-card-foreground mb-1">
           Registro
         </h2>
-        <p className="text-xs text-gray-400 mb-6">
+        <p className="text-xs text-muted-foreground mb-6">
           Completa tus datos para crear tu cuenta
         </p>
 
         <form onSubmit={handleSignup} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="firstName" className="text-xs font-medium text-gray-300">
+              <Label htmlFor="firstName" className="text-xs font-medium text-foreground">
                 Nombre
               </Label>
               <Input
@@ -246,11 +256,11 @@ export default function SignupPage() {
                 onChange={(e) => setFirstName(e.target.value)}
                 required
                 disabled={loading}
-                className="h-10 px-3 text-sm bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:ring-1 focus:ring-white/10 focus:outline-none"
+                className="h-10 px-3 text-sm bg-gray-100 border border-gray-200 text-foreground placeholder:text-gray-400 focus:bg-white focus:border-gray-300 focus:ring-0 focus:outline-none transition-all shadow-sm hover:bg-gray-200 hover:border-gray-300 rounded-md"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="lastName" className="text-xs font-medium text-gray-300">
+              <Label htmlFor="lastName" className="text-xs font-medium text-foreground">
                 Apellidos
               </Label>
               <Input
@@ -261,13 +271,13 @@ export default function SignupPage() {
                 onChange={(e) => setLastName(e.target.value)}
                 required
                 disabled={loading}
-                className="h-10 px-3 text-sm bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:ring-1 focus:ring-white/10 focus:outline-none"
+                className="h-10 px-3 text-sm bg-gray-100 border border-gray-200 text-foreground placeholder:text-gray-400 focus:bg-white focus:border-gray-300 focus:ring-0 focus:outline-none transition-all shadow-sm hover:bg-gray-200 hover:border-gray-300 rounded-md"
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-xs font-medium text-gray-300">
+            <Label htmlFor="email" className="text-xs font-medium text-foreground">
               Email
             </Label>
             <Input
@@ -278,15 +288,15 @@ export default function SignupPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
-              className="h-10 px-3 text-sm bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:ring-1 focus:ring-white/10 focus:outline-none"
+              className="h-10 px-3 text-sm bg-gray-100 border border-gray-200 text-foreground placeholder:text-gray-400 focus:bg-white focus:border-gray-300 focus:ring-0 focus:outline-none transition-all shadow-sm hover:bg-gray-200 hover:border-gray-300 rounded-md"
             />
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Debe ser un email del dominio permitido
             </p>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="password" className="text-xs font-medium text-gray-300">
+            <Label htmlFor="password" className="text-xs font-medium text-foreground">
               Contraseña
             </Label>
             <Input
@@ -298,35 +308,35 @@ export default function SignupPage() {
               required
               minLength={6}
               disabled={loading}
-              className="h-10 px-3 text-sm bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:ring-1 focus:ring-white/10 focus:outline-none"
+              className="h-10 px-3 text-sm bg-gray-100 border border-gray-200 text-foreground placeholder:text-gray-400 focus:bg-white focus:border-gray-300 focus:ring-0 focus:outline-none transition-all shadow-sm hover:bg-gray-200 hover:border-gray-300 rounded-md"
             />
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Mínimo 6 caracteres
             </p>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="role" className="text-xs font-medium text-gray-300">
+            <Label htmlFor="role" className="text-xs font-medium text-foreground">
               Rol
             </Label>
             <Select value={role} onValueChange={(value) => setRole(value as 'EMP' | 'BU' | 'CEO')} disabled={loading}>
-              <SelectTrigger className="h-11 bg-white/5 border-white/10 text-white focus:border-white/20 focus:ring-1 focus:ring-white/10">
+              <SelectTrigger className="h-11 bg-background border-border text-foreground focus:border-primary focus:ring-1 focus:ring-primary">
                 <SelectValue placeholder="Selecciona tu rol" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-white/20 shadow-xl">
-                <SelectItem value="CEO" className="text-white hover:bg-white/20 focus:bg-white/20 focus:text-white cursor-pointer data-[highlighted]:bg-white/20 data-[highlighted]:text-white">
+              <SelectContent className="bg-card border-border shadow-lg">
+                <SelectItem value="CEO" className="text-foreground hover:bg-muted focus:bg-muted cursor-pointer data-[highlighted]:bg-muted">
                   CEO
                 </SelectItem>
-                <SelectItem value="BU" className="text-white hover:bg-white/20 focus:bg-white/20 focus:text-white cursor-pointer data-[highlighted]:bg-white/20 data-[highlighted]:text-white">
+                <SelectItem value="BU" className="text-foreground hover:bg-muted focus:bg-muted cursor-pointer data-[highlighted]:bg-muted">
                   BU Manager
                 </SelectItem>
-                <SelectItem value="EMP" className="text-white hover:bg-white/20 focus:bg-white/20 focus:text-white cursor-pointer data-[highlighted]:bg-white/20 data-[highlighted]:text-white">
+                <SelectItem value="EMP" className="text-foreground hover:bg-muted focus:bg-muted cursor-pointer data-[highlighted]:bg-muted">
                   Employee
                 </SelectItem>
               </SelectContent>
             </Select>
             {role === 'BU' && initiatives.length === 0 && (
-              <p className="text-xs text-amber-400 mt-1">
+              <p className="text-xs text-amber-600 mt-1">
                 No hay Business Units disponibles. Selecciona otro rol.
               </p>
             )}
@@ -334,23 +344,23 @@ export default function SignupPage() {
 
           {role === 'BU' && initiatives.length > 0 && (
             <div className="space-y-1.5">
-              <Label htmlFor="initiative" className="text-xs font-medium text-gray-300">
+              <Label htmlFor="initiative" className="text-xs font-medium text-foreground">
                 Business Unit
               </Label>
               <Select value={initiativeId} onValueChange={setInitiativeId} disabled={loading} required>
-                <SelectTrigger className="h-11 bg-white/5 border-white/10 text-white focus:border-white/20 focus:ring-1 focus:ring-white/10">
+                <SelectTrigger className="h-11 bg-background border-border text-foreground focus:border-primary focus:ring-1 focus:ring-primary">
                   <SelectValue placeholder="Selecciona tu Business Unit" />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-white/10">
+                <SelectContent className="bg-card border-border">
                   {initiatives.map((initiative) => (
-                    <SelectItem key={initiative.id} value={initiative.id} className="text-white focus:bg-white/10 cursor-pointer">
+                    <SelectItem key={initiative.id} value={initiative.id} className="text-foreground focus:bg-muted cursor-pointer">
                       {initiative.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               {!initiativeId && role === 'BU' && (
-                <p className="text-xs text-amber-400 mt-1">
+                <p className="text-xs text-amber-600 mt-1">
                   Debes seleccionar una Business Unit
                 </p>
               )}
@@ -358,7 +368,7 @@ export default function SignupPage() {
           )}
 
           {error && (
-            <div className="p-4 text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg">
+            <div className="p-4 text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-lg">
               {error}
             </div>
           )}
@@ -366,18 +376,18 @@ export default function SignupPage() {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full h-10 bg-white hover:bg-gray-100 text-gray-900 font-medium text-sm rounded-lg shadow-lg mt-2"
+            className="!bg-gradient-to-br !from-gray-700 !via-gray-600 !via-gray-600 !to-gray-700 hover:!from-gray-600 hover:!via-gray-500 hover:!to-gray-600 !text-white font-medium text-sm rounded-lg shadow-lg shadow-gray-700/40 mt-2 transition-all w-full h-10"
           >
             {loading ? 'Creando cuenta...' : 'Crear cuenta'}
           </Button>
         </form>
 
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-muted-foreground">
             ¿Ya tienes cuenta?{' '}
             <button
               onClick={() => router.push(`/login?org=${encodeURIComponent(orgSlug)}&email=${encodeURIComponent(email)}`)}
-              className="text-white hover:underline font-medium"
+              className="text-primary hover:underline font-medium"
             >
               Iniciar sesión
             </button>

@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Bell, Search, Filter, Sun, Moon, LogOut, Users } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/context/auth-context"
 import { useRouter } from "next/navigation"
 import { useOrgAdmin } from "@/hooks/use-org-admin"
@@ -30,6 +30,33 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
   const { currentOrg, signOut, user, isSAPUser } = useAuth()
   const { isOrgAdmin } = useOrgAdmin()
   const router = useRouter()
+  const [userData, setUserData] = useState<{ name?: string | null; first_name?: string | null; last_name?: string | null } | null>(null)
+
+  // Load user data from users table
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (!user?.id) {
+        setUserData(null)
+        return
+      }
+
+      try {
+        const { supabase } = await import('@/lib/supabase/client')
+        const { data } = await supabase
+          .from('users')
+          .select('name, first_name, last_name')
+          .eq('auth_user_id', user.id)
+          .maybeSingle()
+        
+        setUserData(data)
+      } catch (error) {
+        console.error('Error loading user data:', error)
+        setUserData(null)
+      }
+    }
+
+    loadUserData()
+  }, [user?.id])
 
   const toggleTheme = () => {
     setIsDark(!isDark)
@@ -49,19 +76,19 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
   }
 
   const getUserName = () => {
+    // Get user name from users table (first_name + last_name or name)
+    if (userData?.first_name && userData?.last_name) {
+      return `${userData.first_name} ${userData.last_name}`
+    }
+    if (userData?.name) {
+      return userData.name
+    }
     if (!user?.email) {
       return 'Usuario'
     }
     
-    // Extract name from email (e.g., javiergarcia@cosermo.com -> Javier García)
+    // Fallback: Extract name from email
     const namePart = user.email.split('@')[0]
-    
-    // Handle specific cases
-    if (namePart.toLowerCase() === 'javiergarcia') return 'Javier García'
-    if (namePart.toLowerCase() === 'guillermo') return 'Guillermo'
-    if (namePart.toLowerCase() === 'pablosenabre') return 'Pablo Senabre'
-    
-    // Generic formatting: capitalize first letter
     return namePart.charAt(0).toUpperCase() + namePart.slice(1)
   }
 

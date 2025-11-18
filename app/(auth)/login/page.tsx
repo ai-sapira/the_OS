@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { FloatingPaths } from '@/components/floating-paths'
+import { Github, X, AtSign } from 'lucide-react'
 
 interface Organization {
   name: string
@@ -157,7 +159,7 @@ export default function LoginPage() {
     <>
       {/* Transition overlay */}
       <div
-        className={`fixed inset-0 z-50 bg-gradient-to-br from-gray-950 via-gray-900 via-gray-800 to-gray-900 transition-all duration-700 pointer-events-none ${
+        className={`fixed inset-0 z-50 bg-white transition-all duration-700 pointer-events-none ${
           isTransitioning 
             ? 'opacity-100' 
             : 'opacity-0'
@@ -166,158 +168,219 @@ export default function LoginPage() {
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center space-y-4">
             <div className="inline-flex items-center justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
-            <p className="text-white font-medium">Entrando a Sapira Pharo...</p>
+            <p className="text-foreground font-medium">Entrando a Sapira Pharo...</p>
           </div>
         </div>
       </div>
 
-      <div className={`relative flex flex-col items-center justify-center min-h-screen p-4 z-10 transition-all duration-500 bg-gradient-to-br from-gray-950 via-gray-900 via-gray-800 to-gray-900 overflow-hidden ${
+      <main className={`relative md:h-screen md:overflow-hidden lg:grid lg:grid-cols-2 transition-all duration-500 ${
         isTransitioning ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
       }`}>
-        {/* Background effects */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.1),transparent_50%)] pointer-events-none"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(139,92,246,0.08),transparent_50%)] pointer-events-none"></div>
-        {/* Logo and title */}
-        <div className="mb-8 text-center space-y-4 relative z-10">
-          {organization?.logo_url ? (
-            <img
-              src={organization.logo_url}
-              alt={organization.name}
-              className="mx-auto h-16 w-auto mb-4"
-            />
-          ) : (
-            <div className="mx-auto h-16 w-16 rounded-full bg-white/10 flex items-center justify-center text-lg font-semibold text-white mb-4">
-              {organization?.name?.substring(0, 2).toUpperCase() || orgSlug?.substring(0, 2).toUpperCase() || 'SA'}
+        {/* Left side - Branding with floating paths */}
+        <div className="bg-gradient-to-br from-gray-50 via-gray-50/80 to-gray-50/60 relative hidden h-full flex-col p-10 lg:flex overflow-hidden">
+          <div className="absolute inset-0 z-10" style={{ background: 'linear-gradient(to right, transparent 0%, transparent 50%, rgba(255,255,255,0.05) 60%, rgba(255,255,255,0.15) 70%, rgba(255,255,255,0.35) 80%, rgba(255,255,255,0.55) 88%, rgba(255,255,255,0.75) 93%, rgba(255,255,255,0.88) 96%, rgba(255,255,255,0.95) 98%, white 100%)' }} />
+          <div className="absolute inset-0 z-10 opacity-15" style={{ background: 'radial-gradient(ellipse 60% 100% at left center, transparent 0%, transparent 40%, rgba(0,0,0,0.01) 55%, rgba(0,0,0,0.02) 70%, rgba(0,0,0,0.03) 85%, rgba(0,0,0,0.02) 92%, rgba(0,0,0,0.01) 96%, transparent 100%)' }} />
+          <div className="from-background absolute inset-0 z-10 bg-gradient-to-t to-transparent" />
+          
+          {/* Logo and title in top left corner */}
+          <div className="z-10">
+            <h1 className="text-4xl font-bold">
+              <span className="text-foreground">Sapira </span>
+              <span className="text-muted-foreground font-normal">Pharo</span>
+            </h1>
+          </div>
+
+          <div className="z-10 mt-auto">
+            {organization && (
+              <footer className="font-mono text-sm font-semibold text-muted-foreground">
+                ~ {organization.name}
+              </footer>
+            )}
+          </div>
+
+          {/* Floating paths background */}
+          <div className="absolute inset-0">
+            <FloatingPaths position={1} />
+            <FloatingPaths position={-1} />
+          </div>
+        </div>
+
+        {/* Right side - Login form */}
+        <div className="relative flex min-h-screen flex-col justify-center p-4 bg-white">
+          {/* Animated background effects - blue/purple gradient */}
+          <div
+            aria-hidden
+            className="absolute inset-0 isolate contain-strict -z-10 opacity-60"
+          >
+            <div className="bg-[radial-gradient(68.54%_68.72%_at_55.02%_31.46%,rgba(99,102,241,0.06)_0,hsla(0,0%,55%,.02)_50%,rgba(99,102,241,0.01)_80%)] absolute top-0 right-0 h-80 w-56 -translate-y-24 rounded-full" />
+            <div className="bg-[radial-gradient(50%_50%_at_50%_50%,rgba(99,102,241,0.04)_0,rgba(99,102,241,0.01)_80%,transparent_100%)] absolute top-0 right-0 h-80 w-60 [translate:5%_-50%] rounded-full" />
+            <div className="bg-[radial-gradient(50%_50%_at_50%_50%,rgba(139,92,246,0.04)_0,rgba(139,92,246,0.01)_80%,transparent_100%)] absolute top-0 right-0 h-80 w-60 -translate-y-24 rounded-full" />
+          </div>
+
+          <div className="mx-auto space-y-6 sm:w-sm w-full max-w-md">
+            {/* Mobile logo */}
+            <div className="flex items-center gap-2 lg:hidden">
+              {organization?.logo_url ? (
+                <img
+                  src={organization.logo_url}
+                  alt={organization.name}
+                  className="w-6 h-6 object-contain"
+                />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-semibold text-foreground">
+                  {organization?.name?.substring(0, 2).toUpperCase() || orgSlug?.substring(0, 2).toUpperCase() || 'SA'}
+                </div>
+              )}
+              <p className="text-xl font-semibold text-foreground">Sapira Pharo</p>
             </div>
-          )}
-          <h1 className="text-4xl font-bold mb-2">
-            <span className="text-white">Sapira </span>
-            <span className="text-gray-400 font-normal">Pharo</span>
-          </h1>
-          <p className="text-lg text-gray-200">Bienvenido de vuelta</p>
-          <p className="text-sm text-gray-400">Conecta con profesionales de tu organización</p>
-          {organization && (
-            <p className="text-xs text-gray-400">
-              Accediendo a la instancia de <span className="font-semibold uppercase">{organization.name}</span>
-            </p>
-          )}
-          {orgSlug && !organization && (
-            <p className="text-xs text-gray-400">
-              Accediendo a la instancia de <span className="font-semibold uppercase">{orgSlug}</span>
-            </p>
-          )}
-        </div>
 
-        {/* Tab buttons */}
-        <div className="flex gap-3 mb-8 relative z-10">
-          <button
-            onClick={() => setActiveTab('login')}
-            className={`px-8 py-3 rounded-lg font-medium transition-all ${
-              activeTab === 'login'
-                ? 'bg-white text-gray-900 shadow-lg'
-                : 'bg-gray-800/50 text-gray-300 hover:bg-gray-800'
-            }`}
-          >
-            Iniciar sesión
-          </button>
-          <button
-            onClick={() => setActiveTab('register')}
-            className={`px-8 py-3 rounded-lg font-medium transition-all ${
-              activeTab === 'register'
-                ? 'bg-white text-gray-900 shadow-lg'
-                : 'bg-gray-800/50 text-gray-300 hover:bg-gray-800'
-            }`}
-          >
-            Registrarse
-          </button>
-        </div>
+            {/* Title */}
+            <div className="flex flex-col space-y-1">
+              <h1 className="text-2xl font-bold tracking-wide text-zinc-800 dark:text-zinc-200">
+                {activeTab === 'login' ? 'Inicia sesión' : 'Crea tu cuenta'}
+              </h1>
+              <p className="text-zinc-500 dark:text-zinc-400 text-base">
+                {activeTab === 'login' 
+                  ? 'Accede a tu cuenta para conectar con la comunidad'
+                  : 'Completa tus datos para crear tu cuenta'}
+              </p>
+            </div>
 
-        {/* Login Card */}
-        <div className="w-full max-w-md bg-white/10 backdrop-blur-md rounded-2xl shadow-2xl p-8 border border-white/10 relative z-10">
+            {/* Tab buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setActiveTab('login')}
+                className={`relative z-0 flex items-center justify-center overflow-hidden rounded-md border px-4 py-2 font-semibold transition-all duration-500 before:absolute before:inset-0 before:-z-10 before:translate-x-[150%] before:translate-y-[150%] before:scale-[2.5] before:rounded-[100%] before:transition-transform before:duration-1000 before:content-[''] hover:scale-105 hover:before:translate-x-[0%] hover:before:translate-y-[0%] active:scale-95 flex-1 text-sm ${
+                  activeTab === 'login'
+                    ? 'bg-gradient-to-br from-gray-700 via-gray-600 via-gray-600 to-gray-700 text-white shadow-lg shadow-gray-700/40 border-gray-600 hover:border-zinc-300 dark:hover:border-zinc-700 hover:text-zinc-800 dark:hover:text-zinc-200 hover:shadow-none before:bg-zinc-100 dark:before:bg-zinc-800 hover:before:bg-zinc-100 dark:hover:before:bg-zinc-800'
+                    : 'border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:border-gray-600 hover:text-white hover:shadow-lg hover:shadow-gray-700/40 before:bg-gradient-to-br before:from-gray-700 before:via-gray-600 before:via-gray-600 before:to-gray-700 hover:before:bg-gradient-to-br hover:before:from-gray-700 hover:before:via-gray-600 hover:before:via-gray-600 hover:before:to-gray-700'
+                }`}
+              >
+                Iniciar sesión
+              </button>
+              <button
+                onClick={() => setActiveTab('register')}
+                className={`relative z-0 flex items-center justify-center overflow-hidden rounded-md border px-4 py-2 font-semibold transition-all duration-500 before:absolute before:inset-0 before:-z-10 before:translate-x-[150%] before:translate-y-[150%] before:scale-[2.5] before:rounded-[100%] before:transition-transform before:duration-1000 before:content-[''] hover:scale-105 hover:before:translate-x-[0%] hover:before:translate-y-[0%] active:scale-95 flex-1 text-sm ${
+                  activeTab === 'register'
+                    ? 'bg-gradient-to-br from-gray-700 via-gray-600 via-gray-600 to-gray-700 text-white shadow-lg shadow-gray-700/40 border-gray-600 hover:border-zinc-300 dark:hover:border-zinc-700 hover:text-zinc-800 dark:hover:text-zinc-200 hover:shadow-none before:bg-zinc-100 dark:before:bg-zinc-800 hover:before:bg-zinc-100 dark:hover:before:bg-zinc-800'
+                    : 'border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:border-gray-600 hover:text-white hover:shadow-lg hover:shadow-gray-700/40 before:bg-gradient-to-br before:from-gray-700 before:via-gray-600 before:via-gray-600 before:to-gray-700 hover:before:bg-gradient-to-br hover:before:from-gray-700 hover:before:via-gray-600 hover:before:via-gray-600 hover:before:to-gray-700'
+                }`}
+              >
+                Registrarse
+              </button>
+            </div>
+
+            {/* Login Card */}
+            <div className="bg-card rounded-2xl shadow-lg p-10 border border-border relative input-energy-border">
           {activeTab === 'login' ? (
             <>
-              <h2 className="text-2xl font-semibold text-white mb-2">
-                Iniciar sesión
-              </h2>
-              <p className="text-sm text-gray-400 mb-8">
-                Accede a tu cuenta para conectar con la comunidad
-              </p>
-
-              <form onSubmit={handleLogin} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-200">
+              <form onSubmit={handleLogin} className="space-y-5">
+                {/* Email field */}
+                <div className="mb-3">
+                  <label
+                    htmlFor="email"
+                    className="mb-1.5 block text-zinc-500 dark:text-zinc-400"
+                  >
                     Email
-                  </Label>
-                  <Input
+                  </label>
+                  <input
                     id="email"
                     type="email"
-                    placeholder="tu@email.com"
+                    placeholder="your.email@provider.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     disabled={loading}
-                    className="h-12 px-4 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:ring-1 focus:ring-white/10 focus:outline-none transition-all"
+                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 ring-1 ring-transparent transition-shadow focus:outline-0 focus:ring-blue-700"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium text-gray-200">
-                    Contraseña
-                  </Label>
-                  <Input
+                {/* Password field */}
+                <div className="mb-6">
+                  <div className="mb-1.5 flex items-end justify-between">
+                    <label
+                      htmlFor="password"
+                      className="block text-zinc-500 dark:text-zinc-400"
+                    >
+                      Password
+                    </label>
+                    <button
+                      type="button"
+                      className="text-sm text-blue-600 dark:text-blue-400"
+                    >
+                      Forgot?
+                    </button>
+                  </div>
+                  <input
                     id="password"
                     type="password"
-                    placeholder="••••••••"
+                    placeholder="••••••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     disabled={loading}
-                    className="h-12 px-4 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-white/20 focus:ring-1 focus:ring-white/10 focus:outline-none transition-all"
+                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 dark:placeholder-zinc-500 ring-1 ring-transparent transition-shadow focus:outline-0 focus:ring-blue-700"
                   />
                 </div>
 
                 {successMessage && (
-                  <div className="p-4 text-sm text-green-400 bg-green-500/10 border border-green-500/30 rounded-lg">
+                  <div className="p-4 text-sm text-green-700 bg-green-50/80 border border-green-200/60 rounded-lg backdrop-blur-sm">
                     {successMessage}
                   </div>
                 )}
 
                 {error && (
-                  <div className="p-4 text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg">
+                  <div className="p-4 text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-lg backdrop-blur-sm">
                     {error}
                   </div>
                 )}
 
+                {/* Sign in button */}
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full h-12 bg-white hover:bg-gray-100 text-gray-900 font-medium text-base rounded-lg shadow-lg transition-all"
+                  className="!bg-gradient-to-br !from-gray-700 !via-gray-600 !via-gray-600 !to-gray-700 hover:!from-gray-600 hover:!via-gray-500 hover:!to-gray-600 !text-white font-sans font-medium text-base rounded-lg shadow-lg shadow-gray-700/40 transition-all duration-200 w-full h-12"
                 >
-                  {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+                  {loading ? 'Iniciando sesión...' : 'Sign in'}
                 </Button>
+
+                {/* Terms and conditions */}
+                <p className="text-xs text-center text-muted-foreground font-sans mt-6">
+                  By signing in, you agree to our{' '}
+                  <a href="#" className="text-primary hover:text-primary/80 underline underline-offset-4 font-medium">
+                    Terms & Conditions
+                  </a>
+                  {' '}and{' '}
+                  <a href="#" className="text-primary hover:text-primary/80 underline underline-offset-4 font-medium">
+                    Privacy Policy
+                  </a>
+                  .
+                </p>
               </form>
             </>
           ) : (
             <div className="text-center py-12 space-y-4">
-              <h2 className="text-2xl font-semibold text-white">
+              <h2 className="text-2xl font-semibold text-card-foreground font-sans">
                 Crear cuenta
               </h2>
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-muted-foreground font-sans">
                 El registro se gestiona desde la landing de tu organización.
               </p>
               <Button
                 onClick={() => setActiveTab('login')}
                 variant="outline"
-                className="border-white/20 text-white hover:bg-white/10"
+                className="border-border text-foreground hover:bg-muted font-sans"
               >
                 Volver a iniciar sesión
               </Button>
             </div>
           )}
+            </div>
+          </div>
         </div>
-      </div>
+      </main>
     </>
   )
 }

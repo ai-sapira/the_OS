@@ -20,7 +20,7 @@ export interface SidebarItem {
   count?: number
   children?: SidebarItem[]
   roles: Role[]
-  section: "global" | "workspace" | "context" | "footer"
+  section: "home" | "global" | "workspace" | "deploy" | "context" | "footer"
 }
 
 // Permission matrix - defines what each role can do
@@ -91,7 +91,49 @@ const PERMISSIONS: Record<Role, string[]> = {
 
 // Sidebar structure with role-based visibility
 export const SIDEBAR_STRUCTURE: SidebarItem[] = [
-  // Global section
+  // Home section (outside of other sections)
+  {
+    id: "home",
+    label: "Home",
+    icon: "LayoutDashboard",
+    href: "/home",
+    roles: ["SAP", "CEO", "BU", "EMP"],
+    section: "home",
+  },
+  // Discovery section (formerly Global)
+  {
+    id: "insights",
+    label: "Insights",
+    icon: "TrendingUp",
+    href: "/insights",
+    roles: ["SAP", "CEO", "BU"],
+    section: "global",
+  },
+  {
+    id: "user-monitoring",
+    label: "User monitoring",
+    icon: "Globe",
+    href: "/user-monitoring",
+    roles: ["SAP", "CEO", "BU", "EMP"],
+    section: "global",
+  },
+  {
+    id: "integrations",
+    label: "Integrations",
+    icon: "Plug",
+    href: "/integrations",
+    roles: ["SAP", "CEO", "BU"],
+    section: "global",
+  },
+  {
+    id: "surveys",
+    label: "Surveys",
+    icon: "ClipboardList",
+    href: "/surveys",
+    roles: ["SAP", "CEO", "BU", "EMP"],
+    section: "global",
+  },
+  // Workspace section
   {
     id: "triage",
     label: "Triage",
@@ -99,9 +141,8 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
     href: "/triage-new",
     count: 12,
     roles: ["SAP", "CEO", "BU"], // Optional for CEO/BU
-    section: "global",
+    section: "workspace",
   },
-  // Workspace section
   {
     id: "initiatives",
     label: "Business units",
@@ -134,48 +175,40 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
     roles: ["SAP", "CEO"],
     section: "workspace",
   },
+  // Deploy section
   {
     id: "metrics",
     label: "Metrics",
     icon: "BarChart3",
     href: "/metrics",
     roles: ["SAP", "CEO", "BU"],
-    section: "workspace",
-  },
-  // Context presets
-  {
-    id: "surveys",
-    label: "Surveys",
-    icon: "ClipboardList",
-    href: "/surveys",
-    roles: ["SAP", "CEO", "BU", "EMP"],
-    section: "context",
+    section: "deploy",
   },
   {
-    id: "sapira-mode",
-    label: "Sapira mode",
-    icon: "Shield",
-    href: "/sapira",
-    roles: ["SAP"],
-    section: "context",
+    id: "evals",
+    label: "Evals",
+    icon: "CheckCircle2",
+    href: "/evals",
+    roles: ["SAP", "CEO", "BU"],
+    section: "deploy",
   },
   {
-    id: "me",
-    label: "Me",
-    icon: "User",
-    href: "/me",
-    roles: ["EMP"],
-    section: "context",
+    id: "devops",
+    label: "DevOps",
+    icon: "Server",
+    href: "/devops",
+    roles: ["SAP", "CEO"],
+    section: "deploy",
   },
+  // Footer
   {
     id: "my-sapira-relationship",
     label: "My Sapira",
     icon: "Handshake",
     href: "/my-sapira",
     roles: ["BU", "EMP", "CEO"],
-    section: "context",
+    section: "footer",
   },
-  // Footer
   {
     id: "your-profile",
     label: "Your Profile",
