@@ -46,6 +46,7 @@ import { useAuth } from "@/lib/context/auth-context"
 import { supabase } from "@/lib/supabase/client"
 import { format, subDays, parseISO } from "date-fns"
 import { useRouter } from "next/navigation"
+import { useDeployNotifications } from "@/hooks/use-deploy-notifications"
 
 const OVERVIEW_METRICS = [
   { label: "Active issues", value: 24, delta: "+4 today", icon: Inbox },
@@ -143,13 +144,6 @@ const getInsightTypeLabel = (type: InsightType): string => {
   return labels[type] || type
 }
 
-// Deploy notifications - only important ones that need attention
-const DEPLOY_NOTIFICATIONS = [
-  // Example: only show if there are errors or things that need checking
-  // { label: "Error en deployment", detail: "Falló build en producción", icon: AlertCircle, priority: "high" },
-  // { label: "Eval pendiente", detail: "Revisar resultados de evaluación", icon: Shield, priority: "medium" },
-]
-
 // Helper function to get issue type from core_technology or title
 const getIssueType = (coreTechnology?: string, title?: string): string => {
   if (coreTechnology) {
@@ -186,13 +180,13 @@ const getIssueType = (coreTechnology?: string, title?: string): string => {
 const THINGS_TO_REVIEW = [
   { 
     id: "SAI-244", 
-    title: "Desfase de precios en catálogo EMEA", 
+    title: "Price discrepancy in EMEA catalog", 
     priority: "High", 
     owner: "Pricing", 
     assignee: "María García",
     businessUnit: "Pricing & Operations",
-    project: "Catálogo EMEA",
-    labels: ["urgente", "precios"],
+    project: "EMEA Catalog",
+    labels: ["urgent", "pricing"],
     status: "Under review", 
     eta: "Today",
     origin: "teams",
@@ -201,13 +195,13 @@ const THINGS_TO_REVIEW = [
   },
   { 
     id: "SAI-237", 
-    title: "Automatizar reporte financiero semanal", 
+    title: "Automate weekly financial report", 
     priority: "Medium", 
     owner: "Finance",
     assignee: "Juan Pérez",
     businessUnit: "Finance",
-    project: "Automatización",
-    labels: ["automatización", "reportes"],
+    project: "Automation",
+    labels: ["automation", "reports"],
     status: "Under review", 
     eta: "Tomorrow",
     origin: "email",
@@ -216,7 +210,7 @@ const THINGS_TO_REVIEW = [
   },
   { 
     id: "SAI-229", 
-    title: "Onboarding de brokers LATAM", 
+    title: "LATAM brokers onboarding", 
     priority: "Low", 
     owner: "Ops",
     assignee: null,
@@ -928,6 +922,7 @@ function DiscoveryInsightsSection() {
 
 export default function HomePage() {
   const router = useRouter()
+  const { notifications: DEPLOY_NOTIFICATIONS } = useDeployNotifications()
   
   return (
     <ResizableAppShell>
@@ -1120,44 +1115,66 @@ export default function HomePage() {
                       <p className="text-xs text-gray-500 uppercase tracking-wide">Deploy</p>
                       <h2 className="text-sm font-semibold text-gray-900">Notifications</h2>
                     </div>
-                    <Button variant="ghost" size="sm" className="text-xs gap-1 border-2 border-gray-200 bg-white hover:bg-gray-50 hover:text-gray-900 group">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-xs gap-1 border-2 border-gray-200 bg-white hover:bg-gray-50 hover:text-gray-900 group"
+                      onClick={() => router.push("/metrics")}
+                    >
                       View deploy
                       <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-all duration-300" />
                     </Button>
                   </div>
                   {DEPLOY_NOTIFICATIONS.length > 0 ? (
-                    <div className="space-y-2">
-                      {DEPLOY_NOTIFICATIONS.map((item, idx) => {
-                        const Icon = item.icon
-                        const isHighPriority = item.priority === "high"
-                        return (
-                          <div 
-                            key={idx} 
-                            className={`flex items-center justify-between rounded-lg border p-3 ${
-                              isHighPriority 
-                                ? "border-red-200 bg-red-50/50" 
-                                : "border-yellow-200 bg-yellow-50/50"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Icon className={`h-4 w-4 ${isHighPriority ? "text-red-600" : "text-yellow-600"}`} />
-                              <div>
-                                <p className={`text-xs font-medium ${isHighPriority ? "text-red-900" : "text-yellow-900"}`}>
-                                  {item.label}
-                                </p>
-                                <p className={`text-[11px] ${isHighPriority ? "text-red-700" : "text-yellow-700"}`}>
-                                  {item.detail}
-                                </p>
+                    <div className="space-y-3">
+                      <div className="mb-3 pb-3 border-b border-gray-200">
+                        <p className="text-xs font-medium text-gray-900 mb-1">
+                          We need your intervention in the following:
+                        </p>
+                        <p className="text-[11px] text-gray-500">
+                          {DEPLOY_NOTIFICATIONS.length} {DEPLOY_NOTIFICATIONS.length === 1 ? 'item' : 'items'} requiring attention
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        {DEPLOY_NOTIFICATIONS.map((item) => {
+                          const Icon = item.icon
+                          const isHighPriority = item.priority === "high"
+                          
+                          return (
+                            <motion.div
+                              key={item.id}
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              className={`flex items-center justify-between rounded-lg border p-3 cursor-pointer hover:shadow-md transition-all ${
+                                isHighPriority 
+                                  ? "border-red-200 bg-red-50/50 hover:bg-red-50" 
+                                  : "border-yellow-200 bg-yellow-50/50 hover:bg-yellow-50"
+                              }`}
+                              onClick={() => router.push(`/evals?notification=${item.id}`)}
+                            >
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <Icon className={`h-4 w-4 shrink-0 ${isHighPriority ? "text-red-600" : "text-yellow-600"}`} />
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-xs font-medium ${isHighPriority ? "text-red-900" : "text-yellow-900"}`}>
+                                    {item.label}
+                                  </p>
+                                  <p className={`text-[11px] ${isHighPriority ? "text-red-700" : "text-yellow-700"} mt-0.5 line-clamp-1`}>
+                                    {item.detail}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                            {isHighPriority && (
-                              <Badge variant="outline" className="text-[10px] border-red-300 text-red-700 bg-red-100">
-                                Urgent
-                              </Badge>
-                            )}
-                          </div>
-                        )
-                      })}
+                              <div className="flex items-center gap-2 shrink-0">
+                                {isHighPriority && (
+                                  <Badge variant="outline" className="text-[10px] border-red-300 text-red-700 bg-red-100">
+                                    Urgent
+                                  </Badge>
+                                )}
+                                <ChevronRight className={`h-3.5 w-3.5 ${isHighPriority ? "text-red-600" : "text-yellow-600"}`} />
+                              </div>
+                            </motion.div>
+                          )
+                        })}
+                      </div>
                     </div>
                   ) : (
                     <div className="py-8 text-center">

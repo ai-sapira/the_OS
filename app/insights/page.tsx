@@ -59,6 +59,10 @@ import { supabase } from "@/lib/supabase/client"
 import { format, subDays, parseISO, subMonths, startOfWeek, endOfWeek, startOfMonth } from "date-fns"
 import { useRouter } from "next/navigation"
 import { ProjectsAPI } from "@/lib/api/projects"
+import { useReactTable, getCoreRowModel, createColumnHelper, flexRender } from "@tanstack/react-table"
+import { DataGrid, DataGridContainer, DataGridTable, DataGridPagination } from "@/components/ui/data-grid-table"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { InsightActivityTimeline } from "@/components/insight-activity-timeline"
 
 // Types
 type EventType = "click" | "navigation" | "focus" | "error" | "load" | "input" | "meeting"
@@ -178,8 +182,8 @@ const generateIntegrationEvents = (userId: string, daysAgo: number): Integration
         entity = "Invoice"
         entityId = `INV-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`
         description = eventType === "invoice_created" 
-          ? `Nueva factura creada: ${entityId}`
-          : `Factura actualizada: ${entityId}`
+          ? `New invoice created: ${entityId}`
+          : `Invoice updated: ${entityId}`
         metadata = {
           amount: Math.floor(Math.random() * 100000) + 5000,
           status: eventType === "invoice_created" ? "pending" : (Math.random() > 0.5 ? "paid" : "pending"),
@@ -187,7 +191,7 @@ const generateIntegrationEvents = (userId: string, daysAgo: number): Integration
       } else if (eventType === "po_created") {
         entity = "Purchase Order"
         entityId = `PO-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`
-        description = `Nueva orden de compra creada: ${entityId}`
+        description = `New purchase order created: ${entityId}`
         metadata = {
           amount: Math.floor(Math.random() * 50000) + 1000,
           sku: `SKU-${String(Math.floor(Math.random() * 1000)).padStart(4, '0')}`,
@@ -197,20 +201,20 @@ const generateIntegrationEvents = (userId: string, daysAgo: number): Integration
         entityId = entity === "Invoice" 
           ? `INV-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`
           : `PO-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`
-        description = `Estado cambiado para ${entity}: ${entityId}`
+        description = `Status changed for ${entity}: ${entityId}`
       } else if (eventType === "note_added") {
         entity = Math.random() > 0.5 ? "Invoice" : "Purchase Order"
         entityId = entity === "Invoice" 
           ? `INV-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`
           : `PO-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`
-        description = `Nota añadida a ${entity}: ${entityId}`
+        description = `Note added to ${entity}: ${entityId}`
       }
     } else {
       // Salesforce
       if (eventType === "lead_created") {
         entity = "Lead"
         entityId = `LEAD-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`
-        description = `Nuevo lead creado: ${entityId}`
+        description = `New lead created: ${entityId}`
         metadata = {
           company: ["TechCorp", "InnovateLabs", "DigitalSolutions"][Math.floor(Math.random() * 3)],
         }
@@ -218,8 +222,8 @@ const generateIntegrationEvents = (userId: string, daysAgo: number): Integration
         entity = "Deal"
         entityId = `DEAL-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`
         description = eventType === "deal_created"
-          ? `Nuevo deal creado: ${entityId}`
-          : `Deal actualizado: ${entityId}`
+          ? `New deal created: ${entityId}`
+          : `Deal updated: ${entityId}`
         metadata = {
           amount: Math.floor(Math.random() * 500000) + 10000,
           stage: ["Qualification", "Proposal", "Negotiation", "Closed Won"][Math.floor(Math.random() * 4)],
@@ -229,13 +233,13 @@ const generateIntegrationEvents = (userId: string, daysAgo: number): Integration
         entityId = entity === "Lead"
           ? `LEAD-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`
           : `DEAL-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`
-        description = `Estado cambiado para ${entity}: ${entityId}`
+        description = `Status changed for ${entity}: ${entityId}`
       } else if (eventType === "note_added") {
         entity = Math.random() > 0.5 ? "Lead" : "Deal"
         entityId = entity === "Lead"
           ? `LEAD-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`
           : `DEAL-${String(Math.floor(Math.random() * 10000)).padStart(5, '0')}`
-        description = `Nota añadida a ${entity}: ${entityId}`
+        description = `Note added to ${entity}: ${entityId}`
       }
     }
     
@@ -668,6 +672,113 @@ const generateDummyInsights = (
       }
     }
   }
+
+  // NEW: More SAP insights variations
+  const sapTitles = [
+    "SAP purchase order creation pattern",
+    "SAP material master data access frequency",
+    "SAP financial reporting workflow",
+    "SAP vendor management activity",
+    "SAP production order tracking",
+    "SAP sales order processing",
+    "SAP warehouse management operations",
+    "SAP quality management checks",
+  ]
+
+  if (sapEvents.length >= 3 || sapBrowserEvents.length >= 5) {
+    const sapTitleIndex = (parseInt(date.replace(/-/g, '')) + userId.charCodeAt(0)) % sapTitles.length
+    const sapTitle = sapTitles[sapTitleIndex]
+    const sapEventCount = sapEvents.length + sapBrowserEvents.length
+    
+    insights.push({
+      id: `${userId}-${date}-insight-sap-variation-${sapTitleIndex}`,
+      date,
+      userId,
+      type: "pattern",
+      title: sapTitle,
+      description: `We detected ${sapEventCount} SAP-related activities today. This consistent usage pattern indicates opportunities for workflow optimization and automation within your SAP processes.`,
+      impact: sapEventCount >= 10 ? "high" : "medium",
+      frequency: sapEventCount,
+      timeSaved: 2.5,
+      confidence: 75 + Math.floor(Math.random() * 15),
+      relatedEvents: sapBrowserEvents.slice(0, 4).map(e => e.id),
+      relatedIntegrationEvents: sapEvents.slice(0, 3).map(e => e.id),
+      dataSources: sapEvents.length > 0 ? ["browser", "integration"] : ["browser"],
+      validated: daysAgo <= 3,
+    })
+  }
+
+  // NEW: More Salesforce insights variations
+  const salesforceTitles = [
+    "Salesforce lead conversion tracking",
+    "Salesforce opportunity pipeline updates",
+    "Salesforce account management activity",
+    "Salesforce case management workflow",
+    "Salesforce contract processing",
+    "Salesforce report generation pattern",
+    "Salesforce dashboard access frequency",
+    "Salesforce data import operations",
+  ]
+
+  if (salesforceEvents.length >= 2 || salesforceBrowserEvents.length >= 4) {
+    const sfTitleIndex = (parseInt(date.replace(/-/g, '')) + userId.charCodeAt(0) + 1) % salesforceTitles.length
+    const sfTitle = salesforceTitles[sfTitleIndex]
+    const sfEventCount = salesforceEvents.length + salesforceBrowserEvents.length
+    
+    insights.push({
+      id: `${userId}-${date}-insight-salesforce-variation-${sfTitleIndex}`,
+      date,
+      userId,
+      type: "integration",
+      title: sfTitle,
+      description: `We observed ${sfEventCount} Salesforce-related activities throughout the day. This pattern suggests regular CRM usage that could benefit from automation and integration improvements.`,
+      impact: sfEventCount >= 8 ? "high" : "medium",
+      frequency: sfEventCount,
+      timeSaved: 3.0,
+      confidence: 78 + Math.floor(Math.random() * 12),
+      relatedEvents: salesforceBrowserEvents.slice(0, 4).map(e => e.id),
+      relatedIntegrationEvents: salesforceEvents.slice(0, 3).map(e => e.id),
+      dataSources: salesforceEvents.length > 0 ? ["browser", "integration"] : ["browser"],
+      validated: daysAgo <= 3,
+    })
+  }
+
+  // NEW: SAP and Salesforce cross-integration patterns
+  if (sapEvents.length > 0 && salesforceEvents.length > 0) {
+    const crossIntegrationEvents = [...sapEvents, ...salesforceEvents].sort((a, b) => 
+      a.timestamp.getTime() - b.timestamp.getTime()
+    )
+    
+    if (crossIntegrationEvents.length >= 4) {
+      const timeWindow = 2 * 60 * 60 * 1000 // 2 hours
+      const correlated = crossIntegrationEvents.filter((e, i) => {
+        if (i === 0) return false
+        const prev = crossIntegrationEvents[i - 1]
+        return Math.abs(e.timestamp.getTime() - prev.timestamp.getTime()) < timeWindow &&
+               e.integration !== prev.integration
+      })
+      
+      if (correlated.length >= 2) {
+        insights.push({
+          id: `${userId}-${date}-insight-cross-integration`,
+          date,
+          userId,
+          type: "integration",
+          title: "SAP and Salesforce cross-platform workflow",
+          description: `We detected ${correlated.length} instances where SAP and Salesforce activities occurred within 2 hours of each other. This cross-platform pattern suggests data synchronization opportunities.`,
+          impact: correlated.length >= 4 ? "high" : "medium",
+          frequency: correlated.length,
+          timeSaved: 4.5,
+          confidence: 82 + Math.floor(Math.random() * 10),
+          relatedEvents: [],
+          relatedIntegrationEvents: crossIntegrationEvents.slice(0, 5).map(e => e.id),
+          dataSources: ["integration"],
+          recommendation: "Create automated workflows to sync data between SAP and Salesforce, reducing manual data entry and ensuring consistency",
+          validated: daysAgo <= 2,
+        })
+      }
+    }
+  }
   
   // Pattern: Linear → Sapira workflow
   if (linearEvents.length > 0 && sapiraEvents.length > 0) {
@@ -788,8 +899,30 @@ const generateDummyInsights = (
     })
   }
   
-  // Limit to 3-5 insights per day
-  return insights.slice(0, 3 + Math.floor(Math.random() * 3)).sort((a, b) => {
+  // Filter to only SAP and Salesforce insights
+  const sapSalesforceInsights = insights.filter(insight => {
+    const titleLower = insight.title.toLowerCase()
+    const descLower = insight.description.toLowerCase()
+    return titleLower.includes('sap') || titleLower.includes('salesforce') ||
+           descLower.includes('sap') || descLower.includes('salesforce') ||
+           insight.type === 'integration' ||
+           insight.dataSources.includes('integration')
+  })
+  
+  // Remove duplicates based on title similarity
+  const uniqueInsights: DailyInsight[] = []
+  const seenTitles = new Set<string>()
+  
+  sapSalesforceInsights.forEach(insight => {
+    const normalizedTitle = insight.title.toLowerCase().trim()
+    if (!seenTitles.has(normalizedTitle)) {
+      seenTitles.add(normalizedTitle)
+      uniqueInsights.push(insight)
+    }
+  })
+  
+  // Limit to 5-8 unique insights per day
+  return uniqueInsights.slice(0, 5 + Math.floor(Math.random() * 4)).sort((a, b) => {
     const impactOrder = { high: 3, medium: 2, low: 1 }
     return impactOrder[b.impact] - impactOrder[a.impact]
   })
@@ -1348,26 +1481,265 @@ function EventsList({ events }: { events: UserEvent[] }) {
   )
 }
 
-function InsightsList({ 
+function InsightsTable({ 
   insights, 
   allEvents, 
-  allIntegrationEvents 
+  allIntegrationEvents,
+  employees,
+  businessUnits
 }: { 
   insights: DailyInsight[]
   allEvents: UserEvent[]
   allIntegrationEvents: IntegrationEvent[]
+  employees: Employee[]
+  businessUnits: BusinessUnit[]
 }) {
-  const [expandedInsights, setExpandedInsights] = useState<Set<string>>(new Set())
+  const [selectedInsight, setSelectedInsight] = useState<DailyInsight | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
 
-  const toggleInsight = (insightId: string) => {
-    const newExpanded = new Set(expandedInsights)
-    if (newExpanded.has(insightId)) {
-      newExpanded.delete(insightId)
-    } else {
-      newExpanded.add(insightId)
-    }
-    setExpandedInsights(newExpanded)
-  }
+  const columnHelper = createColumnHelper<DailyInsight>()
+
+  const columns = [
+    columnHelper.accessor("title", {
+      header: "Insight",
+      cell: (info) => {
+        const insight = info.row.original
+        return (
+          <div className="flex items-center gap-2 min-w-[200px] max-w-[300px]">
+            <span className="text-sm font-medium text-gray-900 truncate">{info.getValue()}</span>
+            {insight.validated && (
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+            )}
+          </div>
+        )
+      },
+    }),
+    columnHelper.accessor((row) => {
+      const relatedEvents = allEvents.filter(e => row.relatedEvents.includes(e.id))
+      const applications = [...new Set(relatedEvents.map(e => e.application))]
+      return applications
+    }, {
+      id: "applications",
+      header: "Applications",
+      cell: (info) => {
+        const insight = info.row.original
+        const relatedEvents = allEvents.filter(e => insight.relatedEvents.includes(e.id))
+        const applications = [...new Set(relatedEvents.map(e => e.application))]
+        
+        if (applications.length === 0) return <span className="text-sm text-gray-400">—</span>
+        
+        return (
+          <div className="flex flex-col gap-1 min-w-[120px]">
+            {applications.slice(0, 2).map((app) => (
+              <span key={app} className="text-xs text-gray-700 truncate" title={app}>
+                {app}
+              </span>
+            ))}
+            {applications.length > 2 && (
+              <span className="text-xs text-gray-500">+{applications.length - 2} more</span>
+            )}
+          </div>
+        )
+      },
+    }),
+    columnHelper.accessor((row) => {
+      const relatedIntegrationEvents = allIntegrationEvents.filter(e => 
+        row.relatedIntegrationEvents?.includes(e.id)
+      )
+      const relatedEvents = allEvents.filter(e => row.relatedEvents.includes(e.id))
+      
+      // Get integrations from integration events
+      const integrationsFromEvents = [...new Set(relatedIntegrationEvents.map(e => e.integration))]
+      
+      // Also check browser events for SAP/Salesforce applications
+      const sapBrowserEvents = relatedEvents.filter(e => e.application === "SAP")
+      const salesforceBrowserEvents = relatedEvents.filter(e => e.application === "Salesforce")
+      
+      const integrations = new Set(integrationsFromEvents)
+      if (sapBrowserEvents.length > 0) integrations.add("SAP")
+      if (salesforceBrowserEvents.length > 0) integrations.add("Salesforce")
+      
+      return Array.from(integrations)
+    }, {
+      id: "integrations",
+      header: "Integrations",
+      cell: (info) => {
+        const insight = info.row.original
+        const relatedIntegrationEvents = allIntegrationEvents.filter(e => 
+          insight.relatedIntegrationEvents?.includes(e.id)
+        )
+        const relatedEvents = allEvents.filter(e => insight.relatedEvents.includes(e.id))
+        
+        // Get integrations from integration events
+        const integrationsFromEvents = [...new Set(relatedIntegrationEvents.map(e => e.integration))]
+        
+        // Also check browser events for SAP/Salesforce applications
+        const sapBrowserEvents = relatedEvents.filter(e => e.application === "SAP")
+        const salesforceBrowserEvents = relatedEvents.filter(e => e.application === "Salesforce")
+        
+        const integrations = new Set(integrationsFromEvents)
+        if (sapBrowserEvents.length > 0) integrations.add("SAP")
+        if (salesforceBrowserEvents.length > 0) integrations.add("Salesforce")
+        
+        const integrationsArray = Array.from(integrations)
+        
+        if (integrationsArray.length === 0) return <span className="text-sm text-gray-400">—</span>
+        
+        return (
+          <div className="flex items-center gap-1 flex-wrap">
+            {integrationsArray.map((integration) => (
+              <Badge 
+                key={integration}
+                variant="outline" 
+                className="text-[10px] px-1.5 py-0 bg-blue-100 text-blue-800 border-blue-300"
+              >
+                {integration}
+              </Badge>
+            ))}
+          </div>
+        )
+      },
+    }),
+    columnHelper.accessor((row) => {
+      const relatedEvents = allEvents.filter(e => row.relatedEvents.includes(e.id))
+      const relatedIntegrationEvents = allIntegrationEvents.filter(e => 
+        row.relatedIntegrationEvents?.includes(e.id)
+      )
+      return { browser: relatedEvents.length, integration: relatedIntegrationEvents.length }
+    }, {
+      id: "eventCount",
+      header: "Events",
+      cell: (info) => {
+        const counts = info.getValue()
+        return (
+          <div className="flex items-center gap-1.5">
+            {counts.browser > 0 && (
+              <div className="flex items-center gap-1">
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-700 text-white border-gray-600">
+                  {counts.browser}
+                </Badge>
+                <span className="text-[10px] text-gray-500">browser</span>
+              </div>
+            )}
+            {counts.integration > 0 && (
+              <div className="flex items-center gap-1">
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-100 text-blue-800 border-blue-300">
+                  {counts.integration}
+                </Badge>
+                <span className="text-[10px] text-gray-500">integration</span>
+              </div>
+            )}
+            {counts.browser === 0 && counts.integration === 0 && (
+              <span className="text-sm text-gray-400">—</span>
+            )}
+          </div>
+        )
+      },
+    }),
+    columnHelper.accessor((row) => {
+      const relatedEvents = allEvents.filter(e => row.relatedEvents.includes(e.id))
+      const relatedIntegrationEvents = allIntegrationEvents.filter(e => 
+        row.relatedIntegrationEvents?.includes(e.id)
+      )
+      const userIds = new Set<string>()
+      relatedEvents.forEach(e => userIds.add(e.userId))
+      relatedIntegrationEvents.forEach(e => {
+        if (e.userId) userIds.add(e.userId)
+      })
+      // Also include the insight's userId
+      userIds.add(row.userId)
+      return Array.from(userIds)
+    }, {
+      id: "users",
+      header: "Users",
+      cell: (info) => {
+        const userIds = info.getValue()
+        const insight = info.row.original
+        
+        // Try to find exact matches first
+        let relatedUsers = userIds
+          .map(id => employees.find(e => e.id === id))
+          .filter((e): e is Employee => e !== undefined)
+        
+        // If no exact matches, assign users based on insight userId hash (for demo data)
+        if (relatedUsers.length === 0 && employees.length > 0) {
+          // Use a hash of the insight ID to consistently assign users
+          const hash = insight.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+          const userCount = Math.min(userIds.length, employees.length)
+          const startIndex = hash % employees.length
+          
+          relatedUsers = []
+          for (let i = 0; i < userCount; i++) {
+            const index = (startIndex + i) % employees.length
+            relatedUsers.push(employees[index])
+          }
+        }
+        
+        if (relatedUsers.length === 0) {
+          return <span className="text-sm text-gray-400">—</span>
+        }
+        
+        const firstUser = relatedUsers[0]
+        const remainingCount = relatedUsers.length - 1
+        
+        return (
+          <div className="flex items-center gap-1.5">
+            <Avatar className="h-6 w-6 shrink-0">
+              <AvatarFallback className="text-[10px] bg-gray-200 text-gray-600">
+                {firstUser.name.split(" ").map(n => n[0]).join("")}
+              </AvatarFallback>
+            </Avatar>
+            {remainingCount > 0 && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-100 text-gray-700 border-gray-200">
+                +{remainingCount} {remainingCount === 1 ? 'user' : 'users'}
+              </Badge>
+            )}
+          </div>
+        )
+      },
+    }),
+    columnHelper.display({
+      id: "actions",
+      header: "",
+      cell: (info) => {
+        const insight = info.row.original
+        return (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800"
+            onClick={(e) => {
+              e.stopPropagation()
+              setSelectedInsight(insight)
+              setSheetOpen(true)
+            }}
+          >
+            View details
+            <ChevronRight className="h-3 w-3 ml-1" />
+          </Button>
+        )
+      },
+    }),
+  ]
+
+  const table = useReactTable({
+    data: insights,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 20,
+      },
+    },
+  })
+
+
+  const relatedEvents = selectedInsight 
+    ? allEvents.filter(e => selectedInsight.relatedEvents.includes(e.id))
+    : []
+  const relatedIntegrationEvents = selectedInsight
+    ? allIntegrationEvents.filter(e => selectedInsight.relatedIntegrationEvents?.includes(e.id))
+    : []
 
   if (insights.length === 0) {
     return (
@@ -1379,302 +1751,47 @@ function InsightsList({
   }
 
   return (
-    <div className="space-y-3">
-      {insights.map((insight) => {
-        const Icon = getInsightTypeIcon(insight.type)
-        const relatedEventsData = allEvents.filter(e => insight.relatedEvents.includes(e.id))
-        const relatedIntegrationEventsData = allIntegrationEvents.filter(e => 
-          insight.relatedIntegrationEvents?.includes(e.id)
-        )
-        const isExpanded = expandedInsights.has(insight.id)
-        
-        // Analyze events to show evidence
-        const eventTypes = relatedEventsData.reduce((acc, e) => {
-          acc[e.type] = (acc[e.type] || 0) + 1
-          return acc
-        }, {} as Record<string, number>)
-        
-        const integrationEventTypes = relatedIntegrationEventsData.reduce((acc, e) => {
-          acc[e.type] = (acc[e.type] || 0) + 1
-          return acc
-        }, {} as Record<string, number>)
-        
-        const applications = [...new Set(relatedEventsData.map(e => e.application))]
-        const integrations = [...new Set(relatedIntegrationEventsData.map(e => e.integration))]
-        const allRelatedEvents = [...relatedEventsData, ...relatedIntegrationEventsData]
-        const timeRange = allRelatedEvents.length > 0 ? {
-          start: new Date(Math.min(...allRelatedEvents.map(e => e.timestamp.getTime()))),
-          end: new Date(Math.max(...allRelatedEvents.map(e => e.timestamp.getTime())))
-        } : null
-
-        return (
-          <div
-            key={insight.id}
-            className="border border-gray-200 rounded-lg bg-white"
-          >
-            <div className="p-4">
-              <div className="mb-3">
-                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <h3 className="text-sm font-semibold text-gray-900">{insight.title}</h3>
-                  {insight.validated && (
-                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-800 border border-gray-300">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Validated
-                    </div>
-                  )}
-                </div>
-                <p className="text-xs text-gray-600 leading-relaxed mb-2">
-                  {insight.description}
-                </p>
-                {/* Data sources - subtle inline */}
-                <div className="flex items-center gap-2 text-[10px] text-gray-500">
-                  <span>Data sources:</span>
-                  {insight.dataSources.includes("browser") && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-700 text-white border-gray-600">
-                      <Monitor className="h-2.5 w-2.5 mr-1" />
-                      User Monitoring
-                    </Badge>
-                  )}
-                  {insight.dataSources.includes("integration") && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-100 text-blue-800 border-blue-300">
-                      <Plug className="h-2.5 w-2.5 mr-1" />
-                      Integrations
-                    </Badge>
-                  )}
-                  {insight.dataSources.length > 1 && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-100 text-gray-700 border-gray-200">
-                      Combined analysis
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-3">
-                <div className="border border-gray-200 rounded-lg bg-gray-50/50 p-2">
-                  <div className="text-xs text-gray-500 mb-0.5">Frequency</div>
-                  <div className="text-sm font-semibold text-gray-900">
-                    {insight.frequency}/day
-                  </div>
-                </div>
-                {insight.timeSaved && (
-                  <div className="border border-gray-200 rounded-lg bg-gray-50/50 p-2">
-                    <div className="text-xs text-gray-500 mb-0.5">Time Saved</div>
-                    <div className="text-sm font-semibold text-gray-900">
-                      {insight.timeSaved} min/occurrence
-                    </div>
-                  </div>
-                )}
-                <div className="border border-gray-200 rounded-lg bg-gray-50/50 p-2">
-                  <div className="text-xs text-gray-500 mb-0.5">Confidence</div>
-                  <div className="text-sm font-semibold text-gray-900">
-                    {insight.confidence}%
-                  </div>
-                </div>
-                <div className="border border-gray-200 rounded-lg bg-gray-50/50 p-2">
-                  <div className="text-xs text-gray-500 mb-0.5">Daily Savings</div>
-                  <div className="text-sm font-semibold text-gray-900">
-                    {insight.timeSaved && insight.frequency
-                      ? `${Math.round(insight.timeSaved * insight.frequency)} min`
-                      : "—"}
-                  </div>
-                </div>
-              </div>
-              
-              {/* How we detected this */}
-              {relatedEventsData.length > 0 && (
-                <div className="mt-3 pt-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => toggleInsight(insight.id)}
-                    className={`w-full justify-between h-auto py-2 px-3 hover:bg-gray-100 hover:text-gray-900 ${isExpanded ? 'bg-gray-50' : ''}`}
-                  >
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-medium text-gray-700">
-                        How we detected this
-                      </span>
-                      {relatedEventsData.length > 0 && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-700 text-white border-gray-600">
-                          {relatedEventsData.length} browser events
-                        </Badge>
-                      )}
-                      {relatedIntegrationEventsData.length > 0 && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-100 text-blue-800 border-blue-300">
-                          {relatedIntegrationEventsData.length} integration events
-                        </Badge>
-                      )}
-                      {applications.length > 0 && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-50 text-gray-700 border-gray-200">
-                          {applications.length} apps
-                        </Badge>
-                      )}
-                      {integrations.length > 0 && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-50 text-gray-700 border-gray-200">
-                          {integrations.length} integrations
-                        </Badge>
-                      )}
-                    </div>
-                    <ChevronRight 
-                      className={`h-3.5 w-3.5 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                    />
-                  </Button>
-                  
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="mt-3 space-y-3"
-                    >
-                      {/* Event breakdown */}
-                      <div className="space-y-3">
-                        {relatedEventsData.length > 0 && (
-                          <div>
-                            <div className="flex items-center gap-1.5 mb-2 text-xs font-medium text-gray-700">
-                              <Monitor className="h-3 w-3 text-gray-500" />
-                              Browser Events ({relatedEventsData.length})
-                            </div>
-                      <div className="flex flex-wrap gap-2">
-                        {Object.entries(eventTypes).map(([type, count]) => {
-                          const { Icon: EventIcon, color } = getEventTypeBadge(type as EventType)
-                          return (
-                            <div key={type} className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs border ${color}`}>
-                              <EventIcon className="h-3 w-3" />
-                              <span className="font-medium">{count}</span>
-                              <span>{getEventTypeLabel(type as EventType)}</span>
-                            </div>
-                          )
-                        })}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {relatedIntegrationEventsData.length > 0 && (
-                          <div>
-                            <div className="flex items-center gap-1.5 mb-2 text-xs font-medium text-gray-700">
-                              <Plug className="h-3 w-3 text-gray-500" />
-                              Integration Events ({relatedIntegrationEventsData.length})
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {Object.entries(integrationEventTypes).map(([type, count]) => {
-                                const typeLabels: Record<string, string> = {
-                                  invoice_created: "Invoice Created",
-                                  invoice_updated: "Invoice Updated",
-                                  po_created: "PO Created",
-                                  lead_created: "Lead Created",
-                                  deal_created: "Deal Created",
-                                  deal_updated: "Deal Updated",
-                                  status_changed: "Status Changed",
-                                  note_added: "Note Added",
-                                }
-                                return (
-                                  <div key={type} className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs border bg-blue-100 text-blue-800 border-blue-300">
-                                    <Activity className="h-3 w-3" />
-                                    <span className="font-medium">{count}</span>
-                                    <span>{typeLabels[type] || type}</span>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Related events timeline */}
-                      <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                        {/* Browser events */}
-                        {relatedEventsData.length > 0 && (
-                          <div className="space-y-1.5">
-                            {relatedEventsData.slice(0, 5).map((event) => {
-                          const { Icon: EventIcon, color } = getEventTypeBadge(event.type)
-                          return (
-                            <div
-                              key={event.id}
-                                  className="flex items-center gap-2 p-2 rounded border border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-colors"
-                            >
-                              <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${color} shrink-0`}>
-                                <EventIcon className="h-2.5 w-2.5" />
-                                <span>{getEventTypeLabel(event.type)}</span>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs font-medium text-gray-900 truncate">
-                                  {event.title}
-                                </div>
-                                <div className="text-[10px] text-gray-500 truncate">
-                                  {event.application} • {format(event.timestamp, "HH:mm:ss")}
-                                </div>
-                              </div>
-                                  <Badge variant="outline" className="text-[9px] px-1 py-0 bg-gray-700 text-white border-gray-600 shrink-0">
-                                    Browser
-                                  </Badge>
-                            </div>
-                          )
-                        })}
-                          </div>
-                        )}
-                        
-                        {/* Integration events */}
-                        {relatedIntegrationEventsData.length > 0 && (
-                          <div className="space-y-1.5">
-                            {relatedIntegrationEventsData.slice(0, 5).map((event) => {
-                              return (
-                                <div
-                                  key={event.id}
-                                  className="flex items-center gap-2 p-2 rounded border border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-colors"
-                                >
-                                  <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border bg-gray-50 text-gray-700 border-gray-200 shrink-0">
-                                    <Activity className="h-2.5 w-2.5" />
-                                    <span>{event.type.replace('_', ' ')}</span>
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-xs font-medium text-gray-900 truncate">
-                                      {event.entity}: {event.entityId}
-                                    </div>
-                                    <div className="text-[10px] text-gray-500 truncate">
-                                      {event.integration} • {format(event.timestamp, "HH:mm:ss")}
-                                    </div>
-                                  </div>
-                                  <Badge variant="outline" className="text-[9px] px-1 py-0 bg-blue-100 text-blue-800 border-blue-300 shrink-0">
-                                    {event.integration}
-                                  </Badge>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                        
-                        {(relatedEventsData.length > 5 || relatedIntegrationEventsData.length > 5) && (
-                          <div className="text-xs text-gray-500 text-center py-1">
-                            +{(relatedEventsData.length - 5) + (relatedIntegrationEventsData.length - 5)} more events
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </div>
-              )}
-              
-              {insight.recommendation && (
-                <div className="mt-3 pt-3">
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-between h-auto py-2.5 px-4 hover:bg-gray-100 hover:text-gray-900 border-gray-200"
-                  >
-                    <div className="flex items-center gap-2 text-left flex-1">
-                      <span className="text-xs font-semibold text-gray-900">{insight.recommendation}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-gray-600 shrink-0">
-                      <span className="font-medium">Request automation</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </div>
-                  </Button>
-                </div>
-              )}
-            </div>
+    <>
+      <DataGridContainer border>
+        <DataGrid 
+          table={table} 
+          recordCount={insights.length}
+          onRowClick={(insight) => {
+            setSelectedInsight(insight)
+            setSheetOpen(true)
+          }}
+          tableLayout={{
+            width: 'auto',
+          }}
+        >
+          <DataGridTable />
+          <div className="px-4 py-3 border-t border-gray-200">
+            <DataGridPagination sizes={[]} />
           </div>
-        )
-      })}
-    </div>
+        </DataGrid>
+      </DataGridContainer>
+
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{selectedInsight?.title}</SheetTitle>
+            <SheetDescription>{selectedInsight?.description}</SheetDescription>
+          </SheetHeader>
+          {selectedInsight && (
+            <div className="mt-6">
+              <InsightActivityTimeline
+                userEvents={relatedEvents}
+                integrationEvents={relatedIntegrationEvents}
+                insightTitle={selectedInsight.title}
+                insightDescription={selectedInsight.description}
+                employees={employees}
+                businessUnits={businessUnits}
+              />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+    </>
   )
 }
 
@@ -2085,8 +2202,21 @@ export default function InsightsPage() {
     // Filter by BU
     if (filterType === "bu_specific" && selectedBuId && !buUserIds.includes(i.userId)) return false
     
-    // Only show insights related to SAP, Salesforce, or Sapira
-    return isRelevantInsight(i)
+    // Only show insights related to SAP or Salesforce
+    const titleLower = i.title.toLowerCase()
+    const descLower = i.description.toLowerCase()
+    const isSAP = titleLower.includes('sap') || descLower.includes('sap') || 
+                  i.relatedIntegrationEvents?.some(eid => {
+                    const event = allIntegrationEvents.find(e => e.id === eid)
+                    return event?.integration === 'SAP'
+                  })
+    const isSalesforce = titleLower.includes('salesforce') || descLower.includes('salesforce') ||
+                        i.relatedIntegrationEvents?.some(eid => {
+                          const event = allIntegrationEvents.find(e => e.id === eid)
+                          return event?.integration === 'Salesforce'
+                        })
+    
+    return isSAP || isSalesforce
   })
 
   // Calculate filtered metrics based on current filter
@@ -2352,7 +2482,7 @@ export default function InsightsPage() {
                               </div>
                             </div>
                           )}
-                          <InsightsList insights={filteredInsights} allEvents={allEvents} allIntegrationEvents={allIntegrationEvents} />
+                          <InsightsTable insights={filteredInsights} allEvents={allEvents} allIntegrationEvents={allIntegrationEvents} employees={orgEmployees} businessUnits={businessUnits} />
                         </div>
                       </div>
                     </div>

@@ -1,12 +1,14 @@
 "use client"
 
 import * as React from "react"
+import { useState } from "react"
 import {
   ResizableAppShell,
   ResizablePageSheet,
   PageHeader,
 } from "@/components/layout"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Plug,
   RefreshCw,
@@ -25,10 +27,14 @@ import {
   Plus,
   Search,
   X,
+  Zap,
+  MousePointerClick,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Modal, ModalBody } from "@/components/ui/modal"
 import { motion, AnimatePresence } from "framer-motion"
+import { format, parseISO } from "date-fns"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 
 // Mock data types
@@ -161,7 +167,7 @@ const generateEvents = (integrationId: string, count: number = 5): IntegrationEv
         user: users[Math.floor(Math.random() * users.length)],
         entity: "Invoice",
         entityId: invoiceIds[0],
-        description: `Nota añadida a factura ${invoiceIds[0]}`,
+        description: `Note added to invoice ${invoiceIds[0]}`,
         timestamp: new Date(Date.now() - Math.random() * 1800000).toISOString(),
       },
       {
@@ -170,7 +176,7 @@ const generateEvents = (integrationId: string, count: number = 5): IntegrationEv
         user: users[Math.floor(Math.random() * users.length)],
         entity: "Invoice",
         entityId: invoiceIds[1],
-        description: `Estado cambiado a "Pagada"`,
+        description: `Status changed to "Paid"`,
         timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString(),
       },
       {
@@ -179,7 +185,7 @@ const generateEvents = (integrationId: string, count: number = 5): IntegrationEv
         user: users[Math.floor(Math.random() * users.length)],
         entity: "Purchase Order",
         entityId: poIds[0],
-        description: `Nota añadida a orden de compra ${poIds[0]}`,
+        description: `Note added to purchase order ${poIds[0]}`,
         timestamp: new Date(Date.now() - Math.random() * 5400000).toISOString(),
       },
       {
@@ -188,7 +194,7 @@ const generateEvents = (integrationId: string, count: number = 5): IntegrationEv
         user: users[Math.floor(Math.random() * users.length)],
         entity: "Invoice",
         entityId: invoiceIds[2],
-        description: `Factura ${invoiceIds[2]} actualizada`,
+        description: `Invoice ${invoiceIds[2]} updated`,
         timestamp: new Date(Date.now() - Math.random() * 7200000).toISOString(),
       },
       {
@@ -212,7 +218,7 @@ const generateEvents = (integrationId: string, count: number = 5): IntegrationEv
         user: users[Math.floor(Math.random() * users.length)],
         entity: "Deal",
         entityId: dealIds[0],
-        description: `Nota añadida a deal ${dealIds[0]}`,
+        description: `Note added to deal ${dealIds[0]}`,
         timestamp: new Date(Date.now() - Math.random() * 1800000).toISOString(),
       },
       {
@@ -221,7 +227,7 @@ const generateEvents = (integrationId: string, count: number = 5): IntegrationEv
         user: users[Math.floor(Math.random() * users.length)],
         entity: "Lead",
         entityId: leadIds[0],
-        description: `Nuevo lead creado: ${leadIds[0]}`,
+        description: `New lead created: ${leadIds[0]}`,
         timestamp: new Date(Date.now() - Math.random() * 3600000).toISOString(),
       },
       {
@@ -230,7 +236,7 @@ const generateEvents = (integrationId: string, count: number = 5): IntegrationEv
         user: users[Math.floor(Math.random() * users.length)],
         entity: "Deal",
         entityId: dealIds[1],
-        description: `Deal ${dealIds[1]} asignado`,
+        description: `Deal ${dealIds[1]} assigned`,
         timestamp: new Date(Date.now() - Math.random() * 5400000).toISOString(),
       },
       {
@@ -239,7 +245,7 @@ const generateEvents = (integrationId: string, count: number = 5): IntegrationEv
         user: users[Math.floor(Math.random() * users.length)],
         entity: "Lead",
         entityId: leadIds[1],
-        description: `Nota añadida a lead ${leadIds[1]}`,
+        description: `Note added to lead ${leadIds[1]}`,
         timestamp: new Date(Date.now() - Math.random() * 7200000).toISOString(),
       },
       {
@@ -248,7 +254,7 @@ const generateEvents = (integrationId: string, count: number = 5): IntegrationEv
         user: users[Math.floor(Math.random() * users.length)],
         entity: "Deal",
         entityId: dealIds[2],
-        description: `Estado del deal ${dealIds[2]} cambiado`,
+        description: `Deal ${dealIds[2]} status changed`,
         timestamp: new Date(Date.now() - Math.random() * 9000000).toISOString(),
       },
     )
@@ -264,7 +270,7 @@ const ACTIVE_INTEGRATIONS: ActiveIntegration[] = [
     provider: "SAP",
     category: "ERP",
     domain: "sap.com",
-    lastSync: "Hace 12 min",
+    lastSync: "12 min ago",
     isRealTime: false,
     purchaseOrders: generatePurchaseOrders(8),
     invoices: generateInvoices(8),
@@ -276,7 +282,7 @@ const ACTIVE_INTEGRATIONS: ActiveIntegration[] = [
     provider: "Salesforce",
     category: "CRM",
     domain: "salesforce.com",
-    lastSync: "Tiempo real",
+    lastSync: "Real-time",
     isRealTime: true,
     leads: generateLeads(10),
     deals: generateDeals(8),
@@ -302,37 +308,37 @@ function getTimeAgo(timestamp: string): string {
   const diffMs = now.getTime() - time.getTime()
   const diffMins = Math.floor(diffMs / 60000)
   
-  if (diffMins < 1) return "Ahora mismo"
-  if (diffMins < 60) return `Hace ${diffMins} min`
+  if (diffMins < 1) return "Just now"
+  if (diffMins < 60) return `${diffMins} min ago`
   const diffHours = Math.floor(diffMins / 60)
-  if (diffHours < 24) return `Hace ${diffHours}h`
-  return `Hace ${Math.floor(diffHours / 24)}d`
+  if (diffHours < 24) return `${diffHours}h ago`
+  return `${Math.floor(diffHours / 24)}d ago`
 }
 
 function getEventBadge(type: string) {
   const eventConfig = {
     note_added: {
-      label: "Nota añadida",
+      label: "Note added",
       icon: <MessageSquare className="h-3 w-3" />,
       className: "bg-blue-50 text-blue-700 border-blue-200",
     },
     status_changed: {
-      label: "Estado cambiado",
+      label: "Status changed",
       icon: <Activity className="h-3 w-3" />,
       className: "bg-red-50 text-red-700 border-red-200",
     },
     created: {
-      label: "Creado",
+      label: "Created",
       icon: <UserPlus className="h-3 w-3" />,
       className: "bg-green-50 text-green-700 border-green-200",
     },
     updated: {
-      label: "Actualizado",
+      label: "Updated",
       icon: <FileEdit className="h-3 w-3" />,
       className: "bg-gray-50 text-gray-700 border-gray-200",
     },
     assigned: {
-      label: "Asignado",
+      label: "Assigned",
       icon: <DollarSign className="h-3 w-3" />,
       className: "bg-gray-50 text-gray-700 border-gray-200",
     },
@@ -345,9 +351,9 @@ function getEventBadge(type: string) {
   }
 
   return (
-    <span className={cn("inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border", config.className)}>
+    <span className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium border w-[110px] shrink-0", config.className)}>
       {config.icon}
-      {config.label}
+      <span className="truncate">{config.label}</span>
     </span>
   )
 }
@@ -388,11 +394,11 @@ function PurchaseOrdersTable({ orders }: { orders: PurchaseOrder[] }) {
         >
           {expanded ? (
             <>
-              Minimizar <ChevronUp className="h-3 w-3" />
+              Collapse <ChevronUp className="h-3 w-3" />
             </>
           ) : (
             <>
-              Ver todas <ChevronDown className="h-3 w-3" />
+              View all <ChevronDown className="h-3 w-3" />
             </>
           )}
         </Button>
@@ -405,7 +411,7 @@ function PurchaseOrdersTable({ orders }: { orders: PurchaseOrder[] }) {
               <th className="text-left py-2 px-4 font-semibold text-gray-700">SKU</th>
               <th className="text-right py-2 px-4 font-semibold text-gray-700">Total amount</th>
               <th className="text-right py-2 px-4 font-semibold text-gray-700">Price per unit</th>
-              <th className="text-right py-2 px-4 font-semibold text-gray-700">Recibido</th>
+              <th className="text-right py-2 px-4 font-semibold text-gray-700">Received</th>
             </tr>
           </thead>
           <tbody>
@@ -483,9 +489,9 @@ function InvoicesTable({ invoices }: { invoices: Invoice[] }) {
       overdue: "bg-red-50 text-red-700 border-red-200",
     }
     const labels = {
-      paid: "Pagada",
-      pending: "Pendiente",
-      overdue: "Vencida",
+      paid: "Paid",
+      pending: "Pending",
+      overdue: "Overdue",
     }
     return (
       <span className={cn("px-1.5 py-0.5 rounded text-xs font-medium border", styles[status as keyof typeof styles])}>
@@ -509,11 +515,11 @@ function InvoicesTable({ invoices }: { invoices: Invoice[] }) {
         >
           {expanded ? (
             <>
-              Minimizar <ChevronUp className="h-3 w-3" />
+              Collapse <ChevronUp className="h-3 w-3" />
             </>
           ) : (
             <>
-              Ver todas <ChevronDown className="h-3 w-3" />
+              View all <ChevronDown className="h-3 w-3" />
             </>
           )}
         </Button>
@@ -528,7 +534,7 @@ function InvoicesTable({ invoices }: { invoices: Invoice[] }) {
               <th className="text-left py-2 px-4 font-semibold text-gray-700">Date paid</th>
               <th className="text-right py-2 px-4 font-semibold text-gray-700">Total amount</th>
               <th className="text-right py-2 px-4 font-semibold text-gray-700">IVA rate</th>
-              <th className="text-right py-2 px-4 font-semibold text-gray-700">Recibido</th>
+              <th className="text-right py-2 px-4 font-semibold text-gray-700">Received</th>
             </tr>
           </thead>
           <tbody>
@@ -622,11 +628,11 @@ function LeadsTable({ leads }: { leads: Lead[] }) {
         >
           {expanded ? (
             <>
-              Minimizar <ChevronUp className="h-3 w-3" />
+              Collapse <ChevronUp className="h-3 w-3" />
             </>
           ) : (
             <>
-              Ver todas <ChevronDown className="h-3 w-3" />
+              View all <ChevronDown className="h-3 w-3" />
             </>
           )}
         </Button>
@@ -639,7 +645,7 @@ function LeadsTable({ leads }: { leads: Lead[] }) {
               <th className="text-left py-2 px-4 font-semibold text-gray-700">Point of Contact</th>
               <th className="text-left py-2 px-4 font-semibold text-gray-700">Created at</th>
               <th className="text-center py-2 px-4 font-semibold text-gray-700">Deal generated</th>
-              <th className="text-right py-2 px-4 font-semibold text-gray-700">Recibido</th>
+              <th className="text-right py-2 px-4 font-semibold text-gray-700">Received</th>
             </tr>
           </thead>
           <tbody>
@@ -678,7 +684,7 @@ function LeadsTable({ leads }: { leads: Lead[] }) {
                   {lead.dealGenerated ? (
                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-green-50 text-green-700 border border-green-200">
                       <CheckCircle2 className="h-3 w-3" />
-                      Sí
+                      Yes
                     </span>
                   ) : (
                     <span className="text-sm text-gray-400">-</span>
@@ -732,11 +738,11 @@ function DealsTable({ deals }: { deals: Deal[] }) {
         >
           {expanded ? (
             <>
-              Minimizar <ChevronUp className="h-3 w-3" />
+              Collapse <ChevronUp className="h-3 w-3" />
             </>
           ) : (
             <>
-              Ver todas <ChevronDown className="h-3 w-3" />
+              View all <ChevronDown className="h-3 w-3" />
             </>
           )}
         </Button>
@@ -750,7 +756,7 @@ function DealsTable({ deals }: { deals: Deal[] }) {
               <th className="text-left py-2 px-4 font-semibold text-gray-700">Created at</th>
               <th className="text-right py-2 px-4 font-semibold text-gray-700">Total amount</th>
               <th className="text-left py-2 px-4 font-semibold text-gray-700">Start date</th>
-              <th className="text-right py-2 px-4 font-semibold text-gray-700">Recibido</th>
+              <th className="text-right py-2 px-4 font-semibold text-gray-700">Received</th>
             </tr>
           </thead>
           <tbody>
@@ -833,7 +839,7 @@ function EventsTable({ events }: { events: IntegrationEvent[] }) {
     <div className="border border-gray-200 rounded-lg overflow-hidden">
       <div className="bg-gray-50 px-4 py-2.5 flex items-center justify-between border-b border-gray-200">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-gray-900">Eventos</span>
+          <span className="text-xs font-semibold text-gray-900">Events</span>
           <span className="text-xs text-gray-500">({events.length})</span>
         </div>
         <Button
@@ -844,11 +850,11 @@ function EventsTable({ events }: { events: IntegrationEvent[] }) {
         >
           {expanded ? (
             <>
-              Minimizar <ChevronUp className="h-3 w-3" />
+              Collapse <ChevronUp className="h-3 w-3" />
             </>
           ) : (
             <>
-              Ver todas <ChevronDown className="h-3 w-3" />
+              View all <ChevronDown className="h-3 w-3" />
             </>
           )}
         </Button>
@@ -912,6 +918,102 @@ function EventsTable({ events }: { events: IntegrationEvent[] }) {
           </tbody>
         </table>
       </div>
+    </div>
+  )
+}
+
+// Events List component similar to user monitoring
+function IntegrationEventsList({ events }: { events: Array<IntegrationEvent & { integrationId?: string, integrationName?: string }> }) {
+  if (events.length === 0) {
+    return (
+      <div className="py-12 text-center text-gray-500">
+        <Activity className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+        <p className="text-sm">No events recorded</p>
+      </div>
+    )
+  }
+
+  // Calculate event context info for each event
+  const getEventContext = (event: typeof events[0], allEvents: typeof events) => {
+    const eventIntegrationName = event.integrationName || "Unknown"
+    const sameHourEvents = allEvents.filter(e => {
+      const eventHour = new Date(event.timestamp).getHours()
+      const eHour = new Date(e.timestamp).getHours()
+      const eventDate = format(parseISO(event.timestamp), "yyyy-MM-dd")
+      const eDate = format(parseISO(e.timestamp), "yyyy-MM-dd")
+      return (e.integrationName || "Unknown") === eventIntegrationName && 
+             eHour === eventHour &&
+             eDate === eventDate
+    }).length
+
+    const sameTypeEvents = allEvents.filter(e => 
+      e.type === event.type && 
+      format(parseISO(e.timestamp), "yyyy-MM-dd") === format(parseISO(event.timestamp), "yyyy-MM-dd")
+    ).length
+
+    return {
+      integrationEventsThisHour: sameHourEvents,
+      typeEventsToday: sameTypeEvents,
+    }
+  }
+
+  return (
+    <div className="divide-y" style={{ borderColor: 'var(--stroke)' }}>
+      {events.map((event) => {
+        const badge = getEventBadge(event.type)
+        const integrationName = event.integrationName || "Unknown"
+        const context = getEventContext(event, events)
+        const eventDate = parseISO(event.timestamp)
+        
+        return (
+          <div
+            key={event.id}
+            className="px-6 py-3 hover:bg-gray-50/50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              {badge}
+              <div className="flex-1 min-w-0 flex items-center gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-xs font-medium text-gray-500">
+                      {integrationName}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {format(eventDate, "HH:mm:ss")}
+                    </span>
+                    {context.integrationEventsThisHour > 1 && (
+                      <>
+                        <span className="text-xs text-gray-400">•</span>
+                        <span className="text-xs text-gray-500">
+                          {context.integrationEventsThisHour}x this hour
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm font-medium text-gray-900">
+                      {event.entity} {event.entityId}
+                    </div>
+                    <div className="text-xs text-gray-900">
+                      {event.description}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex-shrink-0 w-[160px]">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-white text-gray-700 border border-gray-300">
+                    <Avatar className="h-4 w-4">
+                      <AvatarFallback className="text-[10px] bg-gray-100 text-gray-600">
+                        {event.user.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="truncate">{event.user}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -1282,6 +1384,7 @@ function AddIntegrationModal({
 
 export default function IntegrationsPage() {
   const [addIntegrationModalOpen, setAddIntegrationModalOpen] = React.useState(false)
+  const [activeTab, setActiveTab] = useState<"events" | "integrations">("events")
   
   // Add animation styles and disable default modal animations
   React.useEffect(() => {
@@ -1338,6 +1441,15 @@ export default function IntegrationsPage() {
 
   const erpIntegrations = ACTIVE_INTEGRATIONS.filter((integration) => integration.category === "ERP")
   const crmIntegrations = ACTIVE_INTEGRATIONS.filter((integration) => integration.category === "CRM")
+  
+  // Collect all events from all integrations
+  const allIntegrationEvents = ACTIVE_INTEGRATIONS.flatMap(integration => 
+    (integration.events || []).map(event => ({
+      ...event,
+      integrationId: integration.id,
+      integrationName: integration.name,
+    }))
+  ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
   return (
     <ResizableAppShell>
@@ -1369,138 +1481,232 @@ export default function IntegrationsPage() {
         }
       >
         <div className="-mx-5 -mt-4">
-          <div style={{ paddingLeft: '28px', paddingRight: '20px', paddingTop: '24px', paddingBottom: '24px' }}>
-            <div className="space-y-8">
-              {/* ERP Section */}
-              <section className="space-y-4">
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-gray-100">
-                    <Building2 className="h-4 w-4 text-gray-500" />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-semibold text-gray-900">ERP</h2>
-                    <p className="text-xs text-gray-500">{erpIntegrations.length} integraciones activas</p>
-                  </div>
+          {/* Toolbar with tabs */}
+          <div className="bg-gray-50/30" style={{ paddingLeft: '28px', paddingRight: '20px' }}>
+            <div className="flex items-center justify-between h-full gap-4" style={{ height: 'var(--header-h)' }}>
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex-1 min-w-0 h-full flex items-end">
+                <div className="flex items-center gap-4 w-full">
+                  <TabsList className="relative h-auto w-fit gap-0.5 bg-transparent p-0 before:absolute before:inset-x-0 before:bottom-0 before:h-px before:bg-border">
+                    <TabsTrigger
+                      value="events"
+                      className="overflow-hidden rounded-b-none border-x border-t border-border bg-muted h-7 px-2.5 text-xs font-medium data-[state=active]:z-10 data-[state=active]:shadow-none data-[state=active]:bg-white whitespace-nowrap flex items-center gap-1.5"
+                    >
+                      Events & metrics
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="integrations"
+                      className="overflow-hidden rounded-b-none border-x border-t border-border bg-muted h-7 px-2.5 text-xs font-medium data-[state=active]:z-10 data-[state=active]:shadow-none data-[state=active]:bg-white whitespace-nowrap flex items-center gap-1.5"
+                    >
+                      Active integrations
+                    </TabsTrigger>
+                  </TabsList>
                 </div>
+              </Tabs>
+            </div>
+          </div>
 
-                <div className="space-y-6">
-                  {erpIntegrations.map((integration) => (
-                    <div key={integration.id} className="border border-gray-200 rounded-lg bg-white p-5 space-y-4">
-                      {/* Integration Header */}
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <IntegrationLogo 
-                            domain={integration.domain}
-                            name={integration.name}
-                          />
-                          <div>
-                            <h3 className="text-sm font-semibold text-gray-900">{integration.name}</h3>
-                            <p className="text-xs text-gray-500">{integration.provider}</p>
-                          </div>
+          {/* Content */}
+          <div style={{ paddingLeft: '28px', paddingRight: '20px', paddingTop: '24px', paddingBottom: '24px' }}>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+              <TabsContent value="events" className="mt-0 space-y-6">
+                {/* Quick Metrics Summary */}
+                {allIntegrationEvents.length > 0 && (() => {
+                  const eventTypes = allIntegrationEvents.reduce((acc, e) => {
+                    acc[e.type] = (acc[e.type] || 0) + 1
+                    return acc
+                  }, {} as Record<string, number>)
+                  
+                  const integrations = allIntegrationEvents.reduce((acc, e) => {
+                    const integrationName = e.integrationName || "Unknown"
+                    acc[integrationName] = (acc[integrationName] || 0) + 1
+                    return acc
+                  }, {} as Record<string, number>)
+                  
+                  const mostUsedIntegration = Object.entries(integrations).sort((a, b) => b[1] - a[1])[0]
+                  
+                  return (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      <div className="border border-gray-200 rounded-lg bg-white p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Activity className="h-3.5 w-3.5 text-gray-500" />
+                          <span className="text-xs text-gray-500">Total Events</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {integration.isRealTime && (
-                            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-green-50 border border-green-200">
-                              <Activity className="h-3 w-3 text-green-600 animate-pulse" />
-                              <span className="text-xs font-medium text-green-700">Tiempo real</span>
-                            </div>
-                          )}
-                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                            <Clock className="h-3.5 w-3.5 text-gray-400" />
-                            <span>{integration.lastSync}</span>
-                          </div>
+                        <div className="text-lg font-semibold text-gray-900">{allIntegrationEvents.length}</div>
+                      </div>
+                      <div className="border border-gray-200 rounded-lg bg-white p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Zap className="h-3.5 w-3.5 text-gray-500" />
+                          <span className="text-xs text-gray-500">Most Used Integration</span>
                         </div>
+                        <div className="text-sm font-medium text-gray-900 truncate">{mostUsedIntegration?.[0] || "—"}</div>
+                        <div className="text-xs text-gray-400">{mostUsedIntegration?.[1] || 0} events</div>
                       </div>
-
-                      {/* Data Tables */}
-                      <div className="space-y-4">
-                        {integration.purchaseOrders && integration.purchaseOrders.length > 0 && (
-                          <PurchaseOrdersTable orders={integration.purchaseOrders} />
-                        )}
-                        {integration.invoices && integration.invoices.length > 0 && (
-                          <InvoicesTable invoices={integration.invoices} />
-                        )}
-                        {integration.events && integration.events.length > 0 && (
-                          <EventsTable events={integration.events} />
-                        )}
-                      </div>
-
-                      <div className="pt-2 border-t" style={{ borderColor: 'var(--stroke)' }}>
-                        <Button variant="outline" size="sm" className="h-7 text-xs gap-1 hover:bg-gray-100 hover:text-gray-900">
-                          Ver todos los datos
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                              </div>
-                  ))}
-                              </div>
-              </section>
-
-              {/* CRM Section */}
-              <section className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-gray-100">
-                    <Plug className="h-4 w-4 text-gray-500" />
-                            </div>
-                  <div>
-                    <h2 className="text-sm font-semibold text-gray-900">CRM</h2>
-                    <p className="text-xs text-gray-500">{crmIntegrations.length} integraciones activas</p>
-                            </div>
-                          </div>
-
-                <div className="space-y-6">
-                  {crmIntegrations.map((integration) => (
-                    <div key={integration.id} className="border border-gray-200 rounded-lg bg-white p-5 space-y-4">
-                      {/* Integration Header */}
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <IntegrationLogo 
-                            domain={integration.domain}
-                            name={integration.name}
-                          />
-                          <div>
-                            <h3 className="text-sm font-semibold text-gray-900">{integration.name}</h3>
-                            <p className="text-xs text-gray-500">{integration.provider}</p>
-                          </div>
-                              </div>
-                        <div className="flex items-center gap-2">
-                          {integration.isRealTime && (
-                            <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-green-50 border border-green-200">
-                              <Activity className="h-3 w-3 text-green-600 animate-pulse" />
-                              <span className="text-xs font-medium text-green-700">Tiempo real</span>
-                            </div>
-                          )}
-                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                            <Clock className="h-3.5 w-3.5 text-gray-400" />
-                            <span>{integration.lastSync}</span>
-                          </div>
+                      <div className="border border-gray-200 rounded-lg bg-white p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <MousePointerClick className="h-3.5 w-3.5 text-gray-500" />
+                          <span className="text-xs text-gray-500">Top Event Type</span>
+                        </div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {Object.entries(eventTypes).sort((a, b) => b[1] - a[1])[0]?.[0] || "—"}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {Object.entries(eventTypes).sort((a, b) => b[1] - a[1])[0]?.[1] || 0} occurrences
                         </div>
                       </div>
+                    </div>
+                  )
+                })()}
 
-                      {/* Data Tables */}
-                      <div className="space-y-4">
-                        {integration.leads && integration.leads.length > 0 && (
-                          <LeadsTable leads={integration.leads} />
-                        )}
-                        {integration.deals && integration.deals.length > 0 && (
-                          <DealsTable deals={integration.deals} />
-                        )}
-                        {integration.events && integration.events.length > 0 && (
-                          <EventsTable events={integration.events} />
-                        )}
+                {/* Events List */}
+                <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+                  <div className="bg-gray-50/30 px-6 py-3 border-b border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-900">Events & metrics</span>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {allIntegrationEvents.length} events recorded
+                      </div>
+                    </div>
+                  </div>
+                  <IntegrationEventsList events={allIntegrationEvents} />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="integrations" className="mt-0">
+                <div className="space-y-8">
+                  {/* ERP Section */}
+                  <section className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-gray-100">
+                        <Building2 className="h-4 w-4 text-gray-500" />
+                      </div>
+                      <div>
+                        <h2 className="text-sm font-semibold text-gray-900">ERP</h2>
+                        <p className="text-xs text-gray-500">{erpIntegrations.length} active integrations</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      {erpIntegrations.map((integration) => (
+                        <div key={integration.id} className="border border-gray-200 rounded-lg bg-white p-5 space-y-4">
+                          {/* Integration Header */}
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <IntegrationLogo 
+                                domain={integration.domain}
+                                name={integration.name}
+                              />
+                              <div>
+                                <h3 className="text-sm font-semibold text-gray-900">{integration.name}</h3>
+                                <p className="text-xs text-gray-500">{integration.provider}</p>
+                              </div>
                             </div>
+                            <div className="flex items-center gap-2">
+                              {integration.isRealTime && (
+                                <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-green-50 border border-green-200">
+                                  <Activity className="h-3 w-3 text-green-600 animate-pulse" />
+                                  <span className="text-xs font-medium text-green-700">Real-time</span>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                <Clock className="h-3.5 w-3.5 text-gray-400" />
+                                <span>{integration.lastSync}</span>
+                              </div>
+                            </div>
+                          </div>
 
-                      <div className="pt-2 border-t" style={{ borderColor: 'var(--stroke)' }}>
-                        <Button variant="outline" size="sm" className="h-7 text-xs gap-1 hover:bg-gray-100 hover:text-gray-900">
-                          Ver todos los datos
-                          <Eye className="h-3.5 w-3.5" />
-                              </Button>
+                          {/* Data Tables */}
+                          <div className="space-y-4">
+                            {integration.purchaseOrders && integration.purchaseOrders.length > 0 && (
+                              <PurchaseOrdersTable orders={integration.purchaseOrders} />
+                            )}
+                            {integration.invoices && integration.invoices.length > 0 && (
+                              <InvoicesTable invoices={integration.invoices} />
+                            )}
+                            {integration.events && integration.events.length > 0 && (
+                              <EventsTable events={integration.events} />
+                            )}
+                          </div>
+
+                          <div className="pt-2 border-t" style={{ borderColor: 'var(--stroke)' }}>
+                            <Button variant="outline" size="sm" className="h-7 text-xs gap-1 hover:bg-gray-100 hover:text-gray-900">
+                              View all data
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         </div>
                       ))}
                     </div>
                   </section>
-              </div>
+
+                  {/* CRM Section */}
+                  <section className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-gray-100">
+                        <Plug className="h-4 w-4 text-gray-500" />
+                      </div>
+                      <div>
+                        <h2 className="text-sm font-semibold text-gray-900">CRM</h2>
+                        <p className="text-xs text-gray-500">{crmIntegrations.length} active integrations</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      {crmIntegrations.map((integration) => (
+                        <div key={integration.id} className="border border-gray-200 rounded-lg bg-white p-5 space-y-4">
+                          {/* Integration Header */}
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <IntegrationLogo 
+                                domain={integration.domain}
+                                name={integration.name}
+                              />
+                              <div>
+                                <h3 className="text-sm font-semibold text-gray-900">{integration.name}</h3>
+                                <p className="text-xs text-gray-500">{integration.provider}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {integration.isRealTime && (
+                                <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-green-50 border border-green-200">
+                                  <Activity className="h-3 w-3 text-green-600 animate-pulse" />
+                                  <span className="text-xs font-medium text-green-700">Real-time</span>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                <Clock className="h-3.5 w-3.5 text-gray-400" />
+                                <span>{integration.lastSync}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Data Tables */}
+                          <div className="space-y-4">
+                            {integration.leads && integration.leads.length > 0 && (
+                              <LeadsTable leads={integration.leads} />
+                            )}
+                            {integration.deals && integration.deals.length > 0 && (
+                              <DealsTable deals={integration.deals} />
+                            )}
+                            {integration.events && integration.events.length > 0 && (
+                              <EventsTable events={integration.events} />
+                            )}
+                          </div>
+
+                          <div className="pt-2 border-t" style={{ borderColor: 'var(--stroke)' }}>
+                            <Button variant="outline" size="sm" className="h-7 text-xs gap-1 hover:bg-gray-100 hover:text-gray-900">
+                              View all data
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </ResizablePageSheet>

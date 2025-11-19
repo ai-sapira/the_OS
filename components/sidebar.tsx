@@ -251,6 +251,34 @@ export function Sidebar({
       "border-l-2 border-transparent"
     )
 
+    // Special handling for Home with count
+    if (item.id === "home") {
+      return (
+        <Link key={item.id} href={item.href || "#"}>
+          <Button
+            variant={isActive ? "secondary" : "ghost"}
+            className={cn(
+              baseItemClasses,
+              isActive ? activeClasses : hoverClasses
+            )}
+          >
+            <Icon className={cn(
+              "h-4 w-4 mr-2 shrink-0 transition-transform duration-200",
+              isActive ? "scale-110" : "group-hover:scale-110"
+            )} />
+            {!isCollapsed && (
+              <>
+                <span className="flex-1 text-left transition-all duration-200">{item.label}</span>
+                <Badge variant="secondary" className="h-5 px-1.5 text-xs transition-all duration-200 group-hover:scale-105 bg-red-500 text-white border-red-600">
+                  1
+                </Badge>
+              </>
+            )}
+          </Button>
+        </Link>
+      )
+    }
+
     // Special handling for Triage with count
     if (item.id === "triage") {
       return (
