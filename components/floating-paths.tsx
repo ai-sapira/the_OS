@@ -53,3 +53,5 @@ export function FloatingPaths({ position }: FloatingPathsProps) {
   )
 }
 
+
+

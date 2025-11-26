@@ -157,3 +157,5 @@ COMMENT ON FUNCTION sync_user_from_auth() IS 'Automatically creates/updates user
 COMMENT ON FUNCTION cleanup_orphaned_users() IS 'Removes users from users table that no longer exist in auth.users';
 COMMENT ON FUNCTION sync_missing_users() IS 'Syncs existing auth.users that don''t have a corresponding record in users table';
 
+
+

@@ -192,6 +192,22 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
     roles: ["SAP", "CEO", "BU"],
     section: "deploy",
   },
+  {
+    id: "compliance",
+    label: "Compliance",
+    icon: "Shield",
+    href: "/compliance",
+    roles: ["SAP", "CEO", "BU"],
+    section: "deploy",
+  },
+  {
+    id: "billing",
+    label: "Billing",
+    icon: "CreditCard",
+    href: "/billing",
+    roles: ["SAP", "CEO"],
+    section: "deploy",
+  },
   // Footer
   {
     id: "my-sapira-relationship",

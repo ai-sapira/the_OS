@@ -17,7 +17,7 @@
   --secondary-foreground: oklch(0.35 0 0);
   --muted: oklch(0.96 0 0);
   --muted-foreground: oklch(0.55 0 0);
-  --accent: oklch(0.94 0.02 285); /* Very subtle purple tint */
+  --accent: oklch(0.94 0 0); /* Neutral gray */
   --accent-foreground: oklch(0.35 0 0);
   --destructive: oklch(0.55 0.15 15); /* Muted red */
   --destructive-foreground: oklch(0.99 0 0);
@@ -79,7 +79,7 @@
   --text-2: #6B7280;
   --text-3: #9CA3AF;
 
-  --accent: #6366F1;
+  --accent: #F3F4F6; /* Neutral gray */
 
   --radius-sheet: 18px;
   --shadow-sheet: 0 8px 24px rgba(15,23,42,.08);
@@ -245,7 +245,7 @@
   --secondary-foreground: oklch(0.88 0 0);
   --muted: oklch(0.14 0 0);
   --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.18 0.03 285); /* Subtle purple tint */
+  --accent: oklch(0.18 0 0); /* Neutral gray */
   --accent-foreground: oklch(0.88 0 0);
   --destructive: oklch(0.6 0.15 15);
   --destructive-foreground: oklch(0.99 0 0);

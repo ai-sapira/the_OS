@@ -297,3 +297,5 @@ SELECT * FROM sync_missing_users();
 - ⏳ Ejecutar limpieza inicial
 - ⏳ Documentar mejor el flujo para desarrolladores
 
+
+

@@ -1504,14 +1504,14 @@ function InsightsTable({
       header: "Insight",
       cell: (info) => {
         const insight = info.row.original
-        return (
+    return (
           <div className="flex items-center gap-2 min-w-[200px] max-w-[300px]">
             <span className="text-sm font-medium text-gray-900 truncate">{info.getValue()}</span>
             {insight.validated && (
               <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
             )}
-          </div>
-        )
+      </div>
+    )
       },
     }),
     columnHelper.accessor((row) => {
@@ -1527,8 +1527,8 @@ function InsightsTable({
         const applications = [...new Set(relatedEvents.map(e => e.application))]
         
         if (applications.length === 0) return <span className="text-sm text-gray-400">—</span>
-        
-        return (
+
+  return (
           <div className="flex flex-col gap-1 min-w-[120px]">
             {applications.slice(0, 2).map((app) => (
               <span key={app} className="text-xs text-gray-700 truncate" title={app}>
@@ -1584,7 +1584,7 @@ function InsightsTable({
         const integrationsArray = Array.from(integrations)
         
         if (integrationsArray.length === 0) return <span className="text-sm text-gray-400">—</span>
-        
+
         return (
           <div className="flex items-center gap-1 flex-wrap">
             {integrationsArray.map((integration) => (
@@ -1596,7 +1596,7 @@ function InsightsTable({
                 {integration}
               </Badge>
             ))}
-          </div>
+                    </div>
         )
       },
     }),
@@ -1615,24 +1615,24 @@ function InsightsTable({
           <div className="flex items-center gap-1.5">
             {counts.browser > 0 && (
               <div className="flex items-center gap-1">
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-700 text-white border-gray-600">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-700 text-white border-gray-600">
                   {counts.browser}
-                </Badge>
+                    </Badge>
                 <span className="text-[10px] text-gray-500">browser</span>
               </div>
-            )}
+                  )}
             {counts.integration > 0 && (
               <div className="flex items-center gap-1">
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-100 text-blue-800 border-blue-300">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-100 text-blue-800 border-blue-300">
                   {counts.integration}
-                </Badge>
+                    </Badge>
                 <span className="text-[10px] text-gray-500">integration</span>
               </div>
             )}
             {counts.browser === 0 && counts.integration === 0 && (
               <span className="text-sm text-gray-400">—</span>
-            )}
-          </div>
+                  )}
+                </div>
         )
       },
     }),
@@ -1682,7 +1682,7 @@ function InsightsTable({
         const firstUser = relatedUsers[0]
         const remainingCount = relatedUsers.length - 1
         
-        return (
+                                return (
           <div className="flex items-center gap-1.5">
             <Avatar className="h-6 w-6 shrink-0">
               <AvatarFallback className="text-[10px] bg-gray-200 text-gray-600">
@@ -1693,8 +1693,8 @@ function InsightsTable({
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-100 text-gray-700 border-gray-200">
                 +{remainingCount} {remainingCount === 1 ? 'user' : 'users'}
               </Badge>
-            )}
-          </div>
+                        )}
+                      </div>
         )
       },
     }),
@@ -1703,7 +1703,7 @@ function InsightsTable({
       header: "",
       cell: (info) => {
         const insight = info.row.original
-        return (
+                          return (
           <Button
             variant="ghost"
             size="sm"
@@ -1742,12 +1742,12 @@ function InsightsTable({
     : []
 
   if (insights.length === 0) {
-    return (
+                              return (
       <div className="py-12 text-center text-gray-500">
         <Sparkles className="h-8 w-8 text-gray-300 mx-auto mb-2" />
         <p className="text-sm">No insights generated for this day</p>
-      </div>
-    )
+                                </div>
+                              )
   }
 
   return (
@@ -1767,7 +1767,7 @@ function InsightsTable({
           <DataGridTable />
           <div className="px-4 py-3 border-t border-gray-200">
             <DataGridPagination sizes={[]} />
-          </div>
+                          </div>
         </DataGrid>
       </DataGridContainer>
 
@@ -1787,8 +1787,8 @@ function InsightsTable({
                 employees={employees}
                 businessUnits={businessUnits}
               />
-            </div>
-          )}
+                </div>
+              )}
         </SheetContent>
       </Sheet>
     </>

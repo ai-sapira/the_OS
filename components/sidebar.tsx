@@ -49,6 +49,7 @@ import {
   Plug,
   CheckCircle2,
   Server,
+  CreditCard,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -83,6 +84,7 @@ const iconMap: Record<string, React.ComponentType<any>> = {
   Plug,
   CheckCircle2,
   Server,
+  CreditCard,
 }
 
 export function Sidebar({ 

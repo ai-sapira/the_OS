@@ -235,3 +235,5 @@ WHERE u.auth_user_id IS NOT NULL
   AND (u.id != u.auth_user_id OR au.id IS NULL);
 ```
 
+
+

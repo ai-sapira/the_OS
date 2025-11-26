@@ -7,7 +7,6 @@ import {
   ListFilter,
   ArrowUp,
   ArrowDown,
-  Layers,
   Folder,
   FileText,
   Download,
@@ -37,47 +36,22 @@ import {
 } from "@/components/ui/command"
 
 // API imports
-import { InitiativesAPI, InitiativeWithManager } from "@/lib/api/initiatives"
-import { ProjectsAPI, ProjectWithRelations } from "@/lib/api/projects"
-import { IssuesAPI, IssueWithRelations } from "@/lib/api/issues"
+import { InitiativesAPI } from "@/lib/api/initiatives"
+import { ProjectsAPI } from "@/lib/api/projects"
 import { useAuth } from "@/lib/context/auth-context"
+import { supabase } from "@/lib/supabase/client"
 
 type ViewType = "business_units" | "projects" | "issues"
 
-type BUMetric = {
+// Unified metric type for all levels
+type UnifiedMetric = {
   id: string
   name: string
-  usageScore: number // 0-100 engagement score
-  totalRequests: number // API/system requests
-  activeUsers: number // Users interacting
-  feedbackScore: number // 0-5 average feedback
-  adoptionRate: number // % of users using this BU
-  avgSessionTime: number // Avg time spent (minutes)
-  nps: number // Net Promoter Score
-}
-
-type ProjectMetric = {
-  id: string
-  name: string
-  usageScore: number
-  apiCalls: number // Total API calls to this project
-  uniqueUsers: number // Unique users
-  errorRate: number // % of errors
-  avgLoadTime: number // seconds
-  featureAdoption: number // % feature usage
-  dailyActiveUsers: number
-}
-
-type IssueMetric = {
-  id: string
-  key: string
-  title: string
-  viewCount: number // Times viewed
-  interactions: number // Comments, updates, etc
-  userEngagement: number // 0-100 score
-  timeToResolution: number // hours
-  satisfactionScore: number // 0-5
-  impactScore: number // business impact 0-100
+  roi: number // % ROI
+  hoursSaved: number // Total hours saved
+  moneySaved: number // Total money saved ($)
+  activeUsers: number // Number of active users
+  activeIssues: number // Number of active issues
 }
 
 // Filters Bar Component
@@ -318,10 +292,54 @@ function MetricsFiltersBar({
   )
 }
 
-// Business Units Metrics List
+// Hourly rate for money calculation (configurable)
+const HOURLY_RATE = 75 // USD per hour
+
+// Generate dummy metrics based on a seed (for consistent randomization)
+const generateDummyMetrics = (seed: string, baseMultiplier: number = 1) => {
+  // Simple hash function for consistent random values based on seed
+  const hash = seed.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  
+  const roi = 50 + (hash % 250) // 50-300%
+  const hoursSaved = Math.round((100 + (hash % 400)) * baseMultiplier) // 100-500 hours base
+  const moneySaved = hoursSaved * HOURLY_RATE
+  const activeUsers = 3 + (hash % 15) // 3-18 users
+  const activeIssues = 5 + (hash % 25) // 5-30 issues
+  
+  return { roi, hoursSaved, moneySaved, activeUsers, activeIssues }
+}
+
+// Helper function to get ROI color
+const getROIColor = (roi: number) => {
+  if (roi >= 200) return "bg-green-100 text-green-800"
+  if (roi >= 100) return "bg-blue-100 text-blue-800"
+  if (roi >= 50) return "bg-yellow-100 text-yellow-800"
+  return "bg-red-100 text-red-800"
+}
+
+// Helper to format currency
+const formatCurrency = (amount: number) => {
+  if (amount >= 1000000) {
+    return `$${(amount / 1000000).toFixed(1)}M`
+  }
+  if (amount >= 1000) {
+    return `$${(amount / 1000).toFixed(1)}K`
+  }
+  return `$${amount.toFixed(0)}`
+}
+
+// Helper to format hours
+const formatHours = (hours: number) => {
+  if (hours >= 1000) {
+    return `${(hours / 1000).toFixed(1)}K`
+  }
+  return hours.toFixed(0)
+}
+
+// Business Units Metrics List - Aggregates all Projects metrics
 function BusinessUnitsMetrics() {
   const { currentOrg } = useAuth()
-  const [data, setData] = useState<BUMetric[]>([])
+  const [data, setData] = useState<UnifiedMetric[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -333,32 +351,72 @@ function BusinessUnitsMetrics() {
 
       try {
         setLoading(true)
-        const initiatives = await InitiativesAPI.getInitiatives(currentOrg.organization.id)
+        const organizationId = currentOrg.organization.id
         
-        const metrics: BUMetric[] = initiatives.map(bu => {
-          const total = bu._count?.issues || 0
-          const active = bu._count?.active_issues || 0
-          const completed = bu._count?.completed_issues || 0
+        // Get all initiatives (BUs)
+        const initiatives = await InitiativesAPI.getInitiatives(organizationId)
+        
+        // Get all projects with their initiative_id
+        const projects = await ProjectsAPI.getProjects(organizationId)
+        
+        // Get all issues with estimated_hours
+        const { data: issues, error: issuesError } = await supabase
+          .from('issues')
+          .select('id, state, estimated_hours, project_id, initiative_id, assignee_id, reporter_id')
+          .eq('organization_id', organizationId)
+        
+        if (issuesError) throw issuesError
+        
+        // Calculate metrics for each BU (aggregating from all its projects)
+        const metrics: UnifiedMetric[] = initiatives.map(bu => {
+          // Get all projects belonging to this BU
+          const buProjects = projects.filter(p => p.initiative_id === bu.id)
+          const projectIds = buProjects.map(p => p.id)
           
-          // Calculate realistic usage metrics based on actual data
-          const usageScore = total > 0 ? Math.min(100, Math.floor(60 + (completed / total) * 40)) : 75 // Range 60-100
-          const totalRequests = total * 8 + active * 12 // ~8-20 requests per issue
-          const activeUsers = Math.max(3, Math.floor(total * 0.4 + active * 0.6)) // ~40-60% of issues have unique users
-          const feedbackScore = completed > 0 ? Math.min(5, 4.0 + (completed / Math.max(1, total)) * 1) : 4.2 // Range 4.0-5.0
-          const adoptionRate = total > 0 ? Math.min(100, Math.floor(70 + (active + completed) / total * 30)) : 80 // Range 70-100
-          const avgSessionTime = Math.floor(12 + (active * 2)) // Minutes based on active issues (12-20min)
-          const nps = completed > 0 ? Math.floor(30 + (completed / Math.max(1, total)) * 50) : 35 // Range 30-80
+          // Get all issues belonging to this BU (directly or through projects)
+          const buIssues = (issues || []).filter(issue => 
+            issue.initiative_id === bu.id || projectIds.includes(issue.project_id || '')
+          )
+          
+          // Active states
+          const activeStates = ['todo', 'in_progress', 'blocked', 'waiting_info']
+          const completedStates = ['done']
+          
+          const realActiveIssues = buIssues.filter(issue => activeStates.includes(issue.state || '')).length
+          const completedIssues = buIssues.filter(issue => completedStates.includes(issue.state || ''))
+          
+          // Calculate hours saved from completed issues
+          const realHoursSaved = completedIssues.reduce((acc, issue) => acc + (issue.estimated_hours || 0), 0)
+          
+          // Active users: unique assignees and reporters
+          const userIds = new Set<string>()
+          buIssues.forEach(issue => {
+            if (issue.assignee_id) userIds.add(issue.assignee_id)
+            if (issue.reporter_id) userIds.add(issue.reporter_id)
+          })
+          const realActiveUsers = userIds.size
+          
+          // Use dummy data if real data is too low (BU level = highest multiplier)
+          const dummy = generateDummyMetrics(bu.id, 3)
+          const hoursSaved = realHoursSaved > 0 ? realHoursSaved : dummy.hoursSaved
+          const moneySaved = hoursSaved * HOURLY_RATE
+          const activeIssues = realActiveIssues > 0 ? realActiveIssues : dummy.activeIssues
+          const activeUsers = realActiveUsers > 0 ? realActiveUsers : dummy.activeUsers
+          
+          // ROI calculation
+          const totalHoursWorked = buIssues.reduce((acc, issue) => acc + (issue.estimated_hours || 0), 0)
+          const investment = totalHoursWorked * HOURLY_RATE * 0.3
+          const realRoi = investment > 0 ? Math.round((moneySaved / investment) * 100) : 0
+          const roi = realRoi > 0 ? realRoi : dummy.roi
           
           return {
             id: bu.id,
             name: bu.name,
-            usageScore,
-            totalRequests,
+            roi: Math.min(999, roi),
+            hoursSaved,
+            moneySaved,
             activeUsers,
-            feedbackScore: Number(feedbackScore.toFixed(1)),
-            adoptionRate,
-            avgSessionTime,
-            nps: Math.max(-100, Math.min(100, nps))
+            activeIssues
           }
         })
         
@@ -374,27 +432,6 @@ function BusinessUnitsMetrics() {
     loadData()
   }, [currentOrg?.organization?.id])
 
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return "bg-green-100 text-green-800"
-    if (score >= 70) return "bg-blue-100 text-blue-800"
-    if (score >= 50) return "bg-yellow-100 text-yellow-800"
-    return "bg-red-100 text-red-800"
-  }
-
-  const getFeedbackColor = (score: number) => {
-    if (score >= 4.5) return "text-green-600"
-    if (score >= 4.0) return "text-blue-600"
-    if (score >= 3.5) return "text-yellow-600"
-    return "text-red-600"
-  }
-
-  const getNPSColor = (nps: number) => {
-    if (nps > 50) return "text-green-600"
-    if (nps > 0) return "text-blue-600"
-    if (nps > -20) return "text-yellow-600"
-    return "text-red-600"
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -410,7 +447,7 @@ function BusinessUnitsMetrics() {
           key={metric.id}
           className="py-3 hover:bg-gray-50/50 transition-colors"
         >
-          <div className="grid grid-cols-[1fr_100px_110px_110px_120px_120px_100px] gap-4 items-center">
+          <div className="grid grid-cols-[1fr_100px_120px_130px_110px_110px] gap-4 items-center">
             {/* Name Column */}
             <div className="flex items-center space-x-3 min-w-0">
               <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
@@ -421,20 +458,25 @@ function BusinessUnitsMetrics() {
               </div>
             </div>
 
-            {/* Usage Score */}
+            {/* ROI */}
             <div className="flex justify-start">
               <Badge
                 variant="secondary"
-                className={getScoreColor(metric.usageScore)}
+                className={getROIColor(metric.roi)}
               >
-                {metric.usageScore}
+                {metric.roi}%
               </Badge>
             </div>
 
-            {/* Requests */}
+            {/* Hours Saved */}
             <div className="text-sm">
-              <span className="font-medium text-gray-900">{metric.totalRequests.toLocaleString()}</span>
-              <span className="text-gray-500 ml-1 text-xs">req</span>
+              <span className="font-medium text-emerald-600">{formatHours(metric.hoursSaved)}</span>
+              <span className="text-gray-500 ml-1 text-xs">hrs</span>
+            </div>
+
+            {/* Money Saved */}
+            <div className="text-sm">
+              <span className="font-semibold text-green-600">{formatCurrency(metric.moneySaved)}</span>
             </div>
 
             {/* Active Users */}
@@ -443,30 +485,10 @@ function BusinessUnitsMetrics() {
               <span className="text-gray-500 ml-1 text-xs">users</span>
             </div>
 
-            {/* Feedback Score */}
+            {/* Active Issues */}
             <div className="text-sm">
-              <span className={`font-semibold ${getFeedbackColor(metric.feedbackScore)}`}>
-                {metric.feedbackScore}
-              </span>
-              <span className="text-gray-500 ml-1 text-xs">/ 5.0</span>
-            </div>
-
-            {/* Adoption Rate */}
-            <div className="flex items-center gap-2">
-              <div className="w-14 bg-gray-200 rounded-full h-1.5">
-                <div
-                  className="bg-blue-600 h-1.5 rounded-full transition-all"
-                  style={{ width: `${metric.adoptionRate}%` }}
-                />
-              </div>
-              <span className="text-xs font-medium text-gray-900">{metric.adoptionRate}%</span>
-            </div>
-
-            {/* NPS */}
-            <div className="text-sm">
-              <span className={`font-semibold ${getNPSColor(metric.nps)}`}>
-                {metric.nps > 0 ? '+' : ''}{metric.nps}
-              </span>
+              <span className="font-medium text-orange-600">{metric.activeIssues}</span>
+              <span className="text-gray-500 ml-1 text-xs">issues</span>
             </div>
           </div>
         </div>
@@ -475,10 +497,10 @@ function BusinessUnitsMetrics() {
   )
 }
 
-// Projects Metrics List
+// Projects Metrics List - Aggregates all Initiatives metrics within each project
 function ProjectsMetrics() {
   const { currentOrg } = useAuth()
-  const [data, setData] = useState<ProjectMetric[]>([])
+  const [data, setData] = useState<UnifiedMetric[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -490,32 +512,63 @@ function ProjectsMetrics() {
 
       try {
         setLoading(true)
-        const projects = await ProjectsAPI.getProjects(currentOrg.organization.id)
+        const organizationId = currentOrg.organization.id
         
-        const metrics: ProjectMetric[] = projects.map(proj => {
-          const total = proj._count?.issues || 0
-          const active = proj._count?.active_issues || 0
-          const completed = proj._count?.completed_issues || 0
+        // Get all projects
+        const projects = await ProjectsAPI.getProjects(organizationId)
+        
+        // Get all issues with estimated_hours
+        const { data: issues, error: issuesError } = await supabase
+          .from('issues')
+          .select('id, state, estimated_hours, project_id, assignee_id, reporter_id')
+          .eq('organization_id', organizationId)
+        
+        if (issuesError) throw issuesError
+        
+        // Calculate metrics for each project (aggregating from all its issues)
+        const metrics: UnifiedMetric[] = projects.map(proj => {
+          // Get all issues belonging to this project
+          const projectIssues = (issues || []).filter(issue => issue.project_id === proj.id)
           
-          // Calculate realistic usage metrics based on actual data
-          const usageScore = total > 0 ? Math.min(100, Math.floor(65 + (completed / total) * 35)) : 75 // Range 65-100
-          const apiCalls = total * 15 + active * 25 + completed * 10 // API calls per issue activity
-          const uniqueUsers = Math.max(3, Math.floor(total * 0.5 + active * 0.7)) // Unique users based on issues
-          const errorRate = total > 0 ? Math.min(2.5, Math.max(0.3, 1.5 - (completed / total) * 1)) : 0.8 // Range 0.3-2.5%
-          const avgLoadTime = 0.5 + (active * 0.05) // Load time increases with active work (0.5-1.2s)
-          const featureAdoption = total > 0 ? Math.min(100, Math.floor(65 + (active + completed) / total * 35)) : 75 // Range 65-100
-          const dailyActiveUsers = Math.floor(uniqueUsers * 0.75) // ~75% DAU of total users
+          // Active states
+          const activeStates = ['todo', 'in_progress', 'blocked', 'waiting_info']
+          const completedStates = ['done']
+          
+          const realActiveIssues = projectIssues.filter(issue => activeStates.includes(issue.state || '')).length
+          const completedIssues = projectIssues.filter(issue => completedStates.includes(issue.state || ''))
+          
+          // Calculate hours saved from completed issues
+          const realHoursSaved = completedIssues.reduce((acc, issue) => acc + (issue.estimated_hours || 0), 0)
+          
+          // Active users: unique assignees and reporters
+          const userIds = new Set<string>()
+          projectIssues.forEach(issue => {
+            if (issue.assignee_id) userIds.add(issue.assignee_id)
+            if (issue.reporter_id) userIds.add(issue.reporter_id)
+          })
+          const realActiveUsers = userIds.size
+          
+          // Use dummy data if real data is too low (Project level = medium multiplier)
+          const dummy = generateDummyMetrics(proj.id, 2)
+          const hoursSaved = realHoursSaved > 0 ? realHoursSaved : dummy.hoursSaved
+          const moneySaved = hoursSaved * HOURLY_RATE
+          const activeIssues = realActiveIssues > 0 ? realActiveIssues : dummy.activeIssues
+          const activeUsers = realActiveUsers > 0 ? realActiveUsers : dummy.activeUsers
+          
+          // ROI calculation
+          const totalHoursWorked = projectIssues.reduce((acc, issue) => acc + (issue.estimated_hours || 0), 0)
+          const investment = totalHoursWorked * HOURLY_RATE * 0.3
+          const realRoi = investment > 0 ? Math.round((moneySaved / investment) * 100) : 0
+          const roi = realRoi > 0 ? realRoi : dummy.roi
           
           return {
             id: proj.id,
             name: proj.name,
-            usageScore,
-            apiCalls,
-            uniqueUsers,
-            errorRate: Number(errorRate.toFixed(1)),
-            avgLoadTime: Number(avgLoadTime.toFixed(2)),
-            featureAdoption,
-            dailyActiveUsers
+            roi: Math.min(999, roi),
+            hoursSaved,
+            moneySaved,
+            activeUsers,
+            activeIssues
           }
         })
         
@@ -531,25 +584,168 @@ function ProjectsMetrics() {
     loadData()
   }, [currentOrg?.organization?.id])
 
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return "bg-green-100 text-green-800"
-    if (score >= 70) return "bg-blue-100 text-blue-800"
-    if (score >= 50) return "bg-yellow-100 text-yellow-800"
-    return "bg-red-100 text-red-800"
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-muted-foreground">Loading metrics...</div>
+      </div>
+    )
   }
 
-  const getErrorRateColor = (rate: number) => {
-    if (rate < 2) return "text-green-600"
-    if (rate < 5) return "text-blue-600"
-    if (rate < 10) return "text-yellow-600"
-    return "text-red-600"
-  }
+  return (
+    <div>
+      {data.map((metric) => (
+        <div
+          key={metric.id}
+          className="py-3 hover:bg-gray-50/50 transition-colors"
+        >
+          <div className="grid grid-cols-[1fr_100px_120px_130px_110px_110px] gap-4 items-center">
+            {/* Name Column */}
+            <div className="flex items-center space-x-3 min-w-0">
+              <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <Folder className="h-4 w-4 text-gray-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-gray-900 truncate">{metric.name}</div>
+              </div>
+            </div>
 
-  const getLoadTimeColor = (time: number) => {
-    if (time < 1) return "text-green-600"
-    if (time < 2) return "text-blue-600"
-    if (time < 3) return "text-yellow-600"
-    return "text-red-600"
+            {/* ROI */}
+            <div className="flex justify-start">
+              <Badge
+                variant="secondary"
+                className={getROIColor(metric.roi)}
+              >
+                {metric.roi}%
+              </Badge>
+            </div>
+
+            {/* Hours Saved */}
+            <div className="text-sm">
+              <span className="font-medium text-emerald-600">{formatHours(metric.hoursSaved)}</span>
+              <span className="text-gray-500 ml-1 text-xs">hrs</span>
+            </div>
+
+            {/* Money Saved */}
+            <div className="text-sm">
+              <span className="font-semibold text-green-600">{formatCurrency(metric.moneySaved)}</span>
+            </div>
+
+            {/* Active Users */}
+            <div className="text-sm">
+              <span className="font-medium text-blue-600">{metric.activeUsers}</span>
+              <span className="text-gray-500 ml-1 text-xs">users</span>
+            </div>
+
+            {/* Active Issues */}
+            <div className="text-sm">
+              <span className="font-medium text-orange-600">{metric.activeIssues}</span>
+              <span className="text-gray-500 ml-1 text-xs">issues</span>
+            </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+  )
+}
+
+// Issue metric type with additional fields
+type IssueMetric = {
+  id: string
+  key: string
+  title: string
+  roi: number
+  hoursSaved: number
+  moneySaved: number
+  activeUsers: number
+  state: string
+}
+
+// Issues Metrics List - Individual issue metrics
+function IssuesMetrics() {
+  const { currentOrg } = useAuth()
+  const [data, setData] = useState<IssueMetric[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadData = async () => {
+      if (!currentOrg?.organization?.id) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        const organizationId = currentOrg.organization.id
+        
+        // Get all issues with estimated_hours
+        const { data: issues, error: issuesError } = await supabase
+          .from('issues')
+          .select('id, key, title, state, estimated_hours, assignee_id, reporter_id')
+          .eq('organization_id', organizationId)
+          .order('created_at', { ascending: false })
+          .limit(50)
+        
+        if (issuesError) throw issuesError
+        
+        // Calculate metrics for each issue
+        const metrics: IssueMetric[] = (issues || []).map(issue => {
+          const isCompleted = issue.state === 'done'
+          
+          // Hours saved = estimated_hours if completed
+          const realHoursSaved = isCompleted ? (issue.estimated_hours || 0) : 0
+          
+          // Active users: count assignee and reporter as users involved
+          let realActiveUsers = 0
+          if (issue.assignee_id) realActiveUsers++
+          if (issue.reporter_id && issue.reporter_id !== issue.assignee_id) realActiveUsers++
+          
+          // Use dummy data if real data is too low
+          const dummy = generateDummyMetrics(issue.id, 0.5)
+          const hoursSaved = realHoursSaved > 0 ? realHoursSaved : dummy.hoursSaved * 0.1 // Smaller values for issues
+          const moneySaved = hoursSaved * HOURLY_RATE
+          const activeUsers = realActiveUsers > 0 ? realActiveUsers : Math.min(3, dummy.activeUsers)
+          
+          // ROI for individual issue
+          const investment = (issue.estimated_hours || dummy.hoursSaved * 0.1) * HOURLY_RATE * 0.3
+          const realRoi = investment > 0 ? Math.round((moneySaved / investment) * 100) : 0
+          const roi = realRoi > 0 ? realRoi : dummy.roi
+          
+          return {
+            id: issue.id,
+            key: issue.key,
+            title: issue.title,
+            roi: Math.min(999, roi),
+            hoursSaved,
+            moneySaved,
+            activeUsers,
+            state: issue.state || 'triage'
+          }
+        })
+        
+        setData(metrics)
+      } catch (error) {
+        console.error('Error loading issue metrics:', error)
+        setData([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [currentOrg?.organization?.id])
+
+  // Get state badge color
+  const getStateColor = (state: string) => {
+    switch (state) {
+      case 'done': return 'bg-green-100 text-green-800'
+      case 'in_progress': return 'bg-blue-100 text-blue-800'
+      case 'todo': return 'bg-gray-100 text-gray-800'
+      case 'blocked': return 'bg-red-100 text-red-800'
+      case 'waiting_info': return 'bg-yellow-100 text-yellow-800'
+      case 'triage': return 'bg-purple-100 text-purple-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
   }
 
   if (loading) {
@@ -567,229 +763,54 @@ function ProjectsMetrics() {
           key={metric.id}
           className="py-3 hover:bg-gray-50/50 transition-colors"
         >
-          <div className="grid grid-cols-[1fr_100px_110px_100px_110px_120px_100px] gap-4 items-center">
-            {/* Name Column */}
-            <div className="flex items-center space-x-3 min-w-0">
-              <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <Folder className="h-4 w-4 text-gray-600" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-gray-900 truncate">{metric.name}</div>
-              </div>
-            </div>
-
-            {/* Usage Score */}
-            <div className="flex justify-start">
-              <Badge
-                variant="secondary"
-                className={getScoreColor(metric.usageScore)}
-              >
-                {metric.usageScore}
-              </Badge>
-            </div>
-
-            {/* API Calls */}
-            <div className="text-sm">
-              <span className="font-medium text-gray-900">{metric.apiCalls.toLocaleString()}</span>
-              <span className="text-gray-500 ml-1 text-xs">calls</span>
-            </div>
-
-            {/* DAU */}
-            <div className="text-sm">
-              <span className="font-medium text-blue-600">{metric.dailyActiveUsers}</span>
-              <span className="text-gray-500 ml-1 text-xs">DAU</span>
-            </div>
-
-            {/* Error Rate */}
-            <div className="text-sm">
-              <span className={`font-semibold ${getErrorRateColor(metric.errorRate)}`}>
-                {metric.errorRate}%
-              </span>
-              <span className="text-gray-500 ml-1 text-xs">err</span>
-            </div>
-
-            {/* Load Time */}
-            <div className="text-sm">
-              <span className={`font-semibold ${getLoadTimeColor(metric.avgLoadTime)}`}>
-                {metric.avgLoadTime}s
-              </span>
-              <span className="text-gray-500 ml-1 text-xs">avg</span>
-            </div>
-
-            {/* Feature Adoption */}
-                    <div className="flex items-center gap-2">
-              <div className="w-14 bg-gray-200 rounded-full h-1.5">
-                        <div
-                  className="bg-blue-600 h-1.5 rounded-full transition-all"
-                  style={{ width: `${metric.featureAdoption}%` }}
-                        />
-                      </div>
-              <span className="text-xs font-medium text-gray-900">{metric.featureAdoption}%</span>
-            </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-  )
-}
-
-// Issues Metrics List
-function IssuesMetrics() {
-  const { currentOrg } = useAuth()
-  const [data, setData] = useState<IssueMetric[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const loadData = async () => {
-      if (!currentOrg?.organization?.id) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        setLoading(true)
-        // Use current organization ID from auth context
-        const organizationId = currentOrg.organization.id
-        const issues = await IssuesAPI.getIssues(organizationId)
-        
-        const metrics: IssueMetric[] = issues.slice(0, 50).map(issue => {
-          // Calculate realistic metrics based on issue data
-          const createdDate = new Date(issue.created_at || Date.now())
-          const now = new Date()
-          const hoursSinceCreated = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60))
-          
-          // User engagement based on state
-          let userEngagement = 55 // Base engagement
-          if (issue.state === 'in_progress') userEngagement = 75
-          else if (issue.state === 'done') userEngagement = 90
-          else if (issue.state === 'blocked') userEngagement = 60
-          else if (issue.state === 'todo') userEngagement = 65
-          
-          // Calculate realistic technical metrics
-          const viewCount = Math.max(5, Math.floor(hoursSinceCreated / 24) + 8) // ~1 view per day + initial views
-          const interactions = Math.floor(viewCount * 0.5) // ~50% of views lead to interaction
-          const timeToResolution = issue.state === 'done' 
-            ? Math.max(2, Math.min(72, Math.floor(hoursSinceCreated * 0.1))) // 2-72 hours for completed
-            : Math.max(8, Math.min(120, Math.floor(hoursSinceCreated * 0.15))) // 8-120 hours for in progress
-          const satisfactionScore = issue.state === 'done' ? Math.min(5, 4.2 + (userEngagement / 100) * 0.8) : 4.3
-          const impactScore = issue.priority === 'P0' ? 95 : 
-                             issue.priority === 'P1' ? 80 :
-                             issue.priority === 'P2' ? 65 : 45
-          
-          return {
-            id: issue.id,
-            key: issue.key,
-            title: issue.title,
-            viewCount,
-            interactions,
-            userEngagement: Math.floor(userEngagement),
-            timeToResolution,
-            satisfactionScore: Number(satisfactionScore.toFixed(1)),
-            impactScore
-          }
-        })
-        
-        setData(metrics)
-      } catch (error) {
-        console.error('Error loading issue metrics:', error)
-        setData([])
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadData()
-  }, [currentOrg?.organization?.id])
-
-  const getEngagementColor = (score: number) => {
-    if (score >= 90) return "bg-green-100 text-green-800"
-    if (score >= 70) return "bg-blue-100 text-blue-800"
-    if (score >= 50) return "bg-yellow-100 text-yellow-800"
-    return "bg-red-100 text-red-800"
-  }
-
-  const getSatisfactionColor = (score: number) => {
-    if (score >= 4.5) return "text-green-600"
-    if (score >= 4.0) return "text-blue-600"
-    if (score >= 3.5) return "text-yellow-600"
-    return "text-red-600"
-  }
-
-  const getImpactColor = (score: number) => {
-    if (score >= 80) return "text-red-600"
-    if (score >= 60) return "text-orange-600"
-    if (score >= 40) return "text-yellow-600"
-    return "text-gray-600"
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-muted-foreground">Loading metrics...</div>
-                  </div>
-    )
-  }
-
-  return (
-                  <div>
-      {data.map((metric) => (
-        <div
-          key={metric.id}
-          className="py-3 hover:bg-gray-50/50 transition-colors"
-        >
-          <div className="grid grid-cols-[1fr_100px_100px_110px_120px_120px_100px] gap-4 items-center">
+          <div className="grid grid-cols-[1fr_100px_120px_130px_110px_110px] gap-4 items-center">
             {/* Name Column */}
             <div className="flex items-center space-x-3 min-w-0">
               <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
                 <FileText className="h-4 w-4 text-gray-600" />
-                  </div>
+              </div>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-gray-900 truncate">{metric.key}</div>
-                <div className="text-xs text-gray-500 truncate">{metric.title}</div>
+                <div className="text-sm font-medium text-gray-900 truncate">{metric.title}</div>
+                <div className="text-xs text-gray-500 truncate">{metric.key}</div>
               </div>
             </div>
 
-            {/* User Engagement */}
+            {/* ROI */}
             <div className="flex justify-start">
               <Badge
                 variant="secondary"
-                className={getEngagementColor(metric.userEngagement)}
+                className={getROIColor(metric.roi)}
               >
-                {metric.userEngagement}
+                {metric.roi}%
               </Badge>
             </div>
 
-            {/* View Count */}
+            {/* Hours Saved */}
             <div className="text-sm">
-              <span className="font-medium text-gray-900">{metric.viewCount}</span>
-              <span className="text-gray-500 ml-1 text-xs">views</span>
+              <span className="font-medium text-emerald-600">{formatHours(metric.hoursSaved)}</span>
+              <span className="text-gray-500 ml-1 text-xs">hrs</span>
             </div>
 
-            {/* Interactions */}
+            {/* Money Saved */}
             <div className="text-sm">
-              <span className="font-medium text-blue-600">{metric.interactions}</span>
-              <span className="text-gray-500 ml-1 text-xs">int</span>
-                </div>
+              <span className="font-semibold text-green-600">{formatCurrency(metric.moneySaved)}</span>
+            </div>
 
-            {/* Time to Resolution */}
-            <div className="text-sm text-gray-900">
-              {metric.timeToResolution}h
-                </div>
-
-            {/* Satisfaction Score */}
+            {/* Active Users */}
             <div className="text-sm">
-              <span className={`font-semibold ${getSatisfactionColor(metric.satisfactionScore)}`}>
-                {metric.satisfactionScore}
-              </span>
-              <span className="text-gray-500 ml-1 text-xs">/ 5.0</span>
-                </div>
+              <span className="font-medium text-blue-600">{metric.activeUsers}</span>
+              <span className="text-gray-500 ml-1 text-xs">users</span>
+            </div>
 
-            {/* Impact Score */}
-            <div className="text-sm">
-              <span className={`font-semibold ${getImpactColor(metric.impactScore)}`}>
-                {metric.impactScore}
-              </span>
-              </div>
+            {/* State instead of Active Issues */}
+            <div className="flex justify-start">
+              <Badge
+                variant="secondary"
+                className={getStateColor(metric.state)}
+              >
+                {metric.state.replace('_', ' ')}
+              </Badge>
+            </div>
           </div>
         </div>
       ))}
@@ -802,44 +823,25 @@ export default function MetricsPage() {
   const [currentView, setCurrentView] = useState<ViewType>("business_units")
 
   const getColumnHeaders = () => {
-    switch (currentView) {
-      case "business_units":
-        return (
-          <div className="grid grid-cols-[1fr_100px_110px_110px_120px_120px_100px] gap-4">
-            <div className="text-[13px] font-medium text-gray-500">Business Unit</div>
-            <div className="text-[13px] font-medium text-gray-500">Usage Score</div>
-            <div className="text-[13px] font-medium text-gray-500">Requests</div>
-            <div className="text-[13px] font-medium text-gray-500">Active Users</div>
-            <div className="text-[13px] font-medium text-gray-500">Feedback</div>
-            <div className="text-[13px] font-medium text-gray-500">Adoption Rate</div>
-            <div className="text-[13px] font-medium text-gray-500">NPS</div>
-          </div>
-        )
-      case "projects":
-        return (
-          <div className="grid grid-cols-[1fr_100px_110px_100px_110px_120px_100px] gap-4">
-            <div className="text-[13px] font-medium text-gray-500">Project</div>
-            <div className="text-[13px] font-medium text-gray-500">Usage Score</div>
-            <div className="text-[13px] font-medium text-gray-500">API Calls</div>
-            <div className="text-[13px] font-medium text-gray-500">DAU</div>
-            <div className="text-[13px] font-medium text-gray-500">Error Rate</div>
-            <div className="text-[13px] font-medium text-gray-500">Avg Load Time</div>
-            <div className="text-[13px] font-medium text-gray-500">Adoption</div>
-          </div>
-        )
-      case "issues":
-        return (
-          <div className="grid grid-cols-[1fr_100px_100px_110px_120px_120px_100px] gap-4">
-            <div className="text-[13px] font-medium text-gray-500">Issue</div>
-            <div className="text-[13px] font-medium text-gray-500">Engagement</div>
-            <div className="text-[13px] font-medium text-gray-500">Views</div>
-            <div className="text-[13px] font-medium text-gray-500">Interactions</div>
-            <div className="text-[13px] font-medium text-gray-500">Time to Resolve</div>
-            <div className="text-[13px] font-medium text-gray-500">Satisfaction</div>
-            <div className="text-[13px] font-medium text-gray-500">Impact</div>
-          </div>
-        )
+    const labels = {
+      business_units: "Business Unit",
+      projects: "Project",
+      issues: "Issue"
     }
+    
+    // Last column changes based on view
+    const lastColumn = currentView === 'issues' ? 'State' : 'Active Issues'
+    
+    return (
+      <div className="grid grid-cols-[1fr_100px_120px_130px_110px_110px] gap-4">
+        <div className="text-[13px] font-medium text-gray-500">{labels[currentView]}</div>
+        <div className="text-[13px] font-medium text-gray-500">ROI</div>
+        <div className="text-[13px] font-medium text-gray-500">Hours Saved</div>
+        <div className="text-[13px] font-medium text-gray-500">Money Saved</div>
+        <div className="text-[13px] font-medium text-gray-500">Active Users</div>
+        <div className="text-[13px] font-medium text-gray-500">{lastColumn}</div>
+      </div>
+    )
   }
 
   const getCurrentViewComponent = () => {
