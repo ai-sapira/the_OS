@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import {
   Search,
   Download,
@@ -26,6 +26,7 @@ import { useAuth } from "@/lib/context/auth-context"
 import { format, subDays } from "date-fns"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { IssuesAPI, IssueWithRelations } from "@/lib/api/issues"
 
 // Types
 type EvalStatus = "ok" | "warning" | "critical"
@@ -34,6 +35,7 @@ interface EvalInitiative {
   id: string
   projectId: string
   projectName: string
+  projectSlug: string
   businessUnit: string
   name: string
   description?: string
@@ -53,70 +55,85 @@ interface EvalInitiative {
 interface Project {
   id: string
   name: string
+  slug: string
   businessUnit: string
   initiatives: EvalInitiative[]
 }
 
-// Mock data
-const generateMockData = (): { projects: Project[], initiatives: EvalInitiative[] } => {
-  const modelProviders = ["OpenAI", "Anthropic", "Google", "Azure", "Mistral"]
-  const modelNames = ["gpt-4o", "claude-3.5-sonnet", "gemini-pro", "gpt-4-turbo", "mistral-large"]
-  
-  const projects: Project[] = [
-    { id: "proj-1", name: "Customer Support AI", businessUnit: "Operations", initiatives: [] },
-    { id: "proj-2", name: "Sales Assistant", businessUnit: "Sales", initiatives: [] },
-    { id: "proj-3", name: "Marketing Content Generator", businessUnit: "Marketing", initiatives: [] },
-    { id: "proj-4", name: "Financial Analysis Bot", businessUnit: "Finance", initiatives: [] },
-    { id: "proj-5", name: "HR Onboarding Assistant", businessUnit: "HR", initiatives: [] },
-  ]
+// Model providers and names for evals
+const MODEL_PROVIDERS = ["OpenAI", "Anthropic", "Google", "Azure", "Mistral"]
+const MODEL_NAMES = ["gpt-4o", "claude-3.5-sonnet", "gemini-pro", "gpt-4-turbo", "mistral-large"]
 
-  const initiativeTemplates = [
-    { name: "Chat Completions", desc: "Main conversational interface" },
-    { name: "Document Summarization", desc: "Extract key information from docs" },
-    { name: "Classification Engine", desc: "Categorize incoming requests" },
-    { name: "RAG Pipeline", desc: "Retrieval-augmented generation" },
-    { name: "Translation Service", desc: "Multi-language translation" },
-    { name: "Sentiment Analysis", desc: "Analyze customer feedback sentiment" },
-    { name: "Code Review Bot", desc: "Automated code review suggestions" },
-    { name: "Email Drafting", desc: "Automated email response generation" },
-  ]
+// Seeded random for consistent values per issue
+const seededRandom = (seed: string, min: number, max: number) => {
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) - hash) + seed.charCodeAt(i)
+    hash |= 0
+  }
+  const normalized = Math.abs(hash % 1000) / 1000
+  return Math.floor(min + normalized * (max - min))
+}
 
+// Transform issues to eval data - using real workspace data
+const issuesToEvals = (issues: IssueWithRelations[]): { projects: Project[], initiatives: EvalInitiative[] } => {
+  const projectsMap = new Map<string, Project>()
   const initiatives: EvalInitiative[] = []
 
-  projects.forEach((project, pIdx) => {
-    const numInitiatives = Math.floor(Math.random() * 3) + 2
+  issues.forEach((issue) => {
+    const seed = issue.id
+    const scoreGlobal = seededRandom(seed + 'score', 65, 99)
+    const status: EvalStatus = scoreGlobal >= 90 ? "ok" : scoreGlobal >= 75 ? "warning" : "critical"
     
-    for (let i = 0; i < numInitiatives; i++) {
-      const template = initiativeTemplates[(pIdx * 2 + i) % initiativeTemplates.length]
-      const scoreGlobal = Math.floor(Math.random() * 30) + 70
-      const status: EvalStatus = scoreGlobal >= 90 ? "ok" : scoreGlobal >= 75 ? "warning" : "critical"
-      
-      const initiative: EvalInitiative = {
-        id: `init-${pIdx}-${i}`,
-        projectId: project.id,
-        projectName: project.name,
-        businessUnit: project.businessUnit,
-        name: template.name,
-        description: template.desc,
-        model: {
-          provider: modelProviders[Math.floor(Math.random() * modelProviders.length)],
-          name: modelNames[Math.floor(Math.random() * modelNames.length)],
-          version: `v${Math.floor(Math.random() * 3) + 1}.${Math.floor(Math.random() * 10)}`,
-        },
-        scoreGlobal,
-        status,
-        lastEvalRun: subDays(new Date(), Math.floor(Math.random() * 7)),
-        samplesHITL: Math.floor(Math.random() * 50) + 5,
-        totalRuns: Math.floor(Math.random() * 500) + 100,
-        passRate: scoreGlobal + Math.random() * 5 - 2.5,
-      }
-      
-      initiatives.push(initiative)
-      project.initiatives.push(initiative)
+    // Get model based on issue for consistency
+    const providerIndex = seededRandom(seed + 'provider', 0, MODEL_PROVIDERS.length)
+    const modelIndex = seededRandom(seed + 'model', 0, MODEL_NAMES.length)
+    
+    const projectId = issue.project?.id || 'unassigned'
+    const projectName = issue.project?.name || 'Sin asignar'
+    const projectSlug = issue.project?.slug || ''
+    const businessUnit = issue.initiative?.name || 'Sin asignar'
+    
+    // Create or update project in map
+    if (!projectsMap.has(projectId)) {
+      projectsMap.set(projectId, {
+        id: projectId,
+        name: projectName,
+        slug: projectSlug,
+        businessUnit,
+        initiatives: []
+      })
     }
+    
+    const evalInitiative: EvalInitiative = {
+      id: issue.id,
+      projectId,
+      projectName,
+      projectSlug,
+      businessUnit,
+      name: issue.title,
+      description: issue.description || undefined,
+      model: {
+        provider: MODEL_PROVIDERS[providerIndex],
+        name: MODEL_NAMES[modelIndex],
+        version: `v${seededRandom(seed + 'major', 1, 4)}.${seededRandom(seed + 'minor', 0, 10)}`,
+      },
+      scoreGlobal,
+      status,
+      lastEvalRun: subDays(new Date(), seededRandom(seed + 'days', 0, 7)),
+      samplesHITL: seededRandom(seed + 'hitl', 5, 55),
+      totalRuns: seededRandom(seed + 'runs', 100, 600),
+      passRate: scoreGlobal + (seededRandom(seed + 'pass', 0, 50) / 10) - 2.5,
+    }
+    
+    initiatives.push(evalInitiative)
+    projectsMap.get(projectId)!.initiatives.push(evalInitiative)
   })
 
-  return { projects, initiatives }
+  return { 
+    projects: Array.from(projectsMap.values()),
+    initiatives 
+  }
 }
 
 export default function EvalsPage() {
@@ -132,12 +149,26 @@ export default function EvalsPage() {
   const [dateRange, setDateRange] = useState<string>("7d")
   const [viewMode, setViewMode] = useState<"grouped" | "flat">("grouped")
 
+  // Load data from real issues
   useEffect(() => {
     const loadData = async () => {
-      setLoading(true)
-      await new Promise(resolve => setTimeout(resolve, 400))
-      setData(generateMockData())
-      setLoading(false)
+      if (!currentOrg?.organization?.id) {
+        setLoading(false)
+        setData({ projects: [], initiatives: [] })
+        return
+      }
+
+      try {
+        setLoading(true)
+        const issues = await IssuesAPI.getIssues(currentOrg.organization.id)
+        const evalData = issuesToEvals(issues)
+        setData(evalData)
+      } catch (error) {
+        console.error('Error loading evals data:', error)
+        setData({ projects: [], initiatives: [] })
+      } finally {
+        setLoading(false)
+      }
     }
     loadData()
   }, [currentOrg?.organization?.id])
@@ -167,8 +198,15 @@ export default function EvalsPage() {
     return acc
   }, {} as Record<string, { projectId: string, projectName: string, businessUnit: string, initiatives: EvalInitiative[] }>)
 
-  const businessUnits = [...new Set(data.initiatives.map(i => i.businessUnit))]
-  const models = [...new Set(data.initiatives.map(i => i.model.name))]
+  // Filter options from real data
+  const filterOptions = useMemo(() => ({
+    businessUnits: [...new Set(data.initiatives.map(i => i.businessUnit))].filter(Boolean),
+    projects: data.projects,
+    models: [...new Set(data.initiatives.map(i => i.model.name))],
+  }), [data])
+
+  const businessUnits = filterOptions.businessUnits
+  const models = filterOptions.models
 
   const getStatusBadge = (status: EvalStatus) => {
     const config = {

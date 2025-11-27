@@ -43,6 +43,9 @@ import { supabase } from "@/lib/supabase/client"
 
 type ViewType = "business_units" | "projects" | "issues"
 
+// Comment/tag types for metrics with issues
+type MetricComment = "under_evaluation" | "on_hold" | "needs_review" | "pilot_phase" | null
+
 // Unified metric type for all levels
 type UnifiedMetric = {
   id: string
@@ -52,6 +55,16 @@ type UnifiedMetric = {
   moneySaved: number // Total money saved ($)
   activeUsers: number // Number of active users
   activeIssues: number // Number of active issues
+  comment?: MetricComment // Optional comment for low/negative ROI
+}
+
+// Totals type
+type MetricsTotals = {
+  totalHoursSaved: number
+  totalMoneySaved: number
+  totalActiveUsers: number
+  totalActiveIssues: number
+  avgRoi: number
 }
 
 // Filters Bar Component
@@ -295,26 +308,137 @@ function MetricsFiltersBar({
 // Hourly rate for money calculation (configurable)
 const HOURLY_RATE = 75 // USD per hour
 
-// Generate dummy metrics based on a seed (for consistent randomization)
+// Generate realistic dummy metrics based on a seed (for consistent randomization)
 const generateDummyMetrics = (seed: string, baseMultiplier: number = 1) => {
   // Simple hash function for consistent random values based on seed
   const hash = seed.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
   
-  const roi = 50 + (hash % 250) // 50-300%
+  // More realistic ROI distribution: -30% to 180% (some negative, most moderate)
+  const roiBase = hash % 100
+  let roi: number
+  let comment: MetricComment = null
+  
+  if (roiBase < 15) {
+    // 15% chance of negative ROI (-30% to -5%)
+    roi = -30 + (hash % 26)
+    comment = hash % 2 === 0 ? "under_evaluation" : "on_hold"
+  } else if (roiBase < 30) {
+    // 15% chance of very low ROI (0% to 25%)
+    roi = hash % 26
+    comment = hash % 3 === 0 ? "pilot_phase" : "needs_review"
+  } else if (roiBase < 60) {
+    // 30% chance of moderate ROI (25% to 80%)
+    roi = 25 + (hash % 56)
+  } else if (roiBase < 85) {
+    // 25% chance of good ROI (80% to 150%)
+    roi = 80 + (hash % 71)
+  } else {
+    // 15% chance of excellent ROI (150% to 200%)
+    roi = 150 + (hash % 51)
+  }
+  
   const hoursSaved = Math.round((100 + (hash % 400)) * baseMultiplier) // 100-500 hours base
   const moneySaved = hoursSaved * HOURLY_RATE
-  const activeUsers = 3 + (hash % 15) // 3-18 users
+  // More users: 15-85 range for more realistic enterprise numbers
+  const activeUsers = 15 + (hash % 71)
   const activeIssues = 5 + (hash % 25) // 5-30 issues
   
-  return { roi, hoursSaved, moneySaved, activeUsers, activeIssues }
+  return { roi, hoursSaved, moneySaved, activeUsers, activeIssues, comment }
 }
 
-// Helper function to get ROI color
+// Get comment badge color and label
+const getCommentBadge = (comment: MetricComment) => {
+  switch (comment) {
+    case "under_evaluation":
+      return { label: "Under Evaluation", color: "bg-amber-100 text-amber-800 border-amber-200" }
+    case "on_hold":
+      return { label: "On Hold", color: "bg-slate-100 text-slate-700 border-slate-200" }
+    case "needs_review":
+      return { label: "Needs Review", color: "bg-orange-100 text-orange-800 border-orange-200" }
+    case "pilot_phase":
+      return { label: "Pilot Phase", color: "bg-violet-100 text-violet-800 border-violet-200" }
+    default:
+      return null
+  }
+}
+
+// Calculate totals from metrics array
+const calculateTotals = (metrics: UnifiedMetric[]): MetricsTotals => {
+  const totalHoursSaved = metrics.reduce((acc, m) => acc + m.hoursSaved, 0)
+  const totalMoneySaved = metrics.reduce((acc, m) => acc + m.moneySaved, 0)
+  // For users, we use sum (could be unique across all, but sum shows engagement)
+  const totalActiveUsers = metrics.reduce((acc, m) => acc + m.activeUsers, 0)
+  const totalActiveIssues = metrics.reduce((acc, m) => acc + m.activeIssues, 0)
+  // Average ROI weighted by money saved
+  const weightedRoiSum = metrics.reduce((acc, m) => acc + (m.roi * m.moneySaved), 0)
+  const avgRoi = totalMoneySaved > 0 ? Math.round(weightedRoiSum / totalMoneySaved) : 0
+  
+  return { totalHoursSaved, totalMoneySaved, totalActiveUsers, totalActiveIssues, avgRoi }
+}
+
+// Totals Row Component
+function TotalsRow({ totals, viewType }: { totals: MetricsTotals, viewType: ViewType }) {
+  return (
+    <div className="py-3 bg-gradient-to-r from-gray-50 to-gray-100/50 border-t-2 border-gray-200">
+      <div className="grid grid-cols-[1fr_100px_120px_130px_110px_110px] gap-4 items-center">
+        {/* Total Label */}
+        <div className="flex items-center space-x-3 min-w-0">
+          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+            <span className="text-sm font-bold text-gray-600">Σ</span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-gray-900">Total</div>
+          </div>
+        </div>
+
+        {/* Average ROI */}
+        <div className="flex justify-start">
+          <Badge
+            variant="secondary"
+            className={`${getROIColor(totals.avgRoi)} font-semibold`}
+          >
+            ~{totals.avgRoi}%
+          </Badge>
+        </div>
+
+        {/* Total Hours Saved */}
+        <div className="text-sm">
+          <span className="font-bold text-emerald-700">{formatHours(totals.totalHoursSaved)}</span>
+          <span className="text-gray-500 ml-1 text-xs">hrs</span>
+        </div>
+
+        {/* Total Money Saved */}
+        <div className="text-sm">
+          <span className="font-bold text-green-700">{formatCurrency(totals.totalMoneySaved)}</span>
+        </div>
+
+        {/* Total Active Users */}
+        <div className="text-sm">
+          <span className="font-bold text-blue-700">{totals.totalActiveUsers.toLocaleString()}</span>
+          <span className="text-gray-500 ml-1 text-xs">users</span>
+        </div>
+
+        {/* Total Active Issues (not shown for issues view) */}
+        {viewType !== 'issues' ? (
+          <div className="text-sm">
+            <span className="font-bold text-orange-700">{totals.totalActiveIssues}</span>
+            <span className="text-gray-500 ml-1 text-xs">issues</span>
+          </div>
+        ) : (
+          <div></div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Helper function to get ROI color (handles negative ROI)
 const getROIColor = (roi: number) => {
-  if (roi >= 200) return "bg-green-100 text-green-800"
-  if (roi >= 100) return "bg-blue-100 text-blue-800"
-  if (roi >= 50) return "bg-yellow-100 text-yellow-800"
-  return "bg-red-100 text-red-800"
+  if (roi >= 150) return "bg-green-100 text-green-800"
+  if (roi >= 80) return "bg-emerald-100 text-emerald-800"
+  if (roi >= 40) return "bg-blue-100 text-blue-800"
+  if (roi >= 0) return "bg-yellow-100 text-yellow-800"
+  return "bg-red-100 text-red-800" // Negative ROI
 }
 
 // Helper to format currency
@@ -409,14 +533,23 @@ function BusinessUnitsMetrics() {
           const realRoi = investment > 0 ? Math.round((moneySaved / investment) * 100) : 0
           const roi = realRoi > 0 ? realRoi : dummy.roi
           
+          // Determine comment based on ROI
+          let comment: MetricComment = null
+          if (roi < 0) {
+            comment = dummy.comment
+          } else if (roi < 25) {
+            comment = dummy.comment
+          }
+          
           return {
             id: bu.id,
             name: bu.name,
-            roi: Math.min(999, roi),
+            roi: Math.min(999, Math.max(-100, roi)),
             hoursSaved,
             moneySaved,
             activeUsers,
-            activeIssues
+            activeIssues,
+            comment
           }
         })
         
@@ -440,9 +573,14 @@ function BusinessUnitsMetrics() {
     )
   }
 
+  // Calculate totals
+  const totals = calculateTotals(data)
+
   return (
     <div>
-      {data.map((metric) => (
+      {data.map((metric) => {
+        const commentBadge = getCommentBadge(metric.comment || null)
+        return (
         <div
           key={metric.id}
           className="py-3 hover:bg-gray-50/50 transition-colors"
@@ -455,6 +593,13 @@ function BusinessUnitsMetrics() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium text-gray-900 truncate">{metric.name}</div>
+                  {commentBadge && (
+                    <div className="mt-0.5">
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${commentBadge.color}`}>
+                        {commentBadge.label}
+                      </span>
+                    </div>
+                  )}
               </div>
             </div>
 
@@ -492,7 +637,11 @@ function BusinessUnitsMetrics() {
             </div>
           </div>
         </div>
-      ))}
+        )
+      })}
+      
+      {/* Totals Row */}
+      {data.length > 0 && <TotalsRow totals={totals} viewType="business_units" />}
     </div>
   )
 }
@@ -561,14 +710,23 @@ function ProjectsMetrics() {
           const realRoi = investment > 0 ? Math.round((moneySaved / investment) * 100) : 0
           const roi = realRoi > 0 ? realRoi : dummy.roi
           
+          // Determine comment based on ROI
+          let comment: MetricComment = null
+          if (roi < 0) {
+            comment = dummy.comment
+          } else if (roi < 25) {
+            comment = dummy.comment
+          }
+          
           return {
             id: proj.id,
             name: proj.name,
-            roi: Math.min(999, roi),
+            roi: Math.min(999, Math.max(-100, roi)),
             hoursSaved,
             moneySaved,
             activeUsers,
-            activeIssues
+            activeIssues,
+            comment
           }
         })
         
@@ -592,60 +750,76 @@ function ProjectsMetrics() {
     )
   }
 
+  // Calculate totals
+  const totals = calculateTotals(data)
+
   return (
     <div>
-      {data.map((metric) => (
-        <div
-          key={metric.id}
-          className="py-3 hover:bg-gray-50/50 transition-colors"
-        >
-          <div className="grid grid-cols-[1fr_100px_120px_130px_110px_110px] gap-4 items-center">
-            {/* Name Column */}
-            <div className="flex items-center space-x-3 min-w-0">
-              <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <Folder className="h-4 w-4 text-gray-600" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-gray-900 truncate">{metric.name}</div>
-              </div>
-            </div>
-
-            {/* ROI */}
-            <div className="flex justify-start">
-              <Badge
-                variant="secondary"
-                className={getROIColor(metric.roi)}
-              >
-                {metric.roi}%
-              </Badge>
-            </div>
-
-            {/* Hours Saved */}
-            <div className="text-sm">
-              <span className="font-medium text-emerald-600">{formatHours(metric.hoursSaved)}</span>
-              <span className="text-gray-500 ml-1 text-xs">hrs</span>
-            </div>
-
-            {/* Money Saved */}
-            <div className="text-sm">
-              <span className="font-semibold text-green-600">{formatCurrency(metric.moneySaved)}</span>
-            </div>
-
-            {/* Active Users */}
-            <div className="text-sm">
-              <span className="font-medium text-blue-600">{metric.activeUsers}</span>
-              <span className="text-gray-500 ml-1 text-xs">users</span>
-            </div>
-
-            {/* Active Issues */}
-            <div className="text-sm">
-              <span className="font-medium text-orange-600">{metric.activeIssues}</span>
-              <span className="text-gray-500 ml-1 text-xs">issues</span>
-            </div>
+      {data.map((metric) => {
+        const commentBadge = getCommentBadge(metric.comment || null)
+        return (
+          <div
+            key={metric.id}
+            className="py-3 hover:bg-gray-50/50 transition-colors"
+          >
+            <div className="grid grid-cols-[1fr_100px_120px_130px_110px_110px] gap-4 items-center">
+              {/* Name Column */}
+              <div className="flex items-center space-x-3 min-w-0">
+                <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  <Folder className="h-4 w-4 text-gray-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-gray-900 truncate">{metric.name}</div>
+                  {commentBadge && (
+                    <div className="mt-0.5">
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${commentBadge.color}`}>
+                        {commentBadge.label}
+                      </span>
                     </div>
-                  </div>
-                ))}
+                  )}
+                </div>
               </div>
+
+              {/* ROI */}
+              <div className="flex justify-start">
+                <Badge
+                  variant="secondary"
+                  className={getROIColor(metric.roi)}
+                >
+                  {metric.roi}%
+                </Badge>
+              </div>
+
+              {/* Hours Saved */}
+              <div className="text-sm">
+                <span className="font-medium text-emerald-600">{formatHours(metric.hoursSaved)}</span>
+                <span className="text-gray-500 ml-1 text-xs">hrs</span>
+              </div>
+
+              {/* Money Saved */}
+              <div className="text-sm">
+                <span className="font-semibold text-green-600">{formatCurrency(metric.moneySaved)}</span>
+              </div>
+
+              {/* Active Users */}
+              <div className="text-sm">
+                <span className="font-medium text-blue-600">{metric.activeUsers}</span>
+                <span className="text-gray-500 ml-1 text-xs">users</span>
+              </div>
+
+              {/* Active Issues */}
+              <div className="text-sm">
+                <span className="font-medium text-orange-600">{metric.activeIssues}</span>
+                <span className="text-gray-500 ml-1 text-xs">issues</span>
+              </div>
+            </div>
+          </div>
+        )
+      })}
+      
+      {/* Totals Row */}
+      {data.length > 0 && <TotalsRow totals={totals} viewType="projects" />}
+    </div>
   )
 }
 
@@ -658,7 +832,9 @@ type IssueMetric = {
   hoursSaved: number
   moneySaved: number
   activeUsers: number
+  activeIssues: number // For totals calculation
   state: string
+  comment?: MetricComment
 }
 
 // Issues Metrics List - Individual issue metrics
@@ -711,15 +887,25 @@ function IssuesMetrics() {
           const realRoi = investment > 0 ? Math.round((moneySaved / investment) * 100) : 0
           const roi = realRoi > 0 ? realRoi : dummy.roi
           
+          // Determine comment based on ROI
+          let comment: MetricComment = null
+          if (roi < 0) {
+            comment = dummy.comment
+          } else if (roi < 25) {
+            comment = dummy.comment
+          }
+          
           return {
             id: issue.id,
             key: issue.key,
             title: issue.title,
-            roi: Math.min(999, roi),
+            roi: Math.min(999, Math.max(-100, roi)),
             hoursSaved,
             moneySaved,
             activeUsers,
-            state: issue.state || 'triage'
+            activeIssues: 1, // For totals calculation
+            state: issue.state || 'triage',
+            comment
           }
         })
         
@@ -756,64 +942,88 @@ function IssuesMetrics() {
     )
   }
 
+  // Calculate totals for issues
+  const issuesTotals: MetricsTotals = {
+    totalHoursSaved: data.reduce((acc, m) => acc + m.hoursSaved, 0),
+    totalMoneySaved: data.reduce((acc, m) => acc + m.moneySaved, 0),
+    totalActiveUsers: data.reduce((acc, m) => acc + m.activeUsers, 0),
+    totalActiveIssues: data.length,
+    avgRoi: data.length > 0 
+      ? Math.round(data.reduce((acc, m) => acc + m.roi, 0) / data.length)
+      : 0
+  }
+
   return (
     <div>
-      {data.map((metric) => (
-        <div
-          key={metric.id}
-          className="py-3 hover:bg-gray-50/50 transition-colors"
-        >
-          <div className="grid grid-cols-[1fr_100px_120px_130px_110px_110px] gap-4 items-center">
-            {/* Name Column */}
-            <div className="flex items-center space-x-3 min-w-0">
-              <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <FileText className="h-4 w-4 text-gray-600" />
+      {data.map((metric) => {
+        const commentBadge = getCommentBadge(metric.comment || null)
+        return (
+          <div
+            key={metric.id}
+            className="py-3 hover:bg-gray-50/50 transition-colors"
+          >
+            <div className="grid grid-cols-[1fr_100px_120px_130px_110px_110px] gap-4 items-center">
+              {/* Name Column */}
+              <div className="flex items-center space-x-3 min-w-0">
+                <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  <FileText className="h-4 w-4 text-gray-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-gray-900 truncate">{metric.title}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 truncate">{metric.key}</span>
+                    {commentBadge && (
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${commentBadge.color}`}>
+                        {commentBadge.label}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-gray-900 truncate">{metric.title}</div>
-                <div className="text-xs text-gray-500 truncate">{metric.key}</div>
+
+              {/* ROI */}
+              <div className="flex justify-start">
+                <Badge
+                  variant="secondary"
+                  className={getROIColor(metric.roi)}
+                >
+                  {metric.roi}%
+                </Badge>
               </div>
-            </div>
 
-            {/* ROI */}
-            <div className="flex justify-start">
-              <Badge
-                variant="secondary"
-                className={getROIColor(metric.roi)}
-              >
-                {metric.roi}%
-              </Badge>
-            </div>
+              {/* Hours Saved */}
+              <div className="text-sm">
+                <span className="font-medium text-emerald-600">{formatHours(metric.hoursSaved)}</span>
+                <span className="text-gray-500 ml-1 text-xs">hrs</span>
+              </div>
 
-            {/* Hours Saved */}
-            <div className="text-sm">
-              <span className="font-medium text-emerald-600">{formatHours(metric.hoursSaved)}</span>
-              <span className="text-gray-500 ml-1 text-xs">hrs</span>
-            </div>
+              {/* Money Saved */}
+              <div className="text-sm">
+                <span className="font-semibold text-green-600">{formatCurrency(metric.moneySaved)}</span>
+              </div>
 
-            {/* Money Saved */}
-            <div className="text-sm">
-              <span className="font-semibold text-green-600">{formatCurrency(metric.moneySaved)}</span>
-            </div>
+              {/* Active Users */}
+              <div className="text-sm">
+                <span className="font-medium text-blue-600">{metric.activeUsers}</span>
+                <span className="text-gray-500 ml-1 text-xs">users</span>
+              </div>
 
-            {/* Active Users */}
-            <div className="text-sm">
-              <span className="font-medium text-blue-600">{metric.activeUsers}</span>
-              <span className="text-gray-500 ml-1 text-xs">users</span>
-            </div>
-
-            {/* State instead of Active Issues */}
-            <div className="flex justify-start">
-              <Badge
-                variant="secondary"
-                className={getStateColor(metric.state)}
-              >
-                {metric.state.replace('_', ' ')}
-              </Badge>
+              {/* State instead of Active Issues */}
+              <div className="flex justify-start">
+                <Badge
+                  variant="secondary"
+                  className={getStateColor(metric.state)}
+                >
+                  {metric.state.replace('_', ' ')}
+                </Badge>
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
+      
+      {/* Totals Row */}
+      {data.length > 0 && <TotalsRow totals={issuesTotals} viewType="issues" />}
     </div>
   )
 }

@@ -41,6 +41,7 @@ import { useAuth } from "@/lib/context/auth-context"
 import { format, subDays, subHours } from "date-fns"
 import { useRouter, useParams } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { supabase } from "@/lib/supabase/client"
 import {
   BarChart,
   Bar,
