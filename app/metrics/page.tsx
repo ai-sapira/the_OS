@@ -41,7 +41,7 @@ import { ProjectsAPI } from "@/lib/api/projects"
 import { useAuth } from "@/lib/context/auth-context"
 import { supabase } from "@/lib/supabase/client"
 
-type ViewType = "business_units" | "projects" | "issues"
+type ViewType = "business_units" | "projects" | "initiatives"
 
 // Comment/tag types for metrics with issues
 type MetricComment = "under_evaluation" | "on_hold" | "needs_review" | "pilot_phase" | null
@@ -89,7 +89,7 @@ function MetricsFiltersBar({
   const viewOptions = [
     { value: "business_units", label: "Business Units", icon: <Target className="h-4 w-4" /> },
     { value: "projects", label: "Projects", icon: <Folder className="h-4 w-4" /> },
-    { value: "issues", label: "Issues", icon: <FileText className="h-4 w-4" /> },
+    { value: "initiatives", label: "Initiatives", icon: <FileText className="h-4 w-4" /> },
   ]
 
   const filterOptions = [
@@ -310,38 +310,51 @@ const HOURLY_RATE = 75 // USD per hour
 
 // Generate realistic dummy metrics based on a seed (for consistent randomization)
 const generateDummyMetrics = (seed: string, baseMultiplier: number = 1) => {
-  // Simple hash function for consistent random values based on seed
-  const hash = seed.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  // Better hash function for more varied distribution
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  hash = Math.abs(hash)
   
-  // More realistic ROI distribution: -30% to 180% (some negative, most moderate)
-  const roiBase = hash % 100
+  // Use different parts of hash for different values to get varied results
+  const roiHash = (hash * 13) % 1000
+  const roiBase = roiHash % 100
+  
   let roi: number
   let comment: MetricComment = null
   
   if (roiBase < 15) {
     // 15% chance of negative ROI (-30% to -5%)
-    roi = -30 + (hash % 26)
-    comment = hash % 2 === 0 ? "under_evaluation" : "on_hold"
+    roi = -30 + (roiHash % 26)
+    comment = roiHash % 2 === 0 ? "under_evaluation" : "on_hold"
   } else if (roiBase < 30) {
     // 15% chance of very low ROI (0% to 25%)
-    roi = hash % 26
-    comment = hash % 3 === 0 ? "pilot_phase" : "needs_review"
+    roi = (roiHash % 26)
+    comment = roiHash % 3 === 0 ? "pilot_phase" : "needs_review"
   } else if (roiBase < 60) {
     // 30% chance of moderate ROI (25% to 80%)
-    roi = 25 + (hash % 56)
+    roi = 25 + (roiHash % 56)
   } else if (roiBase < 85) {
     // 25% chance of good ROI (80% to 150%)
-    roi = 80 + (hash % 71)
+    roi = 80 + (roiHash % 71)
   } else {
     // 15% chance of excellent ROI (150% to 200%)
-    roi = 150 + (hash % 51)
+    roi = 150 + (roiHash % 51)
   }
   
-  const hoursSaved = Math.round((100 + (hash % 400)) * baseMultiplier) // 100-500 hours base
+  // Use different hash variations for other values
+  const usersHash = (hash * 17) % 1000
+  const hoursHash = (hash * 23) % 1000
+  const issuesHash = (hash * 31) % 1000
+  
+  const hoursSaved = Math.round((100 + (hoursHash % 400)) * baseMultiplier) // 100-500 hours base
   const moneySaved = hoursSaved * HOURLY_RATE
   // More users: 15-85 range for more realistic enterprise numbers
-  const activeUsers = 15 + (hash % 71)
-  const activeIssues = 5 + (hash % 25) // 5-30 issues
+  const activeUsers = 15 + (usersHash % 71)
+  const activeIssues = 5 + (issuesHash % 25) // 5-30 issues
   
   return { roi, hoursSaved, moneySaved, activeUsers, activeIssues, comment }
 }
@@ -376,18 +389,23 @@ const calculateTotals = (metrics: UnifiedMetric[]): MetricsTotals => {
   return { totalHoursSaved, totalMoneySaved, totalActiveUsers, totalActiveIssues, avgRoi }
 }
 
-// Totals Row Component
+// Totals Row Component - needs negative margins to extend edge-to-edge
 function TotalsRow({ totals, viewType }: { totals: MetricsTotals, viewType: ViewType }) {
+  // Grid columns - initiatives has 5 columns, others have 6
+  const gridCols = viewType === 'initiatives' 
+    ? "grid-cols-[1fr_100px_120px_130px_110px]" 
+    : "grid-cols-[1fr_100px_120px_130px_110px_110px]"
+    
   return (
-    <div className="py-3 bg-gradient-to-r from-gray-50 to-gray-100/50 border-t-2 border-gray-200">
-      <div className="grid grid-cols-[1fr_100px_120px_130px_110px_110px] gap-4 items-center">
+    <div className="-mx-[28px] -mb-4 mt-2 py-3 bg-gradient-to-r from-gray-100 to-gray-50 border-t-2 border-gray-300" style={{ paddingLeft: '28px', paddingRight: '20px' }}>
+      <div className={`grid ${gridCols} gap-4 items-center`}>
         {/* Total Label */}
         <div className="flex items-center space-x-3 min-w-0">
-          <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-            <span className="text-sm font-bold text-gray-600">Σ</span>
+          <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
+            <span className="text-sm font-bold text-gray-700">Σ</span>
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-gray-900">Total</div>
+            <div className="text-sm font-bold text-gray-900">TOTAL</div>
           </div>
         </div>
 
@@ -418,8 +436,8 @@ function TotalsRow({ totals, viewType }: { totals: MetricsTotals, viewType: View
           <span className="text-gray-500 ml-1 text-xs">users</span>
         </div>
 
-        {/* Total Active Issues (not shown for issues view) */}
-        {viewType !== 'issues' ? (
+        {/* Total Active Issues (not shown for initiatives view) */}
+        {viewType !== 'initiatives' ? (
           <div className="text-sm">
             <span className="font-bold text-orange-700">{totals.totalActiveIssues}</span>
             <span className="text-gray-500 ml-1 text-xs">issues</span>
@@ -520,26 +538,19 @@ function BusinessUnitsMetrics() {
           })
           const realActiveUsers = userIds.size
           
-          // Use dummy data if real data is too low (BU level = highest multiplier)
+          // Use dummy data for realistic enterprise metrics (BU level = highest multiplier)
           const dummy = generateDummyMetrics(bu.id, 3)
           const hoursSaved = realHoursSaved > 0 ? realHoursSaved : dummy.hoursSaved
           const moneySaved = hoursSaved * HOURLY_RATE
           const activeIssues = realActiveIssues > 0 ? realActiveIssues : dummy.activeIssues
-          const activeUsers = realActiveUsers > 0 ? realActiveUsers : dummy.activeUsers
+          // Always use dummy users for realistic enterprise numbers (15-85 range)
+          const activeUsers = dummy.activeUsers
           
-          // ROI calculation
-          const totalHoursWorked = buIssues.reduce((acc, issue) => acc + (issue.estimated_hours || 0), 0)
-          const investment = totalHoursWorked * HOURLY_RATE * 0.3
-          const realRoi = investment > 0 ? Math.round((moneySaved / investment) * 100) : 0
-          const roi = realRoi > 0 ? realRoi : dummy.roi
+          // Use dummy ROI for varied distribution (already calculated with realistic ranges)
+          const roi = dummy.roi
           
-          // Determine comment based on ROI
-          let comment: MetricComment = null
-          if (roi < 0) {
-            comment = dummy.comment
-          } else if (roi < 25) {
-            comment = dummy.comment
-          }
+          // Use comment from dummy (already assigned based on ROI ranges)
+          const comment = dummy.comment
           
           return {
             id: bu.id,
@@ -697,26 +708,19 @@ function ProjectsMetrics() {
           })
           const realActiveUsers = userIds.size
           
-          // Use dummy data if real data is too low (Project level = medium multiplier)
+          // Use dummy data for realistic enterprise metrics (Project level = medium multiplier)
           const dummy = generateDummyMetrics(proj.id, 2)
           const hoursSaved = realHoursSaved > 0 ? realHoursSaved : dummy.hoursSaved
           const moneySaved = hoursSaved * HOURLY_RATE
           const activeIssues = realActiveIssues > 0 ? realActiveIssues : dummy.activeIssues
-          const activeUsers = realActiveUsers > 0 ? realActiveUsers : dummy.activeUsers
+          // Always use dummy users for realistic enterprise numbers (15-85 range)
+          const activeUsers = dummy.activeUsers
           
-          // ROI calculation
-          const totalHoursWorked = projectIssues.reduce((acc, issue) => acc + (issue.estimated_hours || 0), 0)
-          const investment = totalHoursWorked * HOURLY_RATE * 0.3
-          const realRoi = investment > 0 ? Math.round((moneySaved / investment) * 100) : 0
-          const roi = realRoi > 0 ? realRoi : dummy.roi
+          // Use dummy ROI for varied distribution (already calculated with realistic ranges)
+          const roi = dummy.roi
           
-          // Determine comment based on ROI
-          let comment: MetricComment = null
-          if (roi < 0) {
-            comment = dummy.comment
-          } else if (roi < 25) {
-            comment = dummy.comment
-          }
+          // Use comment from dummy (already assigned based on ROI ranges)
+          const comment = dummy.comment
           
           return {
             id: proj.id,
@@ -823,8 +827,8 @@ function ProjectsMetrics() {
   )
 }
 
-// Issue metric type with additional fields
-type IssueMetric = {
+// Initiative metric type with additional fields
+type InitiativeMetric = {
   id: string
   key: string
   title: string
@@ -833,14 +837,13 @@ type IssueMetric = {
   moneySaved: number
   activeUsers: number
   activeIssues: number // For totals calculation
-  state: string
   comment?: MetricComment
 }
 
-// Issues Metrics List - Individual issue metrics
-function IssuesMetrics() {
+// Initiatives Metrics List - Individual initiative metrics (from issues)
+function InitiativesMetrics() {
   const { currentOrg } = useAuth()
-  const [data, setData] = useState<IssueMetric[]>([])
+  const [data, setData] = useState<InitiativeMetric[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -864,36 +867,26 @@ function IssuesMetrics() {
         
         if (issuesError) throw issuesError
         
-        // Calculate metrics for each issue
-        const metrics: IssueMetric[] = (issues || []).map(issue => {
+        // Calculate metrics for each initiative (issue)
+        const metrics: InitiativeMetric[] = (issues || []).map(issue => {
+          // Generate consistent dummy data for this initiative
+          const dummy = generateDummyMetrics(issue.id, 1)
+          
           const isCompleted = issue.state === 'done'
           
-          // Hours saved = estimated_hours if completed
+          // Hours saved - use real if available, otherwise use dummy
           const realHoursSaved = isCompleted ? (issue.estimated_hours || 0) : 0
-          
-          // Active users: count assignee and reporter as users involved
-          let realActiveUsers = 0
-          if (issue.assignee_id) realActiveUsers++
-          if (issue.reporter_id && issue.reporter_id !== issue.assignee_id) realActiveUsers++
-          
-          // Use dummy data if real data is too low
-          const dummy = generateDummyMetrics(issue.id, 0.5)
-          const hoursSaved = realHoursSaved > 0 ? realHoursSaved : dummy.hoursSaved * 0.1 // Smaller values for issues
+          const hoursSaved = realHoursSaved > 0 ? realHoursSaved : dummy.hoursSaved
           const moneySaved = hoursSaved * HOURLY_RATE
-          const activeUsers = realActiveUsers > 0 ? realActiveUsers : Math.min(3, dummy.activeUsers)
           
-          // ROI for individual issue
-          const investment = (issue.estimated_hours || dummy.hoursSaved * 0.1) * HOURLY_RATE * 0.3
-          const realRoi = investment > 0 ? Math.round((moneySaved / investment) * 100) : 0
-          const roi = realRoi > 0 ? realRoi : dummy.roi
+          // Active users - always use dummy for realistic enterprise numbers
+          const activeUsers = dummy.activeUsers
           
-          // Determine comment based on ROI
-          let comment: MetricComment = null
-          if (roi < 0) {
-            comment = dummy.comment
-          } else if (roi < 25) {
-            comment = dummy.comment
-          }
+          // ROI - use the varied dummy ROI directly (already has good distribution)
+          const roi = dummy.roi
+          
+          // Comment from dummy (already assigned based on ROI in generateDummyMetrics)
+          const comment = dummy.comment
           
           return {
             id: issue.id,
@@ -903,15 +896,14 @@ function IssuesMetrics() {
             hoursSaved,
             moneySaved,
             activeUsers,
-            activeIssues: 1, // For totals calculation
-            state: issue.state || 'triage',
+            activeIssues: dummy.activeIssues,
             comment
           }
         })
         
         setData(metrics)
       } catch (error) {
-        console.error('Error loading issue metrics:', error)
+        console.error('Error loading initiative metrics:', error)
         setData([])
       } finally {
         setLoading(false)
@@ -921,19 +913,6 @@ function IssuesMetrics() {
     loadData()
   }, [currentOrg?.organization?.id])
 
-  // Get state badge color
-  const getStateColor = (state: string) => {
-    switch (state) {
-      case 'done': return 'bg-green-100 text-green-800'
-      case 'in_progress': return 'bg-blue-100 text-blue-800'
-      case 'todo': return 'bg-gray-100 text-gray-800'
-      case 'blocked': return 'bg-red-100 text-red-800'
-      case 'waiting_info': return 'bg-yellow-100 text-yellow-800'
-      case 'triage': return 'bg-purple-100 text-purple-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -942,12 +921,12 @@ function IssuesMetrics() {
     )
   }
 
-  // Calculate totals for issues
-  const issuesTotals: MetricsTotals = {
+  // Calculate totals for initiatives
+  const initiativesTotals: MetricsTotals = {
     totalHoursSaved: data.reduce((acc, m) => acc + m.hoursSaved, 0),
     totalMoneySaved: data.reduce((acc, m) => acc + m.moneySaved, 0),
     totalActiveUsers: data.reduce((acc, m) => acc + m.activeUsers, 0),
-    totalActiveIssues: data.length,
+    totalActiveIssues: data.reduce((acc, m) => acc + m.activeIssues, 0),
     avgRoi: data.length > 0 
       ? Math.round(data.reduce((acc, m) => acc + m.roi, 0) / data.length)
       : 0
@@ -962,7 +941,7 @@ function IssuesMetrics() {
             key={metric.id}
             className="py-3 hover:bg-gray-50/50 transition-colors"
           >
-            <div className="grid grid-cols-[1fr_100px_120px_130px_110px_110px] gap-4 items-center">
+            <div className="grid grid-cols-[1fr_100px_120px_130px_110px] gap-4 items-center">
               {/* Name Column */}
               <div className="flex items-center space-x-3 min-w-0">
                 <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
@@ -1007,23 +986,13 @@ function IssuesMetrics() {
                 <span className="font-medium text-blue-600">{metric.activeUsers}</span>
                 <span className="text-gray-500 ml-1 text-xs">users</span>
               </div>
-
-              {/* State instead of Active Issues */}
-              <div className="flex justify-start">
-                <Badge
-                  variant="secondary"
-                  className={getStateColor(metric.state)}
-                >
-                  {metric.state.replace('_', ' ')}
-                </Badge>
-              </div>
             </div>
           </div>
         )
       })}
       
       {/* Totals Row */}
-      {data.length > 0 && <TotalsRow totals={issuesTotals} viewType="issues" />}
+      {data.length > 0 && <TotalsRow totals={initiativesTotals} viewType="initiatives" />}
     </div>
   )
 }
@@ -1036,20 +1005,24 @@ export default function MetricsPage() {
     const labels = {
       business_units: "Business Unit",
       projects: "Project",
-      issues: "Issue"
+      initiatives: "Initiative"
     }
     
-    // Last column changes based on view
-    const lastColumn = currentView === 'issues' ? 'State' : 'Active Issues'
+    // Grid columns - initiatives has 5 columns, others have 6
+    const gridCols = currentView === 'initiatives' 
+      ? "grid-cols-[1fr_100px_120px_130px_110px]" 
+      : "grid-cols-[1fr_100px_120px_130px_110px_110px]"
     
     return (
-      <div className="grid grid-cols-[1fr_100px_120px_130px_110px_110px] gap-4">
+      <div className={`grid ${gridCols} gap-4`}>
         <div className="text-[13px] font-medium text-gray-500">{labels[currentView]}</div>
         <div className="text-[13px] font-medium text-gray-500">ROI</div>
         <div className="text-[13px] font-medium text-gray-500">Hours Saved</div>
         <div className="text-[13px] font-medium text-gray-500">Money Saved</div>
         <div className="text-[13px] font-medium text-gray-500">Active Users</div>
-        <div className="text-[13px] font-medium text-gray-500">{lastColumn}</div>
+        {currentView !== 'initiatives' && (
+          <div className="text-[13px] font-medium text-gray-500">Active Issues</div>
+        )}
       </div>
     )
   }
@@ -1060,8 +1033,8 @@ export default function MetricsPage() {
         return <BusinessUnitsMetrics />
       case "projects":
         return <ProjectsMetrics />
-      case "issues":
-        return <IssuesMetrics />
+      case "initiatives":
+        return <InitiativesMetrics />
     }
   }
 

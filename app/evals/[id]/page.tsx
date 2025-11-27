@@ -123,10 +123,30 @@ interface ModelVersion {
   status: "deployed" | "testing" | "archived"
 }
 
-// Mock data generators
-const generateMockInitiative = (id: string): Initiative => {
-  const scoreGlobal = Math.floor(Math.random() * 25) + 75
+// Model providers and names for evals
+const MODEL_PROVIDERS = ["OpenAI", "Anthropic", "Google", "Azure", "Mistral"]
+const MODEL_NAMES = ["gpt-4o", "claude-3.5-sonnet", "gemini-pro", "gpt-4-turbo", "mistral-large"]
+
+// Seeded random for consistent values per issue
+const seededRandom = (seed: string, min: number, max: number) => {
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) - hash) + seed.charCodeAt(i)
+    hash |= 0
+  }
+  const normalized = Math.abs(hash % 1000) / 1000
+  return Math.floor(min + normalized * (max - min))
+}
+
+// Generate initiative from real issue data
+const generateInitiativeFromIssue = (issue: any): Initiative => {
+  const seed = issue.id
+  const scoreGlobal = seededRandom(seed + 'score', 75, 99)
   const status: EvalStatus = scoreGlobal >= 90 ? "ok" : scoreGlobal >= 80 ? "warning" : "critical"
+  
+  // Get model based on issue for consistency
+  const providerIndex = seededRandom(seed + 'provider', 0, MODEL_PROVIDERS.length)
+  const modelIndex = seededRandom(seed + 'model', 0, MODEL_NAMES.length)
   
   const metricTemplates = [
     { name: "Accuracy", unit: "%", target: 95 },
@@ -137,7 +157,8 @@ const generateMockInitiative = (id: string): Initiative => {
 
   const metrics: Metric[] = metricTemplates.map((template, idx) => {
     const variance = template.unit === "%" ? 15 : template.unit === "ms" ? 200 : 2
-    const baseValue = template.target + (Math.random() - 0.3) * variance
+    const metricSeed = seed + template.name
+    const baseValue = template.target + (seededRandom(metricSeed, 0, 100) / 100 - 0.3) * variance
     const value = template.name === "Latency P95"
       ? Math.max(0, baseValue)
       : Math.min(template.target * 1.1, Math.max(0, baseValue))
@@ -148,26 +169,30 @@ const generateMockInitiative = (id: string): Initiative => {
       value: Number(value.toFixed(2)),
       target: template.target,
       unit: template.unit,
-      trend: Math.random() * 10 - 3,
+      trend: seededRandom(metricSeed + 'trend', 0, 100) / 10 - 3,
       history: Array.from({ length: 30 }, (_, i) => ({
         date: format(subDays(new Date(), 29 - i), "MMM d"),
-        value: value + (Math.random() - 0.5) * variance * 0.3,
+        value: value + (seededRandom(metricSeed + i, 0, 100) / 100 - 0.5) * variance * 0.3,
       })),
     }
   })
   
   return {
-    id,
-    projectId: "proj-1",
-    projectName: "Customer Support AI",
-    businessUnit: "Operations",
-    name: "Chat Completions",
-    description: "Main conversational interface for customer support",
-    model: { provider: "OpenAI", name: "gpt-4o", version: "v2.1" },
+    id: issue.id,
+    projectId: issue.project?.id || 'unassigned',
+    projectName: issue.project?.name || 'Sin asignar',
+    businessUnit: issue.initiative?.name || 'Sin asignar',
+    name: issue.title,
+    description: issue.description || undefined,
+    model: { 
+      provider: MODEL_PROVIDERS[providerIndex], 
+      name: MODEL_NAMES[modelIndex], 
+      version: `v${seededRandom(seed + 'major', 1, 4)}.${seededRandom(seed + 'minor', 0, 10)}` 
+    },
     scoreGlobal,
     status,
     environment: "PROD",
-    lastEvalRun: subHours(new Date(), Math.floor(Math.random() * 24)),
+    lastEvalRun: subHours(new Date(), seededRandom(seed + 'hours', 0, 24)),
     metrics,
   }
 }
@@ -261,16 +286,47 @@ export default function EvalDetailPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      setLoading(true)
-      await new Promise(resolve => setTimeout(resolve, 400))
-      setInitiative(generateMockInitiative(evalId))
-      setSuites(generateMockSuites())
-      setSamples(generateMockHITLSamples())
-      setVersions(generateMockVersions())
-      setLoading(false)
+      if (!evalId || !currentOrg?.organization?.id) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        
+        // Load real issue data from database
+        const { data: issue, error } = await supabase
+          .from('issues')
+          .select(`
+            *,
+            initiative:initiatives(*),
+            project:projects(*),
+            assignee:users!issues_assignee_id_fkey(id, name, email, avatar_url),
+            reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url)
+          `)
+          .eq('id', evalId)
+          .eq('organization_id', currentOrg.organization.id)
+          .single()
+
+        if (error || !issue) {
+          console.error('Error loading issue:', error)
+          setLoading(false)
+          return
+        }
+
+        // Generate initiative data from real issue
+        setInitiative(generateInitiativeFromIssue(issue))
+        setSuites(generateMockSuites())
+        setSamples(generateMockHITLSamples())
+        setVersions(generateMockVersions())
+      } catch (error) {
+        console.error('Error loading eval data:', error)
+      } finally {
+        setLoading(false)
+      }
     }
-    if (evalId) loadData()
-  }, [evalId])
+    loadData()
+  }, [evalId, currentOrg?.organization?.id])
 
   useEffect(() => {
     const filtered = samples.filter(s => sampleFilter === "all" ? true : s.status === sampleFilter)
