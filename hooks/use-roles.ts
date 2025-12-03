@@ -144,7 +144,7 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
     section: "workspace",
   },
   {
-    id: "initiatives",
+    id: "business-units",
     label: "Business units",
     icon: "Target",
     href: "/business-units",
@@ -160,7 +160,7 @@ export const SIDEBAR_STRUCTURE: SidebarItem[] = [
     section: "workspace",
   },
   {
-    id: "issues",
+    id: "initiatives",
     label: "Initiatives",
     icon: "Archive",
     href: "/initiatives",
