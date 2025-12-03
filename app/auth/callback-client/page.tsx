@@ -83,7 +83,7 @@ export default function AuthCallbackPage() {
                   if (data.organization_slug) {
                     router.push(`/${data.organization_slug}`)
                   } else {
-                    router.push('/issues')
+                    router.push('/initiatives')
                   }
                   return
                 } catch (apiError: any) {
@@ -100,8 +100,8 @@ export default function AuthCallbackPage() {
                 return
               }
 
-              // Regular user - redirect to issues
-              router.push('/issues')
+              // Regular user - redirect to initiatives
+              router.push('/initiatives')
               return
             }
           } catch (err: any) {

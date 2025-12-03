@@ -1009,7 +1009,7 @@ export default function HomePage() {
                       <div 
                         key={item.id} 
                         className="border border-gray-100 rounded-lg p-2.5 hover:bg-gray-50/80 transition-colors cursor-pointer"
-                        onClick={() => router.push(`/issues/${item.id}`)}
+                        onClick={() => router.push(`/initiatives/${item.id}`)}
                       >
                         {/* Header: ID + Title + ETA */}
                         <div className="flex items-center justify-between gap-2 mb-2">

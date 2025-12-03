@@ -18,7 +18,7 @@ export default function SelectOrgPage() {
       // Only redirect if user has selected an org and we're not actively selecting
       const isSelecting = typeof window !== 'undefined' && window.location.pathname === '/select-org'
       if (!isSelecting) {
-        router.push('/issues')
+        router.push('/initiatives')
       }
     }
   }, [currentOrg, loading, router, userOrgs.length])
@@ -79,7 +79,7 @@ export default function SelectOrgPage() {
     selectOrganization(orgId)
     // Wait a bit for the organization to be set
     await new Promise(resolve => setTimeout(resolve, 100))
-    router.push('/issues')
+    router.push('/initiatives')
     router.refresh()
   }
 

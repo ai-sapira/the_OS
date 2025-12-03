@@ -538,7 +538,7 @@ function ProjectInitiativesList({
         <div
           key={issue.id}
           className="py-3 px-6 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-b-0"
-          onClick={() => router.push(`/issues/${issue.id}`)}
+          onClick={() => router.push(`/initiatives/${issue.id}`)}
         >
           <div className="grid grid-cols-[1fr_180px_140px] gap-4 items-center">
             {/* Initiative Column */}

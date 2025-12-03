@@ -475,7 +475,7 @@ export default function MySapiraPage() {
                 size="sm" 
                 variant="outline" 
                 className="h-7 text-xs"
-                onClick={() => router.push('/issues')}
+                onClick={() => router.push('/initiatives')}
               >
                 View all
               </Button>
@@ -525,7 +525,7 @@ export default function MySapiraPage() {
                         className={`grid grid-cols-[80px_1fr_120px_140px] gap-4 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer ${
                           index < recentIssues.length - 1 ? 'border-b border-gray-200' : ''
                         }`}
-                        onClick={() => router.push(`/issues/${issue.id}`)}
+                        onClick={() => router.push(`/initiatives/${issue.id}`)}
                       >
                         <div className="text-xs font-mono text-gray-500">
                           {issue.key}

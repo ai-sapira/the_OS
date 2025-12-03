@@ -150,7 +150,7 @@ export default function SignupPage() {
           } catch (selectError) {
             console.error('[Signup] Failed to persist selected org:', selectError)
           }
-          router.push('/issues')
+          router.push('/initiatives')
         }
       } catch (loginErr) {
         router.push(`/login?registered=true&org=${encodeURIComponent(orgSlug)}&email=${encodeURIComponent(email)}`)

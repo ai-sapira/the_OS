@@ -149,7 +149,7 @@ export default function LoginPage() {
 
       await new Promise(resolve => setTimeout(resolve, 600))
 
-      router.push('/issues')
+      router.push('/initiatives')
     } catch (err: any) {
       console.error('[Login] ❌ Login error:', err)
       setError(err.message || 'Error al iniciar sesión')

@@ -662,9 +662,9 @@ export default function IssuesPage() {
     }
   }
 
-  // Handle issue card click
-  const handleIssueClick = (issue: IssueWithRelations) => {
-    router.push(`/issues/${issue.id}`)
+  // Handle initiative card click
+  const handleInitiativeClick = (initiative: IssueWithRelations) => {
+    router.push(`/initiatives/${initiative.id}`)
   }
 
   // Clear filters
@@ -813,7 +813,7 @@ export default function IssuesPage() {
               <IssuesListView
                 issues={filteredIssues}
                 projects={allProjects}
-                onIssueClick={handleIssueClick}
+                onIssueClick={handleInitiativeClick}
                 onDataChange={() => {
                   // Optionally refresh data
                   console.log('Issue data updated');
@@ -916,7 +916,7 @@ export default function IssuesPage() {
                             )}
                       columnOrder={boardSettings.columnOrder}
                       displayProperties={displayProperties}
-                      onIssueClick={handleIssueClick}
+                      onIssueClick={handleInitiativeClick}
                     />
                   ))}
                       </div>
@@ -940,7 +940,7 @@ export default function IssuesPage() {
                               issues={issuesInState}
                               count={count}
                   displayProperties={displayProperties}
-                  onIssueClick={handleIssueClick}
+                  onIssueClick={handleInitiativeClick}
                               allProjects={allProjects}
                 />
                           </div>
@@ -957,7 +957,7 @@ export default function IssuesPage() {
                       filteredIssues={filteredIssues}
                 columnOrder={boardSettings.columnOrder}
                 displayProperties={displayProperties}
-                onIssueClick={handleIssueClick}
+                onIssueClick={handleInitiativeClick}
                       allProjects={allProjects}
               />
             </div>

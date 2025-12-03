@@ -124,7 +124,7 @@ export async function middleware(req: NextRequest) {
 
   // Redirect authenticated users away from auth pages
   if (session && (isRoot || isLogin)) {
-    const redirectUrl = new URL('/issues', req.url)
+    const redirectUrl = new URL('/initiatives', req.url)
     return NextResponse.redirect(redirectUrl)
   }
 

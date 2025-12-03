@@ -629,7 +629,7 @@ export default function IssueDetailPage() {
               {/* Breadcrumb */}
               <div className="flex items-center gap-2">
                 <span 
-                  onClick={() => router.push('/issues')} 
+                  onClick={() => router.push('/initiatives')} 
                   className="text-sm text-gray-500 hover:text-gray-900 cursor-pointer transition-colors"
                 >
                   Initiatives
