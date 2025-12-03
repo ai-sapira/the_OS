@@ -942,23 +942,47 @@ export default function HomePage() {
             className="bg-gray-50/30"
             style={{ paddingLeft: "28px", paddingRight: "20px", paddingTop: "var(--header-padding-y)", paddingBottom: "var(--header-padding-y)" }}
           >
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {OVERVIEW_METRICS.map((metric, idx) => {
-                const Icon = metric.icon
-                return (
-                  <div key={idx} className="border border-gray-200 rounded-lg bg-white p-3">
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>{metric.label}</span>
-                      <Icon className="h-4 w-4 text-gray-300" />
-                    </div>
-                    <div className="flex items-center justify-between mt-1.5">
-                      <div className="text-2xl font-semibold text-gray-900">{metric.value}</div>
-                      <span className="text-[11px] text-gray-500">{metric.delta}</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
+                        <motion.div 
+                          className="grid grid-cols-2 md:grid-cols-4 gap-3"
+                          initial="initial"
+                          animate="animate"
+                          variants={{
+                            initial: { opacity: 0 },
+                            animate: { 
+                              opacity: 1,
+                              transition: { staggerChildren: 0.08, delayChildren: 0.1 }
+                            }
+                          }}
+                        >
+                              {OVERVIEW_METRICS.map((metric, idx) => {
+                                const Icon = metric.icon
+                                return (
+                                  <motion.div 
+                                    key={idx} 
+                                    className="border border-gray-200 rounded-lg bg-white p-3 hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-pointer card-hover"
+                                    variants={{
+                                      initial: { opacity: 0, y: 12 },
+                                      animate: { 
+                                        opacity: 1, 
+                                        y: 0,
+                                        transition: { duration: 0.3, ease: [0.33, 1, 0.68, 1] }
+                                      }
+                                    }}
+                                    whileHover={{ y: -2 }}
+                                    whileTap={{ scale: 0.98 }}
+                                  >
+                                    <div className="flex items-center justify-between text-xs text-gray-500">
+                                      <span>{metric.label}</span>
+                                      <Icon className="h-4 w-4 text-gray-300" />
+                                    </div>
+                                    <div className="flex items-center justify-between mt-1.5">
+                                      <div className="text-2xl font-semibold text-gray-900">{metric.value}</div>
+                                      <span className="text-[11px] text-gray-500">{metric.delta}</span>
+                                    </div>
+                                  </motion.div>
+                                )
+                              })}
+                            </motion.div>
           </div>
 
           <div style={{ paddingLeft: "28px", paddingRight: "20px", paddingTop: "24px", paddingBottom: "24px" }} className="space-y-6">

@@ -77,3 +77,4 @@ function AnimatedBadgeList({ children }: { children: React.ReactNode }) {
 }
 
 export { Badge, badgeVariants, AnimatedBadgeList }
+

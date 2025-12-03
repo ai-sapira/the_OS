@@ -205,10 +205,24 @@ export function Sidebar({
     return true
   })
   
+  // Get sections visibility from organization settings (default all visible)
+  const sectionsVisibility = currentOrg?.organization?.settings?.sections_visibility as {
+    discovery?: boolean
+    workspace?: boolean
+    deploy?: boolean
+  } | undefined
+  
   const homeItems = filteredSidebarItems.filter(item => item.section === "home")
-  const globalItems = filteredSidebarItems.filter(item => item.section === "global")
-  const workspaceItems = filteredSidebarItems.filter(item => item.section === "workspace")
-  const deployItems = filteredSidebarItems.filter(item => item.section === "deploy")
+  // Filter sections based on organization settings
+  const globalItems = sectionsVisibility?.discovery !== false 
+    ? filteredSidebarItems.filter(item => item.section === "global")
+    : []
+  const workspaceItems = sectionsVisibility?.workspace !== false
+    ? filteredSidebarItems.filter(item => item.section === "workspace")
+    : []
+  const deployItems = sectionsVisibility?.deploy !== false
+    ? filteredSidebarItems.filter(item => item.section === "deploy")
+    : []
   const footerItems = filteredSidebarItems.filter(item => item.section === "footer")
   
   // Separate My Sapira and Your Profile from other footer items

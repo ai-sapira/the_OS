@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { 
   X,
-  Maximize2,
   CheckCircle2,
   XCircle,
   Clock,
@@ -13,11 +13,21 @@ import {
   Hexagon,
   ArrowUp,
   ArrowDown,
-  Minus
+  Minus,
+  AlertCircle,
+  Calendar,
+  MessageSquare
 } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog"
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogClose 
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
+import { Separator } from "@/components/ui/separator"
+import { Label } from "@/components/ui/label"
 import {
   Command,
   CommandEmpty,
@@ -31,102 +41,52 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { IssuesAPI } from "@/lib/api/issues"
 import type { IssuePriority } from "@/lib/database/types"
 import { useAuth } from "@/lib/context/auth-context"
 import { getSapiraProfileLabel } from "@/components/role-switcher"
 
-// PropertyChip component - matching the app's style
-interface PropertyChipProps {
-  icon: React.ReactNode
-  label: string
-  value: string
-  options: Array<{ name: string; label: string; icon?: React.ReactNode; avatar?: string }>
-  onSelect: (value: string) => void
-  loading?: boolean
-}
-
-function PropertyChip({ icon, label, value, options, onSelect, loading = false }: PropertyChipProps) {
-  const [open, setOpen] = useState(false)
-  const [commandInput, setCommandInput] = useState("")
-
-  const dropdownWidth = label === "Business Unit" || label === "Proyecto" ? "w-[280px]" : "w-[200px]"
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          size="sm"
-          className="h-7 border-dashed bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-600 hover:text-gray-700 gap-1 px-2 text-xs rounded-lg flex-shrink-0"
-        >
-          <div className="flex-shrink-0 text-gray-500">
-            {icon}
-          </div>
-          <span className="text-gray-700 whitespace-nowrap max-w-[100px] truncate">
-            {value}
-          </span>
-          <ChevronDown className={`h-3 w-3 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className={`${dropdownWidth} p-1 rounded-2xl border-gray-200 shadow-lg`}
-        style={{
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)',
-          border: '1px solid rgb(229 229 229)',
-          backgroundColor: '#ffffff',
-        }}
-      >
-        <Command className="[&_[cmdk-item][data-selected='true']]:!bg-gray-100 [&_[cmdk-item][data-selected='true']]:!text-black [&_[cmdk-item]:hover]:!bg-gray-100 [&_[cmdk-item]:hover]:!text-black">
-          <CommandInput
-            placeholder="Buscar..."
-            className="h-7 border-0 focus:ring-0 text-[14px] placeholder:text-gray-400 pl-0"
-            value={commandInput}
-            onValueChange={setCommandInput}
-          />
-          <CommandList>
-            <CommandEmpty className="text-gray-400 py-3 text-center text-xs">
-              {loading ? "Cargando..." : "No se encontraron opciones."}
-            </CommandEmpty>
-            <CommandGroup>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.name}
-                  value={option.label}
-                  onSelect={() => {
-                    onSelect(option.name)
-                    setOpen(false)
-                    setCommandInput("")
-                  }}
-                  className="cursor-pointer"
-                >
-                  <div className="flex items-center gap-2 w-full">
-                    {option.icon && <div className="flex-shrink-0">{option.icon}</div>}
-                    {option.avatar && (
-                      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-medium text-gray-600">
-                        {option.avatar}
-                      </div>
-                    )}
-                    <span className="flex-1 text-sm">{option.label}</span>
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  )
-}
-
 // Priority configurations
-const PRIORITIES: { value: IssuePriority; label: string; icon: React.ReactNode }[] = [
-  { value: "P0", label: "Crítica", icon: <ArrowUp className="w-2.5 h-2.5 text-red-500" /> },
-  { value: "P1", label: "Alta", icon: <ArrowUp className="w-2.5 h-2.5 text-orange-500" /> },
-  { value: "P2", label: "Media", icon: <Minus className="w-2.5 h-2.5 text-yellow-500" /> },
-  { value: "P3", label: "Baja", icon: <ArrowDown className="w-2.5 h-2.5 text-green-500" /> },
+const PRIORITIES: { value: IssuePriority; label: string; icon: React.ReactNode; color: string }[] = [
+  { value: "P0", label: "Crítica", icon: <ArrowUp className="w-3 h-3" />, color: "text-red-500" },
+  { value: "P1", label: "Alta", icon: <ArrowUp className="w-3 h-3" />, color: "text-orange-500" },
+  { value: "P2", label: "Media", icon: <Minus className="w-3 h-3" />, color: "text-yellow-500" },
+  { value: "P3", label: "Baja", icon: <ArrowDown className="w-3 h-3" />, color: "text-green-500" },
+]
+
+// Action configurations
+const ACTIONS = [
+  { 
+    id: 'accept' as const, 
+    label: 'Accept', 
+    icon: CheckCircle2, 
+    color: 'text-emerald-600',
+    bgColor: 'bg-emerald-50',
+    description: 'Move to backlog and assign'
+  },
+  { 
+    id: 'decline' as const, 
+    label: 'Decline', 
+    icon: XCircle, 
+    color: 'text-red-500',
+    bgColor: 'bg-red-50',
+    description: 'Reject with reason'
+  },
+  { 
+    id: 'snooze' as const, 
+    label: 'Snooze', 
+    icon: Clock, 
+    color: 'text-amber-500',
+    bgColor: 'bg-amber-50',
+    description: 'Review later'
+  },
 ]
 
 interface AcceptIssueModalProps {
@@ -160,7 +120,6 @@ export function AcceptIssueModal({
   const [initiatives, setInitiatives] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const lastLoadedOrgRef = useRef<string | null>(null)
-
   const commentRef = useRef<HTMLTextAreaElement>(null)
 
   // Load data when modal opens
@@ -168,9 +127,7 @@ export function AcceptIssueModal({
     if (!open || !organizationId) return
     const hasInitialData = users.length > 0 && projects.length > 0 && initiatives.length > 0
     const orgChanged = lastLoadedOrgRef.current !== organizationId
-    if (!orgChanged && hasInitialData) {
-      return
-    }
+    if (!orgChanged && hasInitialData) return
     
     const loadData = async () => {
       try {
@@ -200,7 +157,6 @@ export function AcceptIssueModal({
       setAction('accept')
       setComment("")
       
-      // Pre-populate with issue values if available
       const initiativeId = issue.initiative_id || (typeof issue.initiative === 'string' ? issue.initiative : issue.initiative?.id) || null
       const projectId = issue.project_id || (typeof issue.project === 'string' ? issue.project : issue.project?.id) || null
       const assigneeId = issue.assignee_id || (typeof issue.assignee === 'string' ? issue.assignee : issue.assignee?.id) || null
@@ -210,9 +166,7 @@ export function AcceptIssueModal({
       setSelectedAssigneeId(assigneeId)
       setSelectedPriority(issue.priority || null)
       
-      setTimeout(() => {
-        commentRef.current?.focus()
-      }, 100)
+      setTimeout(() => commentRef.current?.focus(), 100)
     }
   }, [open, issue])
 
@@ -221,7 +175,7 @@ export function AcceptIssueModal({
 
     switch (action) {
       case 'accept':
-        if (!selectedInitiativeId) return // Initiative is required
+        if (!selectedInitiativeId) return
         onAccept({
           comment,
           initiative: selectedInitiativeId,
@@ -258,187 +212,318 @@ export function AcceptIssueModal({
   const selectedProject = selectedProjectId ? projects.find(p => p.id === selectedProjectId) : null
   const selectedAssignee = selectedAssigneeId ? users.find(u => u.id === selectedAssigneeId) : null
   const selectedPriorityConfig = selectedPriority ? PRIORITIES.find(p => p.value === selectedPriority) : null
+  const currentAction = ACTIONS.find(a => a.id === action)!
 
   const isDisabled = action === 'accept' ? !selectedInitiativeId : (action === 'decline' ? !comment.trim() : false)
+  const displayTitle = issue.title || "Issue"
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0 gap-0 border border-gray-200">
-        <div className="flex flex-col">
+      <AnimatePresence>
+        {open && (
+          <DialogContent className="overflow-hidden p-0 sm:max-w-2xl max-h-[85vh] gap-0 data-[state=open]:animate-none data-[state=closed]:animate-none flex flex-col">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97, y: 4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.97, y: 4 }}
+              transition={{ 
+                duration: 0.3, 
+                ease: [0.16, 1, 0.3, 1],
+                opacity: { duration: 0.2 }
+              }}
+              className="flex flex-col max-h-[85vh] overflow-hidden"
+            >
           {/* Header */}
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-neutral-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-neutral-600">
-                <span className="font-medium">{currentOrg?.organization.name || 'Organización'}</span>
-                <span className="text-neutral-400">›</span>
-                <span className="font-medium text-neutral-900">
-                  {action === 'accept' ? 'Accept' : action === 'decline' ? 'Decline' : 'Snooze'} Issue
-                </span>
+              <DialogHeader className="border-b px-6 py-3 mb-0">
+                <DialogTitle className="text-base">Triage Issue</DialogTitle>
+                <p className="text-xs text-muted-foreground">
+                  Review and decide the fate of this issue.
+                </p>
+              </DialogHeader>
+
+              <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </DialogClose>
+
+              {/* Two-column layout */}
+              <div className="flex flex-col-reverse md:flex-row flex-1 overflow-y-auto min-h-0">
+                {/* Left sidebar */}
+                <div className="md:w-80 md:border-r">
+                  <div className="border-t p-3 md:border-none">
+                    {/* Issue preview */}
+                    <div className="flex items-center space-x-2">
+                      <div className={`inline-flex shrink-0 items-center justify-center rounded-sm p-2 ${currentAction.bgColor}`}>
+                        <currentAction.icon className={`size-4 ${currentAction.color}`} aria-hidden />
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-neutral-500 hover:bg-gray-100 hover:text-neutral-700">
-                  <Maximize2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-neutral-500 hover:bg-gray-100 hover:text-neutral-700"
-                  onClick={() => onOpenChange(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                      <div className="space-y-0.5 flex-1 min-w-0">
+                        <h3 className="text-sm font-medium text-foreground truncate">{displayTitle}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          {issue.key || 'New issue'}
+                        </p>
               </div>
             </div>
-          </DialogHeader>
+                    
+                    <Separator className="my-2" />
+                    
+                    {/* Action selection */}
+                    <h4 className="text-xs font-medium text-foreground mb-2">Action</h4>
+                    <div className="space-y-1">
+                      {ACTIONS.map((actionItem) => (
+                        <motion.button
+                          key={actionItem.id}
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.99 }}
+                          onClick={() => setAction(actionItem.id)}
+                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-all duration-150 ${
+                            action === actionItem.id 
+                              ? `${actionItem.bgColor} ring-1 ring-inset ring-current/20` 
+                              : 'hover:bg-muted/50'
+                          }`}
+                        >
+                          <actionItem.icon className={`h-3.5 w-3.5 ${actionItem.color}`} />
+                          <div className="flex-1 min-w-0">
+                            <span className={`text-xs font-medium ${action === actionItem.id ? actionItem.color : 'text-foreground'}`}>
+                              {actionItem.label}
+                            </span>
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {actionItem.description}
+                            </p>
+                          </div>
+                        </motion.button>
+                      ))}
+                    </div>
 
-          {/* Issue Info */}
-          <div className="px-6 py-2 bg-gray-50 border-b border-gray-200">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono text-gray-500">{issue.key}</span>
-              <span className="text-sm font-medium text-gray-900 truncate">{issue.title}</span>
+                    <Separator className="my-2" />
+                    
+                    {/* Context info */}
+                    <h4 className="text-xs font-medium text-foreground">Context</h4>
+                    <p className="mt-1 text-xs leading-4 text-muted-foreground">
+                      {action === 'accept' && 'Assign the issue to a business unit and optionally set project, owner and priority.'}
+                      {action === 'decline' && 'Provide a reason for declining this issue. The reporter will be notified.'}
+                      {action === 'snooze' && 'Postpone the review. The issue will reappear tomorrow.'}
+                    </p>
+
+                    {/* Selected values preview */}
+                    {action === 'accept' && (selectedInitiative || selectedAssignee || selectedProject) && (
+                      <div className="mt-3 space-y-2 rounded-lg border bg-muted/40 p-2">
+                        {selectedInitiative && (
+                          <div>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Business Unit</p>
+                            <p className="text-xs font-medium text-foreground">{selectedInitiative.name}</p>
+                          </div>
+                        )}
+                        {selectedProject && (
+                          <div>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Project</p>
+                            <p className="text-xs font-medium text-foreground">{selectedProject.name}</p>
+                          </div>
+                        )}
+                        {selectedAssignee && (
+                          <div>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Assignee</p>
+                            <p className="text-xs font-medium text-foreground">{selectedAssignee.name}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
             </div>
           </div>
 
-          {/* Action Tabs */}
-          <div className="px-6 pt-3 flex gap-1.5">
-            <Button
-              size="sm"
-              variant={action === 'accept' ? 'default' : 'ghost'}
-              onClick={() => setAction('accept')}
-              className={`h-7 text-xs ${action === 'accept' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-              Accept
-            </Button>
-            <Button
-              size="sm"
-              variant={action === 'decline' ? 'default' : 'ghost'}
-              onClick={() => setAction('decline')}
-              className={`h-7 text-xs ${action === 'decline' ? 'bg-red-500 hover:bg-red-600' : ''}`}
-            >
-              <XCircle className="h-3.5 w-3.5 mr-1" />
-              Decline
-            </Button>
-            <Button
-              size="sm"
-              variant={action === 'snooze' ? 'default' : 'ghost'}
-              onClick={() => setAction('snooze')}
-              className={`h-7 text-xs ${action === 'snooze' ? 'bg-yellow-500 hover:bg-yellow-600' : ''}`}
-            >
-              <Clock className="h-3.5 w-3.5 mr-1" />
-              Snooze
-            </Button>
+                {/* Right content */}
+                <div className="flex flex-1 flex-col p-3 md:px-5 md:pb-4 md:pt-3">
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.1, duration: 0.2 }}
+                    className="flex-1 space-y-3"
+                  >
+                    {/* Comment section */}
+                    <motion.div 
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.15, duration: 0.25 }}
+                      className="space-y-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <div className="inline-flex size-5 items-center justify-center rounded-sm bg-muted text-xs text-foreground">
+                          1
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-foreground">
+                            {action === 'decline' ? 'Reason (required)' : 'Comment'}
+                          </Label>
+                          <p className="text-xs text-muted-foreground">
+                            {action === 'decline' ? 'Explain why this issue is being declined.' : 'Add context or notes about this decision.'}
+                          </p>
+                        </div>
           </div>
-
-          {/* Content */}
-          <div className="px-6 py-4 space-y-3">
-            {/* Comment */}
             <textarea
               ref={commentRef}
-              placeholder="Add a comment..."
+                        placeholder={action === 'decline' ? "Reason for declining..." : "Add a comment..."}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="w-full min-h-[80px] text-sm text-neutral-900 placeholder:text-neutral-400 border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full min-h-[80px] text-sm text-foreground placeholder:text-muted-foreground border border-border rounded-lg px-4 py-2 bg-background/70 resize-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 shadow-sm"
             />
+                    </motion.div>
 
-            {/* Properties - Only show for Accept action */}
+                    {/* Accept-specific fields */}
             {action === 'accept' && (
-              <div className="flex items-center gap-1.5 overflow-x-auto pt-1 pb-1">
-                <PropertyChip
-                  icon={<Target className="h-3.5 w-3.5 text-gray-500" />}
-                  label="Business Unit"
-                  value={selectedInitiative?.name || "Seleccionar BU (Requerido)"}
-                  options={initiatives.map(initiative => ({
-                    name: initiative.id,
-                    label: initiative.name,
-                    icon: <Target className="w-2.5 h-2.5 text-gray-600" />
-                  }))}
-                  onSelect={(value) => setSelectedInitiativeId(value)}
-                  loading={loading}
-                />
+                      <motion.div 
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.25, duration: 0.25 }}
+                        className="space-y-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <div className="inline-flex size-5 items-center justify-center rounded-sm bg-muted text-xs text-foreground">
+                            2
+                          </div>
+                          <div>
+                            <Label className="text-sm font-medium text-foreground">
+                              Assignment
+                            </Label>
+                            <p className="text-xs text-muted-foreground">Select where this issue belongs.</p>
+                          </div>
+                        </div>
 
-                <PropertyChip
-                  icon={<Hexagon className="h-3.5 w-3.5 text-gray-500" />}
-                  label="Proyecto"
-                  value={selectedProject?.name || "Sin proyecto"}
-                  options={[
-                    { name: "null", label: "Sin proyecto", icon: <Hexagon className="w-2.5 h-2.5 text-gray-400" /> },
-                    ...projects.map(project => ({
-                      name: project.id,
-                      label: project.name,
-                      icon: <Hexagon className="w-2.5 h-2.5 text-gray-600" />
-                    }))
-                  ]}
-                  onSelect={(value) => setSelectedProjectId(value === "null" ? null : value)}
-                  loading={loading}
-                />
+                        {/* Business Unit (required) */}
+                        <Select
+                          value={selectedInitiativeId ?? "unassigned"}
+                          onValueChange={(value) => setSelectedInitiativeId(value === "unassigned" ? null : value)}
+                          disabled={loading}
+                        >
+                          <SelectTrigger className="w-full h-10 rounded-lg border border-border bg-background/70 shadow-sm">
+                            <div className="flex items-center gap-2">
+                              <Target className="h-3.5 w-3.5 text-muted-foreground" />
+                              <SelectValue placeholder={loading ? "Loading..." : "Select Business Unit *"} />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned">No business unit</SelectItem>
+                            {initiatives.map((initiative) => (
+                              <SelectItem key={initiative.id} value={initiative.id}>
+                                {initiative.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
 
-                <PropertyChip
-                  icon={<User className="h-3.5 w-3.5 text-gray-500" />}
-                  label="Asignado"
-                  value={selectedAssignee?.name || "Sin asignar"}
-                  options={[
-                    { name: "null", label: "Sin asignar", icon: <User className="w-2.5 h-2.5 text-gray-400" /> },
-                    ...users.map(user => {
+                        {/* Project */}
+                        <Select
+                          value={selectedProjectId ?? "none"}
+                          onValueChange={(value) => setSelectedProjectId(value === "none" ? null : value)}
+                          disabled={loading}
+                        >
+                          <SelectTrigger className="w-full h-10 rounded-lg border border-border bg-background/70 shadow-sm">
+                            <div className="flex items-center gap-2">
+                              <Hexagon className="h-3.5 w-3.5 text-muted-foreground" />
+                              <SelectValue placeholder="Select Project (optional)" />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No project</SelectItem>
+                            {projects.map((project) => (
+                              <SelectItem key={project.id} value={project.id}>
+                                {project.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        {/* Assignee */}
+                        <Select
+                          value={selectedAssigneeId ?? "unassigned"}
+                          onValueChange={(value) => setSelectedAssigneeId(value === "unassigned" ? null : value)}
+                          disabled={loading}
+                        >
+                          <SelectTrigger className="w-full h-10 rounded-lg border border-border bg-background/70 shadow-sm">
+                            <div className="flex items-center gap-2">
+                              <User className="h-3.5 w-3.5 text-muted-foreground" />
+                              <SelectValue placeholder="Select Assignee (optional)" />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned">Unassigned</SelectItem>
+                            {users.map((user) => {
                       const isSapira = user.email?.toLowerCase().endsWith('@sapira.ai')
                       const profileLabel = isSapira && user.sapira_role_type 
                         ? getSapiraProfileLabel(user.sapira_role_type)
                         : null
-                      const displayName = profileLabel 
-                        ? `${user.name} (${profileLabel})`
-                        : user.name
-                      return {
-                        name: user.id,
-                        label: displayName,
-                        avatar: user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()
-                      }
-                    })
-                  ]}
-                  onSelect={(value) => setSelectedAssigneeId(value === "null" ? null : value)}
-                  loading={loading}
-                />
+                              const displayName = profileLabel ? `${user.name} (${profileLabel})` : user.name
+                              return (
+                                <SelectItem key={user.id} value={user.id}>
+                                  {displayName}
+                                </SelectItem>
+                              )
+                            })}
+                          </SelectContent>
+                        </Select>
 
-                <PropertyChip
-                  icon={selectedPriority ? selectedPriorityConfig?.icon : <Minus className="w-2.5 h-2.5 text-gray-400" />}
-                  label="Prioridad"
-                  value={selectedPriorityConfig?.label || "Sin prioridad"}
-                  options={[
-                    { name: "null", label: "Sin prioridad", icon: <Minus className="w-2.5 h-2.5 text-gray-400" /> },
-                    ...PRIORITIES.map(p => ({
-                      name: p.value,
-                      label: p.label,
-                      icon: p.icon
-                    }))
-                  ]}
-                  onSelect={(value) => setSelectedPriority(value === "null" ? null : value as IssuePriority)}
-                />
+                        {/* Priority */}
+                        <Select
+                          value={selectedPriority ?? "none"}
+                          onValueChange={(value) => setSelectedPriority(value === "none" ? null : value as IssuePriority)}
+                        >
+                          <SelectTrigger className="w-full h-10 rounded-lg border border-border bg-background/70 shadow-sm">
+                            <div className="flex items-center gap-2">
+                              {selectedPriorityConfig ? (
+                                <span className={selectedPriorityConfig.color}>{selectedPriorityConfig.icon}</span>
+                              ) : (
+                                <Minus className="h-3.5 w-3.5 text-muted-foreground" />
+                              )}
+                              <SelectValue placeholder="Select Priority (optional)" />
               </div>
-            )}
-          </div>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No priority</SelectItem>
+                            {PRIORITIES.map((p) => (
+                              <SelectItem key={p.value} value={p.value}>
+                                <span className="flex items-center gap-2">
+                                  <span className={p.color}>{p.icon}</span>
+                                  {p.label}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </motion.div>
+                    )}
 
-          {/* Footer */}
-          <div className="px-6 py-3 border-t border-neutral-200 flex items-center justify-end gap-2">
+                    {/* Submit button */}
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.35, duration: 0.2 }}
+                      className="mt-3 flex items-center justify-end gap-2 pt-2"
+                    >
             <Button 
               variant="outline"
+                        size="sm" 
               onClick={() => onOpenChange(false)}
-              className="h-9"
             >
               Cancel
             </Button>
             <Button 
-              className={`h-9 px-4 text-white font-medium ${
+                        size="sm" 
+                        disabled={isDisabled}
+                        onClick={handleSubmit}
+                        className={`${
                 action === 'accept' ? 'bg-emerald-600 hover:bg-emerald-700' : 
                 action === 'decline' ? 'bg-red-500 hover:bg-red-600' : 
-                'bg-yellow-500 hover:bg-yellow-600'
-              }`}
-              onClick={handleSubmit}
-              disabled={isDisabled}
+                          'bg-amber-500 hover:bg-amber-600'
+                        } text-white`}
             >
               {action === 'accept' ? 'Accept Issue' : action === 'decline' ? 'Decline Issue' : 'Snooze Issue'}
             </Button>
+                    </motion.div>
+                  </motion.div>
           </div>
         </div>
+            </motion.div>
       </DialogContent>
+        )}
+      </AnimatePresence>
     </Dialog>
   )
 }

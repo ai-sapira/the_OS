@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Circle, Clock, AlertCircle, CheckCircle2, ArrowUp, ArrowDown, Minus, User, Hexagon, Target, X } from "lucide-react"
+import { Circle, Clock, AlertCircle, CheckCircle2, ArrowUp, ArrowDown, Minus, User, Hexagon, Target, X, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -25,6 +25,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { useSupabaseData } from "@/hooks/use-supabase-data"
 import { IssuesAPI } from "@/lib/api/issues"
+import { ProjectsAPI } from "@/lib/api/projects"
 import type { IssueState, IssuePriority } from "@/lib/database/types"
 import { useAuth } from "@/lib/context/auth-context"
 import { getSapiraProfileLabel } from "@/components/role-switcher"
@@ -33,6 +34,7 @@ interface NewIssueModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreateIssue?: () => void
+  defaultProjectId?: string | null
 }
 
 const STATUSES: {
@@ -61,7 +63,7 @@ const PRIORITIES: {
   { value: "P3", label: "Baja", description: "Low priority, can wait." },
 ]
 
-export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueModalProps) {
+export function NewIssueModal({ open, onOpenChange, onCreateIssue, defaultProjectId }: NewIssueModalProps) {
   const [createMore, setCreateMore] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -72,6 +74,11 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueMod
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [users, setUsers] = useState<any[]>([])
   const [loadingUsers, setLoadingUsers] = useState(true)
+  
+  // Inline project creation state
+  const [showCreateProject, setShowCreateProject] = useState(false)
+  const [newProjectName, setNewProjectName] = useState("")
+  const [creatingProject, setCreatingProject] = useState(false)
 
   const { createIssue: createIssueApi, projects, initiatives, refreshData } = useSupabaseData()
   const { currentOrg } = useAuth()
@@ -99,13 +106,66 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueMod
     }
   }, [open, currentOrg?.organization?.id])
 
+  // Set default project when modal opens
+  useEffect(() => {
+    if (open && defaultProjectId) {
+      setSelectedProjectId(defaultProjectId)
+    } else if (open && !defaultProjectId) {
+      setSelectedProjectId(null)
+    }
+  }, [open, defaultProjectId])
+
   const resetForm = () => {
     setTitle("")
     setDescription("")
     setSelectedStatus("triage")
     setSelectedPriority(null)
     setSelectedAssigneeId(null)
-    setSelectedProjectId(null)
+    setSelectedProjectId(defaultProjectId ?? null)
+    setShowCreateProject(false)
+    setNewProjectName("")
+  }
+
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim() || !currentOrg?.organization?.id) return
+    
+    setCreatingProject(true)
+    try {
+      const slug = newProjectName
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, "")
+        .replace(/[\s_-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+
+      const newProject = await ProjectsAPI.createProject(
+        {
+          name: newProjectName.trim(),
+          slug,
+          description: null,
+          status: "planned",
+          owner_user_id: null,
+          initiative_id: null,
+          progress: null,
+          planned_start_at: null,
+          planned_end_at: null,
+        },
+        currentOrg.organization.id,
+      )
+
+      await refreshData()
+      
+      if (newProject?.id) {
+        setSelectedProjectId(newProject.id)
+      }
+      
+      setShowCreateProject(false)
+      setNewProjectName("")
+    } catch (error) {
+      console.error("Error creating project:", error)
+    } finally {
+      setCreatingProject(false)
+    }
   }
 
   const handleSubmit = async () => {
@@ -163,7 +223,7 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueMod
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AnimatePresence>
         {open && (
-          <DialogContent className="overflow-visible p-0 sm:max-w-2xl gap-0 data-[state=open]:animate-none data-[state=closed]:animate-none">
+          <DialogContent className="overflow-hidden p-0 sm:max-w-3xl max-h-[70vh] gap-0 data-[state=open]:animate-none data-[state=closed]:animate-none flex flex-col">
             <motion.div
               initial={{ opacity: 0, scale: 0.97, y: 4 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -173,10 +233,11 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueMod
                 ease: [0.16, 1, 0.3, 1],
                 opacity: { duration: 0.2 }
               }}
+              className="flex flex-col max-h-[70vh] overflow-hidden"
             >
-              <DialogHeader className="border-b px-6 py-4 mb-0">
-                <DialogTitle>New issue</DialogTitle>
-                <p className="text-sm text-muted-foreground">
+              <DialogHeader className="border-b px-6 py-3 mb-0 shrink-0">
+                <DialogTitle className="text-base">New issue</DialogTitle>
+                <p className="text-xs text-muted-foreground">
                   Track work, assign owners, and connect issues to projects.
                 </p>
               </DialogHeader>
@@ -191,32 +252,33 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueMod
                   event.preventDefault()
                   handleSubmit()
                 }}
+                className="flex flex-col flex-1 min-h-0 overflow-hidden"
               >
-                <div className="flex flex-col-reverse md:flex-row">
-                  <div className="md:w-80 md:border-r">
-                    <div className="border-t p-6 md:border-none">
-                      <div className="flex items-center space-x-3">
-                        <div className="inline-flex shrink-0 items-center justify-center rounded-sm bg-muted p-3">
-                          <Circle className="size-5 text-foreground" aria-hidden />
+                <div className="flex flex-col-reverse md:flex-row flex-1 overflow-y-auto min-h-0">
+                  <div className="md:w-72 md:border-r shrink-0">
+                    <div className="border-t p-3 md:border-none">
+                      <div className="flex items-center space-x-2">
+                        <div className="inline-flex shrink-0 items-center justify-center rounded-sm bg-muted p-2">
+                          <Circle className="size-4 text-foreground" aria-hidden />
                         </div>
                         <div className="space-y-0.5">
                           <h3 className="text-sm font-medium text-foreground">{displayTitle}</h3>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             {currentOrg?.organization.name || "Organization workspace"}
                           </p>
                         </div>
                       </div>
-                      <Separator className="my-4" />
-                      <h4 className="text-sm font-medium text-foreground">Description</h4>
-                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                      <Separator className="my-2" />
+                      <h4 className="text-xs font-medium text-foreground">Description</h4>
+                      <p className="mt-1 text-xs leading-4 text-muted-foreground">
                         Issues help teams track work, assign owners, and monitor progress across projects.
                       </p>
-                      <h4 className="mt-6 text-sm font-medium text-foreground">Status insight</h4>
-                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                      <h4 className="mt-3 text-xs font-medium text-foreground">Status insight</h4>
+                      <p className="mt-1 text-xs leading-4 text-muted-foreground">
                         {selectedStatusConfig?.description || "Select how this issue should start."}
                       </p>
                       {(selectedAssignee || selectedProject) && (
-                        <div className="mt-4 space-y-3 rounded-lg border bg-muted/40 p-3">
+                        <div className="mt-3 space-y-2 rounded-lg border bg-muted/40 p-2">
                           {selectedAssignee && (
                             <div>
                               <p className="text-xs text-muted-foreground uppercase tracking-wide">Assignee</p>
@@ -234,31 +296,31 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueMod
                           )}
                         </div>
                       )}
-                      <div className="mt-6 flex items-center justify-between rounded-md border px-3 py-3">
+                      <div className="mt-3 flex items-center justify-between rounded-md border px-2 py-1.5">
                         <div>
-                          <p className="text-sm font-medium text-foreground">Create another after saving</p>
-                          <p className="text-xs text-muted-foreground">Keep the modal open to speed up data entry.</p>
+                          <p className="text-xs font-medium text-foreground">Create another after saving</p>
+                          <p className="text-[10px] text-muted-foreground">Keep the modal open to speed up data entry.</p>
                         </div>
                         <Switch checked={createMore} onCheckedChange={setCreateMore} />
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-1 flex-col p-6 md:px-6 md:pb-8 md:pt-6">
+                  <div className="flex flex-1 flex-col p-3 md:px-5 md:pb-4 md:pt-3">
                     <motion.div 
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.1, duration: 0.2 }}
-                      className="flex-1 space-y-6"
+                      className="flex-1 space-y-3"
                     >
                       <motion.div 
                         initial={{ opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.15, duration: 0.25 }}
-                        className="space-y-3"
+                        className="space-y-2"
                       >
-                        <div className="flex items-center space-x-3">
-                          <div className="inline-flex size-6 items-center justify-center rounded-sm bg-muted text-sm text-foreground">
+                        <div className="flex items-center space-x-2">
+                          <div className="inline-flex size-5 items-center justify-center rounded-sm bg-muted text-xs text-foreground">
                             1
                           </div>
                           <div>
@@ -273,7 +335,7 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueMod
                           placeholder="Issue title"
                           value={title}
                           onChange={(event) => setTitle(event.target.value)}
-                          className="h-11 rounded-lg border border-border bg-background/70 px-4 text-base shadow-sm focus-visible:ring-2 focus-visible:ring-primary/30"
+                          className="h-10 rounded-lg border border-border bg-background/70 px-4 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-primary/30"
                           autoFocus
                         />
                         <Textarea
@@ -281,7 +343,7 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueMod
                           placeholder="Add context, scope, or acceptance criteria..."
                           value={description}
                           onChange={(event) => setDescription(event.target.value)}
-                          className="min-h-[120px] rounded-lg border border-border bg-background/70 px-4 py-3 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-primary/30"
+                          className="min-h-[60px] rounded-lg border border-border bg-background/70 px-4 py-2 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-primary/30"
                         />
                       </motion.div>
 
@@ -289,10 +351,10 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueMod
                         initial={{ opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.25, duration: 0.25 }}
-                        className="space-y-3"
+                        className="space-y-2"
                       >
-                        <div className="flex items-center space-x-3">
-                          <div className="inline-flex size-6 items-center justify-center rounded-sm bg-muted text-sm text-foreground">
+                        <div className="flex items-center space-x-2">
+                          <div className="inline-flex size-5 items-center justify-center rounded-sm bg-muted text-xs text-foreground">
                             2
                           </div>
                           <div>
@@ -320,10 +382,10 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueMod
                         initial={{ opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3, duration: 0.25 }}
-                        className="space-y-3"
+                        className="space-y-2"
                       >
-                        <div className="flex items-center space-x-3">
-                          <div className="inline-flex size-6 items-center justify-center rounded-sm bg-muted text-sm text-foreground">
+                        <div className="flex items-center space-x-2">
+                          <div className="inline-flex size-5 items-center justify-center rounded-sm bg-muted text-xs text-foreground">
                             3
                           </div>
                           <div>
@@ -355,10 +417,10 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueMod
                         initial={{ opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.35, duration: 0.25 }}
-                        className="space-y-3"
+                        className="space-y-2"
                       >
-                        <div className="flex items-center space-x-3">
-                          <div className="inline-flex size-6 items-center justify-center rounded-sm bg-muted text-sm text-foreground">
+                        <div className="flex items-center space-x-2">
+                          <div className="inline-flex size-5 items-center justify-center rounded-sm bg-muted text-xs text-foreground">
                             4
                           </div>
                           <div>
@@ -407,10 +469,10 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueMod
                         initial={{ opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.4, duration: 0.25 }}
-                        className="space-y-3"
+                        className="space-y-2"
                       >
-                        <div className="flex items-center space-x-3">
-                          <div className="inline-flex size-6 items-center justify-center rounded-sm bg-muted text-sm text-foreground">
+                        <div className="flex items-center space-x-2">
+                          <div className="inline-flex size-5 items-center justify-center rounded-sm bg-muted text-xs text-foreground">
                             5
                           </div>
                           <div>
@@ -420,31 +482,77 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueMod
                             <p className="text-xs text-muted-foreground">Improve reporting by attaching the right project.</p>
                           </div>
                         </div>
-                        <Select
-                          value={selectedProjectId ?? "unassigned"}
-                          onValueChange={(value) => setSelectedProjectId(value === "unassigned" ? null : value)}
-                        >
-                          <SelectTrigger id="issue-project" className="w-full">
-                            <SelectValue placeholder="Select project" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="unassigned">No project</SelectItem>
-                            {projects.length === 0 ? (
-                              <SelectItem value="__no_projects" disabled>
-                                No projects available
-                              </SelectItem>
-                            ) : (
-                              projects.map((project) => (
-                                <SelectItem key={project.id} value={project.id}>
-                                  <span className="flex items-center gap-2">
-                                    <Hexagon className="h-3.5 w-3.5 text-muted-foreground" />
-                                    <span>{project.name}</span>
-                                  </span>
-                                </SelectItem>
-                              ))
+                        
+                        {showCreateProject ? (
+                          // Inline project creation form
+                          <div className="space-y-2 p-3 border border-dashed border-border rounded-lg bg-muted/30">
+                            <Label className="text-xs text-muted-foreground">New project name</Label>
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Project name"
+                                value={newProjectName}
+                                onChange={(e) => setNewProjectName(e.target.value)}
+                                className="h-9 text-sm"
+                                autoFocus
+                              />
+                              <Button 
+                                type="button" 
+                                size="sm" 
+                                onClick={handleCreateProject}
+                                disabled={!newProjectName.trim() || creatingProject}
+                              >
+                                {creatingProject ? "..." : "Create"}
+                              </Button>
+                              <Button 
+                                type="button" 
+                                size="sm" 
+                                variant="ghost"
+                                onClick={() => {
+                                  setShowCreateProject(false)
+                                  setNewProjectName("")
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <Select
+                              value={selectedProjectId ?? "unassigned"}
+                              onValueChange={(value) => setSelectedProjectId(value === "unassigned" ? null : value)}
+                              disabled={!!defaultProjectId}
+                            >
+                              <SelectTrigger id="issue-project" className="w-full" disabled={!!defaultProjectId}>
+                                <SelectValue placeholder="Select project" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unassigned">No project</SelectItem>
+                                {projects.map((project) => (
+                                  <SelectItem key={project.id} value={project.id}>
+                                    <span className="flex items-center gap-2">
+                                      <Hexagon className="h-3.5 w-3.5 text-muted-foreground" />
+                                      <span>{project.name}</span>
+                                    </span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            
+                            {!defaultProjectId && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start text-muted-foreground hover:text-foreground"
+                                onClick={() => setShowCreateProject(true)}
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Create project
+                              </Button>
                             )}
-                          </SelectContent>
-                        </Select>
+                          </div>
+                        )}
                       </motion.div>
                     </motion.div>
 
@@ -452,7 +560,7 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue }: NewIssueMod
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.4, duration: 0.2 }}
-                      className="mt-6 flex items-center justify-end pt-4"
+                      className="mt-3 flex items-center justify-end pt-2"
                     >
                       <Button type="submit" size="sm" disabled={!title.trim() || isSubmitting}>
                         {isSubmitting ? "Creating..." : "Create issue"}

@@ -1,6 +1,7 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef, useId } from "react"
+import { motion, AnimatePresence, MotionConfig } from "framer-motion"
 import { 
   ResizableAppShell, 
   ResizablePageSheet, 
@@ -15,12 +16,12 @@ import { Separator } from "@/components/ui/separator"
 import { NewIssueModal } from "@/components/new-issue-modal"
 import { AcceptIssueModal } from "@/components/ui/modal/accept-issue-modal"
 import { CommandPalette } from "@/components/command-palette"
+import { ShareLinkModal } from "@/components/share-link-modal"
+import useClickOutside from "@/hooks/use-click-outside"
 import { 
   Filter, 
-  MoreHorizontal, 
   Star, 
-  Copy, 
-  ExternalLink,
+  Share2,
   Circle,
   CheckCircle2,
   Clock,
@@ -59,6 +60,139 @@ import { useResizableSections } from "@/hooks/use-resizable-sections"
 import { TeamsConversation } from "@/components/teams-conversation"
 import { IssuesAPI } from "@/lib/api/issues"
 import { useAuth } from "@/lib/context/auth-context"
+
+// Animation constants for consistent motion design
+const DROPDOWN_TRANSITION = {
+  duration: 0.25,
+  ease: [0.16, 1, 0.3, 1]
+}
+
+// Animated Actions Dropdown Component
+interface ActionsDropdownProps {
+  selectedIssue: any
+  onTriageAction?: (issue: any, action: string) => void
+}
+
+function ActionsDropdown({ selectedIssue, onTriageAction }: ActionsDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false)
+  const uniqueId = useId()
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useClickOutside(dropdownRef, () => setIsOpen(false))
+
+  // Handle keyboard escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false)
+    }
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown)
+      return () => document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
+
+  const handleAction = (action: string) => {
+    if (onTriageAction && selectedIssue) {
+      onTriageAction(selectedIssue, action)
+    }
+    setIsOpen(false)
+  }
+
+  const actions = [
+    {
+      id: 'accept',
+      label: 'Accept',
+      description: 'Move to backlog',
+      icon: CheckCircle2,
+      iconBg: 'bg-emerald-50',
+      iconHoverBg: 'group-hover:bg-emerald-100',
+      iconColor: 'text-emerald-600'
+    },
+    {
+      id: 'decline',
+      label: 'Decline',
+      description: 'Reject this issue',
+      icon: X,
+      iconBg: 'bg-red-50',
+      iconHoverBg: 'group-hover:bg-red-100',
+      iconColor: 'text-red-600'
+    },
+    {
+      id: 'snooze',
+      label: 'Snooze',
+      description: 'Review later',
+      icon: Clock,
+      iconBg: 'bg-amber-50',
+      iconHoverBg: 'group-hover:bg-amber-100',
+      iconColor: 'text-amber-600'
+    }
+  ]
+
+  return (
+    <MotionConfig transition={DROPDOWN_TRANSITION}>
+      <div className="relative" ref={dropdownRef}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsOpen(!isOpen)}
+          className="h-7 border-dashed bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-700 hover:text-blue-800 gap-1.5 px-3 text-xs rounded-lg font-medium transition-all duration-200 shrink-0 whitespace-nowrap"
+        >
+          <Flag className="h-3.5 w-3.5" />
+          <span>Actions</span>
+          <motion.div
+            animate={{ rotate: isOpen ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChevronDown className="h-3 w-3 opacity-50" />
+          </motion.div>
+        </Button>
+
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              layoutId={`actions-dropdown-${uniqueId}`}
+              initial={{ opacity: 0, scale: 0.95, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -4 }}
+              transition={{
+                duration: 0.2,
+                ease: [0.16, 1, 0.3, 1],
+                opacity: { duration: 0.15 }
+              }}
+              className="absolute right-0 top-full mt-2 w-[260px] z-50 overflow-hidden"
+              style={{
+                borderRadius: 14,
+                boxShadow: '0 12px 36px -8px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+                backgroundColor: '#ffffff'
+              }}
+            >
+              <div className="p-1.5 space-y-0.5">
+                {actions.map((action, index) => (
+                  <motion.button
+                    key={action.id}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.04, duration: 0.2 }}
+                    onClick={() => handleAction(action.id)}
+                    className="w-full flex items-start gap-3 px-2.5 py-2 rounded-xl hover:bg-gray-50/80 transition-all duration-150 cursor-pointer group"
+                  >
+                    <div className={`flex-shrink-0 w-8 h-8 rounded-lg ${action.iconBg} flex items-center justify-center ${action.iconHoverBg} transition-colors duration-150`}>
+                      <action.icon className={`h-4 w-4 ${action.iconColor}`} />
+                    </div>
+                    <div className="flex-1 text-left pt-0.5">
+                      <div className="text-[13px] font-semibold text-gray-900">{action.label}</div>
+                      <div className="text-[11px] text-gray-500 mt-0.5">{action.description}</div>
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </MotionConfig>
+  )
+}
 
 // Component for empty state when no initiative is selected
 function EmptyIssueState() {
@@ -667,74 +801,11 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
           {/* Separador visual */}
           <div className="h-7 w-px bg-gray-200 mx-1 shrink-0" />
 
-          {/* Actions Dropdown */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 border-dashed bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-700 hover:text-blue-800 gap-1.5 px-3 text-xs rounded-lg font-medium transition-all duration-200 shrink-0 whitespace-nowrap"
-              >
-                <Flag className="h-3.5 w-3.5" />
-                <span>Actions</span>
-                <ChevronDown className="h-3 w-3 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[260px] p-2" align="end">
-              <div className="space-y-1">
-                <button
-                  onClick={() => {
-                    if (onTriageAction) {
-                      onTriageAction(selectedIssue, 'accept')
-                    }
-                  }}
-                  className="w-full flex items-start gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
-                >
-                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center group-hover:bg-green-100 transition-colors">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div className="flex-1 text-left pt-0.5">
-                    <div className="text-sm font-semibold text-gray-900">Accept</div>
-                    <div className="text-xs text-gray-500 mt-0.5">Move to backlog</div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (onTriageAction) {
-                      onTriageAction(selectedIssue, 'decline')
-                    }
-                  }}
-                  className="w-full flex items-start gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
-                >
-                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center group-hover:bg-red-100 transition-colors">
-                    <X className="h-4 w-4 text-red-600" />
-                  </div>
-                  <div className="flex-1 text-left pt-0.5">
-                    <div className="text-sm font-semibold text-gray-900">Decline</div>
-                    <div className="text-xs text-gray-500 mt-0.5">Reject this issue</div>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (onTriageAction) {
-                      onTriageAction(selectedIssue, 'snooze')
-                    }
-                  }}
-                  className="w-full flex items-start gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
-                >
-                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center group-hover:bg-orange-100 transition-colors">
-                    <Clock className="h-4 w-4 text-orange-600" />
-                  </div>
-                  <div className="flex-1 text-left pt-0.5">
-                    <div className="text-sm font-semibold text-gray-900">Snooze</div>
-                    <div className="text-xs text-gray-500 mt-0.5">Review later</div>
-                  </div>
-                </button>
-              </div>
-            </PopoverContent>
-          </Popover>
+          {/* Actions Dropdown - Animated */}
+          <ActionsDropdown 
+            selectedIssue={selectedIssue}
+            onTriageAction={onTriageAction}
+          />
         </div>
       </div>
 
@@ -955,6 +1026,7 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
 export default function TriageNewPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
   const [triageAction, setTriageAction] = useState<"accept" | "duplicate" | "decline" | "snooze" | null>(null)
   const [triageIssue, setTriageIssue] = useState<any | null>(null)
   const [selectedIssue, setSelectedIssue] = useState<any | null>(null)
@@ -988,7 +1060,7 @@ export default function TriageNewPage() {
     isDragging,
     handleMouseDown,
     containerRef
-  } = useResizableSections({ initialLeftWidth: 35 })
+  } = useResizableSections({ initialLeftWidth: 28 })
 
   const handleTriageAction = (issue: any, action: string) => {
     setTriageAction(action as any)
@@ -1229,14 +1301,13 @@ export default function TriageNewPage() {
               
               {/* Actions */}
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreHorizontal className="h-4 w-4" />
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 w-8 p-0 hover:bg-gray-100"
+                  onClick={() => setShowShareModal(true)}
+                >
+                  <Share2 className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -1423,6 +1494,12 @@ export default function TriageNewPage() {
       <CommandPalette 
         open={commandPaletteOpen} 
         onOpenChange={setCommandPaletteOpen} 
+      />
+
+      <ShareLinkModal
+        open={showShareModal}
+        onOpenChange={setShowShareModal}
+        title="Share Triage"
       />
     </ResizableAppShell>
   )

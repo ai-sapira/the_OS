@@ -219,6 +219,23 @@ export default function HomeLanding() {
             </form>
           </div>
 
+          {/* Demo Button */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="px-3 bg-white text-gray-500 font-sans">o explora la plataforma</span>
+            </div>
+          </div>
+
+          <button
+            onClick={() => router.push("/onboarding")}
+            className="w-full h-12 !bg-gradient-to-br !from-gray-700 !via-gray-600 !via-gray-600 !to-gray-700 hover:!from-gray-600 hover:!via-gray-500 hover:!to-gray-600 !text-white font-sans font-medium text-base rounded-lg shadow-lg shadow-gray-700/40 transition-all duration-200"
+          >
+            Demo Onboarding
+          </button>
+
           {/* Support message */}
           <div className="text-center text-xs text-muted-foreground font-sans">
             ¿Tu organización aún no está activa? Escríbenos a{' '}

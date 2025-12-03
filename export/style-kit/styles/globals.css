@@ -92,16 +92,14 @@
   --text-2: #6B7280;
   --text-3: #9CA3AF;
 
-  --accent: #F3F4F6; /* Neutral gray */
-
   --radius-sheet: 18px;
   --shadow-sheet: 0 8px 24px rgba(15,23,42,.08);
 
   --header-h: 44px;
   --toolbar-h: 44px;
-  --header-padding-y: 6px;   /* (44px - 32px) / 2 = 6px para botones h-8 */
+  --header-padding-y: 6px;
   --chipbar-h: 36px;
-  --sidebar-w: 320px;   /* para Triage lista */
+  --sidebar-w: 320px;
   --gap: 16px;
   
   /* Legacy compatibility */
@@ -109,139 +107,6 @@
   --sheet-halo-y: 8px;
   --sheet-halo-x-sm: 6px;
   --sheet-halo-y-sm: 4px;
-}
-
-/* Auth page background animations - smoke effect */
-@keyframes smoke-float {
-  0% {
-    transform: translate(0, 0) scale(1) rotate(0deg);
-    opacity: 0.3;
-  }
-  25% {
-    transform: translate(40px, -50px) scale(1.3) rotate(5deg);
-    opacity: 0.5;
-  }
-  50% {
-    transform: translate(-30px, -80px) scale(1.5) rotate(-3deg);
-    opacity: 0.4;
-  }
-  75% {
-    transform: translate(20px, -60px) scale(1.2) rotate(2deg);
-    opacity: 0.45;
-  }
-  100% {
-    transform: translate(0, 0) scale(1) rotate(0deg);
-    opacity: 0.3;
-  }
-}
-
-@keyframes smoke-float-2 {
-  0% {
-    transform: translate(0, 0) scale(1) rotate(0deg);
-    opacity: 0.25;
-  }
-  33% {
-    transform: translate(-50px, 30px) scale(1.4) rotate(-4deg);
-    opacity: 0.4;
-  }
-  66% {
-    transform: translate(30px, 50px) scale(1.6) rotate(6deg);
-    opacity: 0.35;
-  }
-  100% {
-    transform: translate(0, 0) scale(1) rotate(0deg);
-    opacity: 0.25;
-  }
-}
-
-@keyframes smoke-float-3 {
-  0% {
-    transform: translate(0, 0) scale(1) rotate(0deg);
-    opacity: 0.2;
-  }
-  50% {
-    transform: translate(60px, -40px) scale(1.7) rotate(8deg);
-    opacity: 0.38;
-  }
-  100% {
-    transform: translate(0, 0) scale(1) rotate(0deg);
-    opacity: 0.2;
-  }
-}
-
-.animate-smoke-gradient {
-  animation: smoke-float 20s ease-in-out infinite;
-  will-change: transform, opacity;
-}
-
-.animate-smoke-gradient-2 {
-  animation: smoke-float-2 25s ease-in-out infinite;
-  will-change: transform, opacity;
-}
-
-.animate-smoke-gradient-3 {
-  animation: smoke-float-3 30s ease-in-out infinite;
-  will-change: transform, opacity;
-}
-
-/* Input energy flow border animation */
-@keyframes energy-flow {
-  0% {
-    background-position: 0% 0%;
-  }
-  100% {
-    background-position: 200% 0%;
-  }
-}
-
-.input-energy-border {
-  position: relative;
-  border-radius: 0.5rem;
-}
-
-.input-energy-border::before {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: inherit;
-  padding: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    transparent 35%,
-    rgba(17, 24, 39, 0.3) 47%,
-    rgba(3, 7, 18, 0.5) 50%,
-    rgba(17, 24, 39, 0.3) 53%,
-    transparent 65%,
-    transparent 100%
-  );
-  background-size: 200% 100%;
-  -webkit-mask: 
-    linear-gradient(#fff 0 0) content-box, 
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  animation: energy-flow 3s linear infinite;
-  pointer-events: none;
-  opacity: 0.5;
-  z-index: 0;
-}
-
-.input-energy-border:focus-within::before,
-.input-energy-border:has(input:focus)::before,
-.input-energy-border:has(textarea:focus)::before {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    transparent 30%,
-    rgba(17, 24, 39, 0.6) 47%,
-    rgba(3, 7, 18, 0.9) 50%,
-    rgba(17, 24, 39, 0.6) 53%,
-    transparent 70%,
-    transparent 100%
-  );
-  animation: energy-flow 2s linear infinite;
-  opacity: 0.9;
 }
 
 .dark {
@@ -359,7 +224,6 @@
   --color-modal-warning: var(--modal-warning);
   --color-modal-success: var(--modal-success);
   --shadow-elevation-1: var(--elev-1);
-  --color-color-destructive-foreground: var(----color-destructive-foreground);
 }
 
 @layer base {
@@ -368,7 +232,7 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    overflow: hidden; /* Prevent global scroll */
+    overflow: hidden;
   }
 
   /* Custom scrollbar for webkit browsers */
@@ -398,7 +262,7 @@
     background: oklch(0.4 0 0);
   }
 
-  /* Custom animations for role switching */
+  /* Custom animations */
   @keyframes fade-in {
     from {
       opacity: 0;
@@ -413,45 +277,6 @@
   .animate-fade-in {
     animation: fade-in 0.3s ease-out forwards;
   }
-
-  /* Role switching highlight */
-  @keyframes role-highlight {
-    0% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
-    70% { box-shadow: 0 0 0 4px rgba(139, 92, 246, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
-  }
-
-  .animate-role-highlight {
-    animation: role-highlight 0.6s ease-out;
-  }
-
-  /* Initiatives table optimizations */
-  .initiatives-table .table-row-hover:hover {
-    background-color: oklch(0.98 0 0);
-  }
-
-  .dark .initiatives-table .table-row-hover:hover {
-    background-color: oklch(0.12 0 0);
-  }
-
-  /* Data grid enhancements */
-  .data-grid-filter-badge {
-    transition: all 0.2s ease;
-  }
-
-  .data-grid-filter-badge:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
 }
 
 /* Respect reduced motion preferences */
@@ -464,39 +289,6 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-/* Hotkey indicator styles */
-.hotkey-indicator {
-  font-feature-settings: "tnum" 1;
-}
-
-/* Command palette animations */
-[cmdk-root] {
-  --cmdk-shadow: 0 16px 70px rgb(0 0 0 / 20%);
-}
-
-[cmdk-group-heading] {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted-foreground);
-  padding: 8px 12px 4px;
-}
-
-[cmdk-item] {
-  scroll-margin: 8px;
-}
-
-[cmdk-item][data-selected="true"] {
-  will-change: transform;
-}
-
-/* Smooth list scrolling */
-[cmdk-list] {
-  scroll-behavior: smooth;
-  overscroll-behavior: contain;
 }
 
 /* Button press feedback */
@@ -611,3 +403,4 @@
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
 }
+
