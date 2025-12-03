@@ -21,7 +21,7 @@ import { ManagerButton } from "@/components/ui/manager-button";
 import { Spinner } from "@/components/ui/spinner";
 
 // API and Types
-import { InitiativesAPI, InitiativeWithManager } from "@/lib/api/initiatives";
+import { BusinessUnitsAPI, BusinessUnitWithManager } from "@/lib/api/business-units";
 import { useAuth } from "@/lib/context/auth-context";
 
 // Filters Component
@@ -33,7 +33,7 @@ import { EditableStatusDropdown } from "@/components/ui/editable-status-dropdown
 import { NewInitiativeModal } from "@/components/new-initiative-modal";
 
 // Card List Component  
-function InitiativesCardList({ 
+function BusinessUnitsCardList({ 
   filters, 
   globalFilter,
   onDataChange,
@@ -46,13 +46,13 @@ function InitiativesCardList({
 }) {
   const router = useRouter();
   const { currentOrg } = useAuth();
-  const [data, setData] = useState<InitiativeWithManager[]>([]);
-  const [filteredData, setFilteredData] = useState<InitiativeWithManager[]>([]);
+  const [data, setData] = useState<BusinessUnitWithManager[]>([]);
+  const [filteredData, setFilteredData] = useState<BusinessUnitWithManager[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load initiatives data
+  // Load business units data
   useEffect(() => {
-    const loadInitiatives = async () => {
+    const loadBusinessUnits = async () => {
       if (!currentOrg?.organization?.id) {
         setLoading(false);
         setData([]);
@@ -61,18 +61,18 @@ function InitiativesCardList({
 
       try {
         setLoading(true);
-        const initiatives = await InitiativesAPI.getInitiatives(currentOrg.organization.id, { includeInactive: true });
-        console.log('[InitiativesCardList] Loaded initiatives:', initiatives.map(i => ({ name: i.name, slug: i.slug })));
-        setData(initiatives);
+        const businessUnits = await BusinessUnitsAPI.getBusinessUnits(currentOrg.organization.id, { includeInactive: true });
+        console.log('[BusinessUnitsCardList] Loaded business units:', businessUnits.map(bu => ({ name: bu.name, slug: bu.slug })));
+        setData(businessUnits);
       } catch (error) {
-        console.error('Error loading initiatives:', error);
+        console.error('Error loading business units:', error);
         setData([]);
       } finally {
         setLoading(false);
       }
     };
 
-    loadInitiatives();
+    loadBusinessUnits();
   }, [refreshKey, currentOrg?.organization?.id]);
 
   // Apply filters when data, filters, or globalFilter changes
@@ -170,7 +170,7 @@ function InitiativesCardList({
                   {/* Initiative Column */}
                   <motion.div 
                     className="flex items-center space-x-3"
-                    onClick={() => router.push(`/initiatives/${initiative.slug}`)}
+                    onClick={() => router.push(`/business-units/${initiative.slug}`)}
                     whileHover={{ x: 2 }}
                     transition={{ duration: 0.2 }}
                   >
@@ -263,7 +263,7 @@ function InitiativesCardList({
 }
 
 
-export default function InitiativesPage() {
+export default function BusinessUnitsPage() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [filters, setFilters] = useState<any[]>([])
@@ -275,7 +275,7 @@ export default function InitiativesPage() {
     setGlobalFilter(newGlobalFilter)
   }
 
-  const handleInitiativeCreated = () => {
+  const handleBusinessUnitCreated = () => {
     // Force refresh by incrementing data version
     setDataVersion(v => v + 1)
   }
@@ -292,7 +292,7 @@ export default function InitiativesPage() {
               <div className="flex items-center gap-2">
                 <span className="text-[14px] text-gray-500">Workspace</span>
                 <span className="text-[14px] text-gray-400">›</span>
-                <span className="text-[14px] font-medium">Initiatives</span>
+                <span className="text-[14px] font-medium">Business Units</span>
               </div>
               
               {/* Actions */}
@@ -331,7 +331,7 @@ export default function InitiativesPage() {
 
           {/* Content: Business Units List */}
           <div className="bg-white" style={{ paddingLeft: '28px', paddingRight: '20px' }}>
-            <InitiativesCardList 
+            <BusinessUnitsCardList 
               filters={filters} 
               globalFilter={globalFilter}
               refreshKey={dataVersion}
@@ -348,7 +348,7 @@ export default function InitiativesPage() {
       <NewInitiativeModal 
         open={showCreateModal} 
         onOpenChange={setShowCreateModal}
-        onCreateInitiative={handleInitiativeCreated}
+        onCreateInitiative={handleBusinessUnitCreated}
       />
     </ResizableAppShell>
   );
