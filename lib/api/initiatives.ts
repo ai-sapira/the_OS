@@ -614,7 +614,27 @@ export class InitiativesAPI {
 
 // Legacy aliases for backwards compatibility during migration
 // TODO: Remove after full codebase migration
-export { InitiativesAPI as IssuesAPI }
+export const IssuesAPI = {
+  // Direct method aliases with legacy names
+  getIssues: InitiativesAPI.getInitiatives.bind(InitiativesAPI),
+  getIssueById: InitiativesAPI.getInitiativeById.bind(InitiativesAPI),
+  getIssuesByProject: InitiativesAPI.getInitiativesByProject.bind(InitiativesAPI),
+  getIssuesByRole: InitiativesAPI.getInitiativesByRole.bind(InitiativesAPI),
+  getTriageIssues: InitiativesAPI.getTriageInitiatives.bind(InitiativesAPI),
+  createIssue: InitiativesAPI.createInitiative.bind(InitiativesAPI),
+  updateIssue: InitiativesAPI.updateInitiative.bind(InitiativesAPI),
+  updateIssueAssignee: InitiativesAPI.updateInitiativeAssignee.bind(InitiativesAPI),
+  updateIssueState: InitiativesAPI.updateInitiativeState.bind(InitiativesAPI),
+  deleteIssue: InitiativesAPI.deleteInitiative.bind(InitiativesAPI),
+  deleteIssueByKey: InitiativesAPI.deleteInitiativeByKey.bind(InitiativesAPI),
+  triageIssue: InitiativesAPI.triageInitiative.bind(InitiativesAPI),
+  getIssueActivities: InitiativesAPI.getInitiativeActivities.bind(InitiativesAPI),
+  // Shared methods (same name)
+  getAvailableUsers: InitiativesAPI.getAvailableUsers.bind(InitiativesAPI),
+  getProjects: InitiativesAPI.getProjects.bind(InitiativesAPI),
+  getInitiatives: InitiativesAPI.getBusinessUnits.bind(InitiativesAPI), // For triage modal - BUs
+  getBusinessUnits: InitiativesAPI.getBusinessUnits.bind(InitiativesAPI),
+}
 export type { InitiativeWithRelations as IssueWithRelations }
 export type { CreateInitiativeData as CreateIssueData }
 export type { AcceptInitiativeData as AcceptIssueData }

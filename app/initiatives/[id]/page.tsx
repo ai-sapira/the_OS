@@ -51,7 +51,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { TeamsConversation } from "@/components/teams-conversation"
-import { IssuesAPI } from "@/lib/api/initiatives"
+import { InitiativesAPI } from "@/lib/api/initiatives"
 import { IssueActivityTimeline } from "@/components/issue-activity-timeline"
 import { useAuth } from "@/lib/context/auth-context"
 
@@ -423,10 +423,10 @@ export default function IssueDetailPage() {
       try {
         setLoading(true)
         const [issueData, users, projects, initiatives] = await Promise.all([
-          IssuesAPI.getIssueById(issueId, organizationId),
-          IssuesAPI.getAvailableUsers(organizationId),
-          IssuesAPI.getProjects(organizationId),
-          IssuesAPI.getInitiatives(organizationId)
+          InitiativesAPI.getInitiativeById(issueId, organizationId),
+          InitiativesAPI.getAvailableUsers(organizationId),
+          InitiativesAPI.getProjects(organizationId),
+          InitiativesAPI.getBusinessUnits(organizationId)
         ])
         
         setIssue(issueData)
@@ -439,7 +439,7 @@ export default function IssueDetailPage() {
         if (issueData?.id) {
           setLoadingActivities(true)
           try {
-            const activities = await IssuesAPI.getIssueActivities(issueData.id)
+            const activities = await InitiativesAPI.getInitiativeActivities(issueData.id)
             setIssueActivities(activities)
           } catch (error) {
             console.error('Error loading issue activities:', error)
@@ -475,7 +475,7 @@ export default function IssueDetailPage() {
   const updateIssueState = async (newState: string) => {
     if (!localIssue) return
     try {
-      await IssuesAPI.updateIssue(localIssue.id, { state: newState as any })
+      await InitiativesAPI.updateInitiative(localIssue.id, { state: newState as any })
       const updatedIssue = { ...localIssue, state: newState as any }
       setLocalIssue(updatedIssue)
       setIssue(updatedIssue)
@@ -487,7 +487,7 @@ export default function IssueDetailPage() {
   const updateIssuePriority = async (newPriority: string) => {
     if (!localIssue) return
     try {
-      await IssuesAPI.updateIssue(localIssue.id, { priority: newPriority as any })
+      await InitiativesAPI.updateInitiative(localIssue.id, { priority: newPriority as any })
       const updatedIssue = { ...localIssue, priority: newPriority as any }
       setLocalIssue(updatedIssue)
       setIssue(updatedIssue)
@@ -500,7 +500,7 @@ export default function IssueDetailPage() {
     if (!localIssue) return
     try {
       const actualAssigneeId = assigneeId === 'unassigned' ? null : assigneeId
-      const updatedIssue = await IssuesAPI.updateIssue(localIssue.id, { assignee_id: actualAssigneeId })
+      const updatedIssue = await InitiativesAPI.updateInitiative(localIssue.id, { assignee_id: actualAssigneeId })
       console.log('[Issue Detail] Assignee updated, new data:', {
         assignee_id: updatedIssue.assignee_id,
         assignee: updatedIssue.assignee,
@@ -517,7 +517,7 @@ export default function IssueDetailPage() {
     if (!localIssue) return
     try {
       const actualProjectId = projectId === 'unassigned' ? null : projectId
-      const updatedIssue = await IssuesAPI.updateIssue(localIssue.id, { project_id: actualProjectId })
+      const updatedIssue = await InitiativesAPI.updateInitiative(localIssue.id, { project_id: actualProjectId })
       console.log('[Issue Detail] Project updated, new data:', updatedIssue.project);
       setLocalIssue(updatedIssue)
       setIssue(updatedIssue)
@@ -530,7 +530,7 @@ export default function IssueDetailPage() {
     if (!localIssue) return
     try {
       const actualInitiativeId = initiativeId === 'unassigned' ? null : initiativeId
-      const updatedIssue = await IssuesAPI.updateIssue(localIssue.id, { initiative_id: actualInitiativeId })
+      const updatedIssue = await InitiativesAPI.updateInitiative(localIssue.id, { initiative_id: actualInitiativeId })
       console.log('[Issue Detail] Initiative updated, new data:', updatedIssue.initiative);
       setLocalIssue(updatedIssue)
       setIssue(updatedIssue)
@@ -787,7 +787,7 @@ export default function IssueDetailPage() {
                       dueDate={localIssue.due_at ? new Date(localIssue.due_at) : null}
                       slaDate={null}
                       onUpdateDates={(newStart, newDue) => {
-                        IssuesAPI.updateIssue(localIssue.id, { 
+                        InitiativesAPI.updateInitiative(localIssue.id, { 
                           planned_start_at: newStart?.toISOString() || null,
                           due_at: newDue?.toISOString() || null
                         })
@@ -952,7 +952,7 @@ export default function IssueDetailPage() {
                           value={localIssue.planned_start_at ? new Date(localIssue.planned_start_at).toISOString().split('T')[0] : ''}
                           onChange={(e) => {
                             const newDate = e.target.value ? new Date(e.target.value).toISOString() : null
-                            IssuesAPI.updateIssue(localIssue.id, { planned_start_at: newDate })
+                            InitiativesAPI.updateInitiative(localIssue.id, { planned_start_at: newDate })
                             setLocalIssue({ ...localIssue, planned_start_at: newDate })
                           }}
                           className="px-2.5 py-1.5 text-[13px] border border-dashed border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300 text-gray-700"
@@ -967,7 +967,7 @@ export default function IssueDetailPage() {
                           value={localIssue.due_at ? new Date(localIssue.due_at).toISOString().split('T')[0] : ''}
                           onChange={(e) => {
                             const newDate = e.target.value ? new Date(e.target.value).toISOString() : null
-                            IssuesAPI.updateIssue(localIssue.id, { due_at: newDate })
+                            InitiativesAPI.updateInitiative(localIssue.id, { due_at: newDate })
                             setLocalIssue({ ...localIssue, due_at: newDate })
                           }}
                           className="px-2.5 py-1.5 text-[13px] border border-dashed border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-300 focus:border-gray-300 text-gray-700"
