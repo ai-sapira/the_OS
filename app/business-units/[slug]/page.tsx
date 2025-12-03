@@ -484,7 +484,7 @@ function InitiativeProjectsList({
                     <span>{project._count.active_issues} active</span>
                   </div>
                 ) : (
-                  <span className="text-gray-400 text-xs">No issues</span>
+                  <span className="text-gray-400 text-xs">No initiatives</span>
                 )}
               </div>
             </div>

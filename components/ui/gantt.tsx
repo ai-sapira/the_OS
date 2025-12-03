@@ -488,7 +488,7 @@ export const GanttSidebarHeader: FC = () => (
     style={{ height: 'var(--gantt-header-height)' }}
   >
     <p className="flex-1 truncate text-left">Proyectos</p>
-    <p className="shrink-0">Issues</p>
+    <p className="shrink-0">Initiatives</p>
   </div>
 );
 

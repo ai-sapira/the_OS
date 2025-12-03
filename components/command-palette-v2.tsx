@@ -300,23 +300,23 @@ export function CommandPaletteV2({
         // Get org_id from current org
         const orgId = currentOrg?.organization?.id
 
-        // Search initiatives (issues table = Iniciativas)
+        // Search initiatives (initiatives table = Initiatives/tareas)
         if (mode === "all" || mode === "initiatives") {
-          const { data: issues } = await supabase
-            .from("issues")
-            .select("id, identifier, title, status, project:projects(name)")
-            .or(`title.ilike.%${cleanQuery}%,identifier.ilike.%${cleanQuery}%`)
+          const { data: initiativesData } = await supabase
+            .from("initiatives")
+            .select("id, key, title, state, project:projects(name)")
+            .or(`title.ilike.%${cleanQuery}%,key.ilike.%${cleanQuery}%`)
             .limit(5)
 
-          if (issues) {
-            results.push(...issues.map((issue: any) => ({
-              id: `initiative-${issue.id}`,
+          if (initiativesData) {
+            results.push(...initiativesData.map((initiative: any) => ({
+              id: `initiative-${initiative.id}`,
               type: "initiative" as const,
-              title: `${issue.identifier || ''} ${issue.title}`.trim(),
-              subtitle: issue.project?.name || "Sin proyecto",
-              status: issue.status,
+              title: `${initiative.key || ''} ${initiative.title}`.trim(),
+              subtitle: initiative.project?.name || "Sin proyecto",
+              status: initiative.state,
               icon: <Hash className="h-4 w-4" />,
-              href: `/issues/${issue.id}`,
+              href: `/initiatives/${initiative.id}`,
             })))
           }
         }

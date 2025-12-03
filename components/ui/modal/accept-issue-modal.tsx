@@ -215,7 +215,7 @@ export function AcceptIssueModal({
   const currentAction = ACTIONS.find(a => a.id === action)!
 
   const isDisabled = action === 'accept' ? !selectedInitiativeId : (action === 'decline' ? !comment.trim() : false)
-  const displayTitle = issue.title || "Issue"
+  const displayTitle = issue.title || "Initiative"
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -235,9 +235,9 @@ export function AcceptIssueModal({
             >
           {/* Header */}
               <DialogHeader className="border-b px-6 py-3 mb-0">
-                <DialogTitle className="text-base">Triage Issue</DialogTitle>
+                <DialogTitle className="text-base">Triage Initiative</DialogTitle>
                 <p className="text-xs text-muted-foreground">
-                  Review and decide the fate of this issue.
+                  Review and decide the fate of this initiative.
                 </p>
               </DialogHeader>
 

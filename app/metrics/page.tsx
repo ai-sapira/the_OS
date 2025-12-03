@@ -37,6 +37,7 @@ import {
 
 // API imports
 import { InitiativesAPI } from "@/lib/api/initiatives"
+import { BusinessUnitsAPI } from "@/lib/api/business-units"
 import { ProjectsAPI } from "@/lib/api/projects"
 import { useAuth } from "@/lib/context/auth-context"
 import { supabase } from "@/lib/supabase/client"
@@ -495,46 +496,46 @@ function BusinessUnitsMetrics() {
         setLoading(true)
         const organizationId = currentOrg.organization.id
         
-        // Get all initiatives (BUs)
-        const initiatives = await InitiativesAPI.getInitiatives(organizationId)
+        // Get all business units
+        const businessUnits = await BusinessUnitsAPI.getBusinessUnits(organizationId)
         
-        // Get all projects with their initiative_id
+        // Get all projects with their business_unit_id
         const projects = await ProjectsAPI.getProjects(organizationId)
         
-        // Get all issues with estimated_hours
-        const { data: issues, error: issuesError } = await supabase
-          .from('issues')
-          .select('id, state, estimated_hours, project_id, initiative_id, assignee_id, reporter_id')
+        // Get all initiatives (tasks) with estimated_hours
+        const { data: initiativeTasks, error: initiativesError } = await supabase
+          .from('initiatives')
+          .select('id, state, estimated_hours, project_id, business_unit_id, assignee_id, reporter_id')
           .eq('organization_id', organizationId)
         
-        if (issuesError) throw issuesError
+        if (initiativesError) throw initiativesError
         
         // Calculate metrics for each BU (aggregating from all its projects)
-        const metrics: UnifiedMetric[] = initiatives.map(bu => {
+        const metrics: UnifiedMetric[] = businessUnits.map(bu => {
           // Get all projects belonging to this BU
-          const buProjects = projects.filter(p => p.initiative_id === bu.id)
+          const buProjects = projects.filter(p => p.business_unit_id === bu.id)
           const projectIds = buProjects.map(p => p.id)
           
-          // Get all issues belonging to this BU (directly or through projects)
-          const buIssues = (issues || []).filter(issue => 
-            issue.initiative_id === bu.id || projectIds.includes(issue.project_id || '')
+          // Get all initiatives belonging to this BU (directly or through projects)
+          const buInitiatives = (initiativeTasks || []).filter(initiative => 
+            initiative.business_unit_id === bu.id || projectIds.includes(initiative.project_id || '')
           )
           
           // Active states
           const activeStates = ['todo', 'in_progress', 'blocked', 'waiting_info']
           const completedStates = ['done']
           
-          const realActiveIssues = buIssues.filter(issue => activeStates.includes(issue.state || '')).length
-          const completedIssues = buIssues.filter(issue => completedStates.includes(issue.state || ''))
+          const realActiveInitiatives = buInitiatives.filter(init => activeStates.includes(init.state || '')).length
+          const completedInitiatives = buInitiatives.filter(init => completedStates.includes(init.state || ''))
           
-          // Calculate hours saved from completed issues
-          const realHoursSaved = completedIssues.reduce((acc, issue) => acc + (issue.estimated_hours || 0), 0)
+          // Calculate hours saved from completed initiatives
+          const realHoursSaved = completedInitiatives.reduce((acc, init) => acc + (init.estimated_hours || 0), 0)
           
           // Active users: unique assignees and reporters
           const userIds = new Set<string>()
-          buIssues.forEach(issue => {
-            if (issue.assignee_id) userIds.add(issue.assignee_id)
-            if (issue.reporter_id) userIds.add(issue.reporter_id)
+          buInitiatives.forEach(init => {
+            if (init.assignee_id) userIds.add(init.assignee_id)
+            if (init.reporter_id) userIds.add(init.reporter_id)
           })
           const realActiveUsers = userIds.size
           
@@ -542,7 +543,7 @@ function BusinessUnitsMetrics() {
           const dummy = generateDummyMetrics(bu.id, 3)
           const hoursSaved = realHoursSaved > 0 ? realHoursSaved : dummy.hoursSaved
           const moneySaved = hoursSaved * HOURLY_RATE
-          const activeIssues = realActiveIssues > 0 ? realActiveIssues : dummy.activeIssues
+          const activeInitiatives = realActiveInitiatives > 0 ? realActiveInitiatives : dummy.activeIssues
           // Always use dummy users for realistic enterprise numbers (15-85 range)
           const activeUsers = dummy.activeUsers
           
@@ -559,7 +560,7 @@ function BusinessUnitsMetrics() {
             hoursSaved,
             moneySaved,
             activeUsers,
-            activeIssues,
+            activeIssues: activeInitiatives,
             comment
           }
         })
@@ -677,34 +678,34 @@ function ProjectsMetrics() {
         // Get all projects
         const projects = await ProjectsAPI.getProjects(organizationId)
         
-        // Get all issues with estimated_hours
-        const { data: issues, error: issuesError } = await supabase
-          .from('issues')
+        // Get all initiatives (tasks) with estimated_hours
+        const { data: initiativeTasks, error: initiativesError } = await supabase
+          .from('initiatives')
           .select('id, state, estimated_hours, project_id, assignee_id, reporter_id')
           .eq('organization_id', organizationId)
         
-        if (issuesError) throw issuesError
+        if (initiativesError) throw initiativesError
         
-        // Calculate metrics for each project (aggregating from all its issues)
+        // Calculate metrics for each project (aggregating from all its initiatives)
         const metrics: UnifiedMetric[] = projects.map(proj => {
-          // Get all issues belonging to this project
-          const projectIssues = (issues || []).filter(issue => issue.project_id === proj.id)
+          // Get all initiatives belonging to this project
+          const projectInitiatives = (initiativeTasks || []).filter(init => init.project_id === proj.id)
           
           // Active states
           const activeStates = ['todo', 'in_progress', 'blocked', 'waiting_info']
           const completedStates = ['done']
           
-          const realActiveIssues = projectIssues.filter(issue => activeStates.includes(issue.state || '')).length
-          const completedIssues = projectIssues.filter(issue => completedStates.includes(issue.state || ''))
+          const realActiveInitiatives = projectInitiatives.filter(init => activeStates.includes(init.state || '')).length
+          const completedInitiatives = projectInitiatives.filter(init => completedStates.includes(init.state || ''))
           
-          // Calculate hours saved from completed issues
-          const realHoursSaved = completedIssues.reduce((acc, issue) => acc + (issue.estimated_hours || 0), 0)
+          // Calculate hours saved from completed initiatives
+          const realHoursSaved = completedInitiatives.reduce((acc, init) => acc + (init.estimated_hours || 0), 0)
           
           // Active users: unique assignees and reporters
           const userIds = new Set<string>()
-          projectIssues.forEach(issue => {
-            if (issue.assignee_id) userIds.add(issue.assignee_id)
-            if (issue.reporter_id) userIds.add(issue.reporter_id)
+          projectInitiatives.forEach(init => {
+            if (init.assignee_id) userIds.add(init.assignee_id)
+            if (init.reporter_id) userIds.add(init.reporter_id)
           })
           const realActiveUsers = userIds.size
           
@@ -712,7 +713,7 @@ function ProjectsMetrics() {
           const dummy = generateDummyMetrics(proj.id, 2)
           const hoursSaved = realHoursSaved > 0 ? realHoursSaved : dummy.hoursSaved
           const moneySaved = hoursSaved * HOURLY_RATE
-          const activeIssues = realActiveIssues > 0 ? realActiveIssues : dummy.activeIssues
+          const activeInitiatives = realActiveInitiatives > 0 ? realActiveInitiatives : dummy.activeIssues
           // Always use dummy users for realistic enterprise numbers (15-85 range)
           const activeUsers = dummy.activeUsers
           
@@ -729,7 +730,7 @@ function ProjectsMetrics() {
             hoursSaved,
             moneySaved,
             activeUsers,
-            activeIssues,
+            activeIssues: activeInitiatives,
             comment
           }
         })
@@ -857,25 +858,25 @@ function InitiativesMetrics() {
         setLoading(true)
         const organizationId = currentOrg.organization.id
         
-        // Get all issues with estimated_hours
-        const { data: issues, error: issuesError } = await supabase
-          .from('issues')
+        // Get all initiatives (tasks) with estimated_hours
+        const { data: initiativeTasks, error: initiativesError } = await supabase
+          .from('initiatives')
           .select('id, key, title, state, estimated_hours, assignee_id, reporter_id')
           .eq('organization_id', organizationId)
           .order('created_at', { ascending: false })
           .limit(50)
         
-        if (issuesError) throw issuesError
+        if (initiativesError) throw initiativesError
         
-        // Calculate metrics for each initiative (issue)
-        const metrics: InitiativeMetric[] = (issues || []).map(issue => {
+        // Calculate metrics for each initiative (task)
+        const metrics: InitiativeMetric[] = (initiativeTasks || []).map(init => {
           // Generate consistent dummy data for this initiative
-          const dummy = generateDummyMetrics(issue.id, 1)
+          const dummy = generateDummyMetrics(init.id, 1)
           
-          const isCompleted = issue.state === 'done'
+          const isCompleted = init.state === 'done'
           
           // Hours saved - use real if available, otherwise use dummy
-          const realHoursSaved = isCompleted ? (issue.estimated_hours || 0) : 0
+          const realHoursSaved = isCompleted ? (init.estimated_hours || 0) : 0
           const hoursSaved = realHoursSaved > 0 ? realHoursSaved : dummy.hoursSaved
           const moneySaved = hoursSaved * HOURLY_RATE
           
@@ -889,9 +890,9 @@ function InitiativesMetrics() {
           const comment = dummy.comment
           
           return {
-            id: issue.id,
-            key: issue.key,
-            title: issue.title,
+            id: init.id,
+            key: init.key,
+            title: init.title,
             roi: Math.min(999, Math.max(-100, roi)),
             hoursSaved,
             moneySaved,

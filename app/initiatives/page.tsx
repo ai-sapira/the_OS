@@ -750,7 +750,7 @@ export default function IssuesPage() {
               <div className="flex items-center gap-2">
                 <span className="text-[14px] text-gray-500">Workspace</span>
                 <span className="text-[14px] text-gray-400">›</span>
-                <span className="text-[14px] font-medium">Issues</span>
+                <span className="text-[14px] font-medium">Initiatives</span>
           </div>
 
               {/* Actions */}

@@ -572,7 +572,7 @@ export default function IssueDetailPage() {
             <div style={{ borderBottom: '1px solid var(--stroke)' }}>
               <PageHeader>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">Issues</span>
+                  <span className="text-sm text-gray-500">Initiatives</span>
                   <span className="text-sm text-gray-400">›</span>
                   <span className="text-sm font-medium">Cargando...</span>
                 </div>

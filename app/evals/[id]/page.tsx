@@ -294,28 +294,28 @@ export default function EvalDetailPage() {
       try {
         setLoading(true)
         
-        // Load real issue data from database
-        const { data: issue, error } = await supabase
-          .from('issues')
+        // Load real initiative data from database
+        const { data: initiativeData, error } = await supabase
+          .from('initiatives')
           .select(`
             *,
-            initiative:initiatives(*),
+            businessUnit:business_units(*),
             project:projects(*),
-            assignee:users!issues_assignee_id_fkey(id, name, email, avatar_url),
-            reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url)
+            assignee:users!initiatives_assignee_id_fkey(id, name, email, avatar_url),
+            reporter:users!initiatives_reporter_id_fkey(id, name, email, avatar_url)
           `)
           .eq('id', evalId)
           .eq('organization_id', currentOrg.organization.id)
           .single()
 
-        if (error || !issue) {
-          console.error('Error loading issue:', error)
+        if (error || !initiativeData) {
+          console.error('Error loading initiative:', error)
           setLoading(false)
           return
         }
 
-        // Generate initiative data from real issue
-        setInitiative(generateInitiativeFromIssue(issue))
+        // Generate initiative data from real initiative
+        setInitiative(generateInitiativeFromIssue(initiativeData))
         setSuites(generateMockSuites())
         setSamples(generateMockHITLSamples())
         setVersions(generateMockVersions())

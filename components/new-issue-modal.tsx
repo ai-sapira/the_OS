@@ -217,7 +217,7 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue, defaultProjec
   const selectedPriorityConfig = selectedPriority ? PRIORITIES.find((p) => p.value === selectedPriority) : null
   const selectedAssignee = selectedAssigneeId ? users.find((user) => user.id === selectedAssigneeId) : null
   const selectedProject = selectedProjectId ? projects.find((p) => p.id === selectedProjectId) : null
-  const displayTitle = title.trim() || "Issue"
+  const displayTitle = title.trim() || "Initiative"
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -236,9 +236,9 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue, defaultProjec
               className="flex flex-col max-h-[70vh] overflow-hidden"
             >
               <DialogHeader className="border-b px-6 py-3 mb-0 shrink-0">
-                <DialogTitle className="text-base">New issue</DialogTitle>
+                <DialogTitle className="text-base">New Initiative</DialogTitle>
                 <p className="text-xs text-muted-foreground">
-                  Track work, assign owners, and connect issues to projects.
+                  Track work, assign owners, and connect initiatives to projects.
                 </p>
               </DialogHeader>
 
@@ -271,11 +271,11 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue, defaultProjec
                       <Separator className="my-2" />
                       <h4 className="text-xs font-medium text-foreground">Description</h4>
                       <p className="mt-1 text-xs leading-4 text-muted-foreground">
-                        Issues help teams track work, assign owners, and monitor progress across projects.
+                        Initiatives help teams track work, assign owners, and monitor progress across projects.
                       </p>
                       <h4 className="mt-3 text-xs font-medium text-foreground">Status insight</h4>
                       <p className="mt-1 text-xs leading-4 text-muted-foreground">
-                        {selectedStatusConfig?.description || "Select how this issue should start."}
+                        {selectedStatusConfig?.description || "Select how this initiative should start."}
                       </p>
                       {(selectedAssignee || selectedProject) && (
                         <div className="mt-3 space-y-2 rounded-lg border bg-muted/40 p-2">

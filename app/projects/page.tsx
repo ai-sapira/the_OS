@@ -536,7 +536,7 @@ function ProjectsCardList({
                     </span>
                   </div>
                 ) : (
-                  <span className="text-gray-500 text-xs">No issues</span>
+                  <span className="text-gray-500 text-xs">No initiatives</span>
                 )}
               </div>
             </div>

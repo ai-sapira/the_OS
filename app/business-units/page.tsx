@@ -225,7 +225,7 @@ function BusinessUnitsCardList({
                     />
                   </div>
 
-                  {/* Issues Column */}
+                  {/* Initiatives Column */}
                   <div>
                     {initiative._count && initiative._count.issues > 0 ? (
                       <div className="flex items-center space-x-4 text-sm">
@@ -243,7 +243,7 @@ function BusinessUnitsCardList({
                         </div>
                       </div>
                     ) : (
-                      <span className="text-gray-500 text-sm">No issues</span>
+                      <span className="text-gray-500 text-sm">No initiatives</span>
                     )}
                   </div>
                 </div>
@@ -325,7 +325,7 @@ export default function BusinessUnitsPage() {
               <div className="text-[13px] font-medium text-gray-500">Business unit</div>
               <div className="text-[13px] font-medium text-gray-500">Status</div>
               <div className="text-[13px] font-medium text-gray-500">Manager</div>
-              <div className="text-[13px] font-medium text-gray-500">Issues</div>
+              <div className="text-[13px] font-medium text-gray-500">Initiatives</div>
             </div>
           </div>
 
