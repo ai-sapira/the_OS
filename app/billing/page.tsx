@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select"
 import { useAuth } from "@/lib/context/auth-context"
 import { cn } from "@/lib/utils"
-import { IssuesAPI, IssueWithRelations } from "@/lib/api/issues"
+import { IssuesAPI, IssueWithRelations } from "@/lib/api/initiatives"
 import {
   LineChart,
   Line,

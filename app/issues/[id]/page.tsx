@@ -51,7 +51,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { TeamsConversation } from "@/components/teams-conversation"
-import { IssuesAPI } from "@/lib/api/issues"
+import { IssuesAPI } from "@/lib/api/initiatives"
 import { IssueActivityTimeline } from "@/components/issue-activity-timeline"
 import { useAuth } from "@/lib/context/auth-context"
 

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRoles, type Role } from './use-roles'
 import { useAuth } from '@/lib/context/auth-context'
-import { InitiativesAPI, type InitiativeWithRelations } from '@/lib/api/issues'
+import { InitiativesAPI, type InitiativeWithRelations } from '@/lib/api/initiatives'
 import { BusinessUnitsAPI, type BusinessUnitWithManager } from '@/lib/api/business-units'
 import { ProjectsAPI, type ProjectWithRelations } from '@/lib/api/projects'
 

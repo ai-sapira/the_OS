@@ -26,7 +26,7 @@ import { useAuth } from "@/lib/context/auth-context"
 import { format, subDays } from "date-fns"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { IssuesAPI, IssueWithRelations } from "@/lib/api/issues"
+import { IssuesAPI, IssueWithRelations } from "@/lib/api/initiatives"
 
 // Types
 type EvalStatus = "ok" | "warning" | "critical"

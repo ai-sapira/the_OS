@@ -25,7 +25,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 
 // API
-import { IssuesAPI } from "@/lib/api/issues";
+import { IssuesAPI } from "@/lib/api/initiatives";
 import type { Issue } from "@/lib/database/types";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";

@@ -1,6 +1,6 @@
 import { supabase } from '../supabase/client'
 import { Project, Database } from '../database/types'
-import { InitiativesAPI } from './issues'
+import { InitiativesAPI } from './initiatives'
 
 // Type alias for project status
 type ProjectStatus = Database['public']['Enums']['project_status']

@@ -42,7 +42,7 @@ import { Badge } from "@/components/ui/badge";
 // API and Types
 import { ProjectsAPI, ProjectWithRelations } from "@/lib/api/projects";
 import { InitiativesAPI } from "@/lib/api/initiatives";
-import { IssuesAPI, IssueWithRelations } from "@/lib/api/issues";
+import { IssuesAPI, IssueWithRelations } from "@/lib/api/initiatives";
 import { ProjectStatus } from "@/lib/database/types";
 import { useAuth } from "@/lib/context/auth-context";
 

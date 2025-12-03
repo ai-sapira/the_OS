@@ -48,7 +48,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { IssuesAPI } from "@/lib/api/issues"
+import { IssuesAPI } from "@/lib/api/initiatives"
 import type { IssuePriority } from "@/lib/database/types"
 import { useAuth } from "@/lib/context/auth-context"
 import { getSapiraProfileLabel } from "@/components/role-switcher"

@@ -17,7 +17,7 @@ import {
   User,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { IssuesAPI } from "@/lib/api/issues";
+import { IssuesAPI } from "@/lib/api/initiatives";
 
 // Activity icon mapping
 const getActivityIcon = (action: string) => {

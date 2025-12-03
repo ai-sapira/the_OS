@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/popover";
 import { Circle, CheckCircle2, ArrowRight, XCircle, HelpCircle, Ban, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { IssuesAPI } from "@/lib/api/issues";
+import { IssuesAPI } from "@/lib/api/initiatives";
 import { IssueState } from "@/lib/database/types";
 
 interface StateOption {

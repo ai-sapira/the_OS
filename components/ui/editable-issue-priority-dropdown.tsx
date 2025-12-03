@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/popover";
 import { AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { IssuesAPI } from "@/lib/api/issues";
+import { IssuesAPI } from "@/lib/api/initiatives";
 import { IssuePriority } from "@/lib/database/types";
 
 interface PriorityOption {

@@ -31,7 +31,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { useAuth } from "@/lib/context/auth-context"
-import { IssuesAPI, IssueWithRelations } from "@/lib/api/issues"
+import { IssuesAPI, IssueWithRelations } from "@/lib/api/initiatives"
 import {
   Command,
   CommandEmpty,

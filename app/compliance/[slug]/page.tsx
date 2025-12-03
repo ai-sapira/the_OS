@@ -79,7 +79,7 @@ import {
 } from "@/components/ui/tooltip"
 import { useAuth } from "@/lib/context/auth-context"
 import { cn } from "@/lib/utils"
-import { IssuesAPI, IssueWithRelations } from "@/lib/api/issues"
+import { IssuesAPI, IssueWithRelations } from "@/lib/api/initiatives"
 import { AddEvidenceModal } from "@/components/add-evidence-modal"
 import { GenerateReportModal } from "@/components/generate-report-modal"
 

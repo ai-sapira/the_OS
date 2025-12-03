@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/popover";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { IssuesAPI } from "@/lib/api/issues";
+import { IssuesAPI } from "@/lib/api/initiatives";
 import { getSapiraProfileLabel } from "@/components/role-switcher";
 import { useAuth } from "@/lib/context/auth-context";
 

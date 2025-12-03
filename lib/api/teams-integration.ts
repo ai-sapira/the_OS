@@ -1,4 +1,4 @@
-import { InitiativesAPI, type CreateInitiativeData } from './issues'
+import { InitiativesAPI, type CreateInitiativeData } from './initiatives'
 import { supabase } from '../supabase/client'
 
 export interface TeamsConversationReference {

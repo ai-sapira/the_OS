@@ -21,7 +21,7 @@ import {
   ChevronDown,
 } from "lucide-react"
 import { ProjectsAPI, type ProjectWithRelations } from "@/lib/api/projects"
-import { IssuesAPI, type IssueWithRelations } from "@/lib/api/issues"
+import { IssuesAPI, type IssueWithRelations } from "@/lib/api/initiatives"
 import { useAuth } from "@/lib/context/auth-context"
 
 

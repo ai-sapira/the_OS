@@ -58,7 +58,7 @@ import {
 import { useSupabaseData } from "@/hooks/use-supabase-data"
 import { useResizableSections } from "@/hooks/use-resizable-sections"
 import { TeamsConversation } from "@/components/teams-conversation"
-import { IssuesAPI } from "@/lib/api/issues"
+import { IssuesAPI } from "@/lib/api/initiatives"
 import { useAuth } from "@/lib/context/auth-context"
 
 // Animation constants for consistent motion design

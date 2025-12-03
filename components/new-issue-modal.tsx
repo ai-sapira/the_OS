@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { useSupabaseData } from "@/hooks/use-supabase-data"
-import { IssuesAPI } from "@/lib/api/issues"
+import { IssuesAPI } from "@/lib/api/initiatives"
 import { ProjectsAPI } from "@/lib/api/projects"
 import type { IssueState, IssuePriority } from "@/lib/database/types"
 import { useAuth } from "@/lib/context/auth-context"

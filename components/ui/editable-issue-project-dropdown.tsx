@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/popover";
 import { Building2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { IssuesAPI } from "@/lib/api/issues";
+import { IssuesAPI } from "@/lib/api/initiatives";
 import { ProjectsAPI } from "@/lib/api/projects";
 import type { ProjectWithRelations } from "@/lib/api/projects";
 
