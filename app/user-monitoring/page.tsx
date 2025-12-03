@@ -126,7 +126,7 @@ const generateDummyEvents = (userId: string, daysAgo: number): UserEvent[] => {
       "Contacts", "Reports", "Dashboards", "Cases"
     ] },
     { name: "sapira.ai", domains: ["sapira.ai"], weight: 6, pages: [
-      "/insights", "/triage-new", "/initiatives", "/projects", "/issues", "/metrics"
+      "/insights", "/triage-new", "/business-units", "/projects", "/initiatives", "/metrics"
     ] },
     { name: "Google", domains: ["google.com", "google.es"], weight: 5, pages: [
       "Google Search", "Google Drive", "Google Sheets", "Google Docs", "Google Calendar"

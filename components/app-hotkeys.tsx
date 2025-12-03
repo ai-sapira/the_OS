@@ -90,7 +90,7 @@ export function AppHotkeys({
         label: "Ir a Business Units",
         description: "Todas las business units",
         category: "navigation",
-        handler: () => router.push("/initiatives"),
+        handler: () => router.push("/business-units"),
       },
       {
         id: "go-projects",

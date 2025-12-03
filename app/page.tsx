@@ -35,7 +35,7 @@ export default function HomeLanding() {
         if (userEmail.endsWith("@sapira.ai")) {
           router.replace("/select-org")
         } else {
-          router.replace("/issues")
+          router.replace("/initiatives")
         }
       }
     })
