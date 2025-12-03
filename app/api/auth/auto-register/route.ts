@@ -3,7 +3,7 @@ import { createAdminSupabaseClient } from "@/lib/supabase/server"
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
-  const { email, password, first_name, last_name, org_slug, role, initiative_id } = body
+  const { email, password, first_name, last_name, org_slug, role, business_unit_id } = body
 
   // Validation
   if (!email || !email.includes("@")) {
@@ -43,22 +43,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "El rol SAP no está disponible en auto-registro" }, { status: 403 })
   }
 
-  // BU role requires initiative_id
-  if (validRole === "BU" && !initiative_id) {
+  // BU role requires business_unit_id
+  if (validRole === "BU" && !business_unit_id) {
     return NextResponse.json({ error: "El rol BU requiere seleccionar una Business Unit" }, { status: 400 })
   }
 
-  // Validate initiative exists and belongs to organization (if BU role)
-  if (validRole === "BU" && initiative_id) {
-    const { data: initiative, error: initiativeError } = await admin
-      .from("initiatives")
+  // Validate business unit exists and belongs to organization (if BU role)
+  if (validRole === "BU" && business_unit_id) {
+    const { data: businessUnit, error: businessUnitError } = await admin
+      .from("business_units")
       .select("id, organization_id")
-      .eq("id", initiative_id)
+      .eq("id", business_unit_id)
       .eq("organization_id", org.id)
       .eq("active", true)
       .single()
 
-    if (initiativeError || !initiative) {
+    if (businessUnitError || !businessUnit) {
       return NextResponse.json({ error: "Business Unit no válida para esta organización" }, { status: 400 })
     }
   }
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
     auth_user_id: authUserId,
     organization_id: org.id,
     role: validRole,
-    initiative_id: validRole === "BU" ? initiative_id : null,
+    business_unit_id: validRole === "BU" ? business_unit_id : null,
     active: true,
   })
 

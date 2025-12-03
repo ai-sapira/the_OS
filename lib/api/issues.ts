@@ -1,33 +1,33 @@
 import { supabase } from '../supabase/client'
-import { Issue, IssueState, IssuePriority, IssueOrigin, Database } from '../database/types'
+import { Initiative, InitiativeState, InitiativePriority, InitiativeOrigin, Database } from '../database/types'
 
-export interface IssueWithRelations extends Issue {
-  initiative?: Database['public']['Tables']['initiatives']['Row']
+export interface InitiativeWithRelations extends Initiative {
+  businessUnit?: Database['public']['Tables']['business_units']['Row']
   project?: Database['public']['Tables']['projects']['Row']
   assignee?: Database['public']['Tables']['users']['Row']
   reporter?: Database['public']['Tables']['users']['Row']
   labels?: Database['public']['Tables']['labels']['Row'][]
 }
 
-export interface CreateIssueData {
+export interface CreateInitiativeData {
   title: string
   description?: string
-  short_description?: string // Brief scope description (Gonvarri)
-  impact?: string // Business impact (Gonvarri)
-  core_technology?: string // Core technology used (Gonvarri)
-  priority?: IssuePriority
-  initiative_id?: string // Business Unit (can be inferred by Teams bot)
-  project_id?: string // Project (can be inferred by Teams bot)
+  short_description?: string // Brief scope description
+  impact?: string // Business impact
+  core_technology?: string // Core technology used
+  priority?: InitiativePriority
+  business_unit_id?: string // Business Unit
+  project_id?: string // Project
   reporter_id?: string
-  origin?: IssueOrigin
+  origin?: InitiativeOrigin
   labels?: string[]
 }
 
-export interface AcceptIssueData {
-  initiative_id: string
+export interface AcceptInitiativeData {
+  business_unit_id: string
   project_id?: string
   assignee_id?: string
-  priority?: IssuePriority
+  priority?: InitiativePriority
   due_at?: string
 }
 
@@ -36,39 +36,39 @@ export interface TriageAction {
   reason?: string
   duplicate_of_id?: string
   snooze_until?: string
-  accept_data?: AcceptIssueData
+  accept_data?: AcceptInitiativeData
 }
 
-export class IssuesAPI {
-  // Generate next issue key for organization using atomic SQL function
-  private static async generateIssueKey(organizationId: string): Promise<string> {
+export class InitiativesAPI {
+  // Generate next initiative key for organization using atomic SQL function
+  private static async generateInitiativeKey(organizationId: string): Promise<string> {
     // Use the SQL function for atomic key generation
     const { data, error } = await supabase
-      .rpc('generate_issue_key', { org_id: organizationId })
+      .rpc('generate_initiative_key', { org_id: organizationId })
     
     if (error) {
-      console.error('[IssuesAPI] Error generating issue key:', error)
+      console.error('[InitiativesAPI] Error generating initiative key:', error)
       throw error
     }
     
     if (!data) {
-      throw new Error('Failed to generate issue key')
+      throw new Error('Failed to generate initiative key')
     }
     
     return data as string
   }
 
-  // Get issues for triage (state=triage, not snoozed)
-  static async getTriageIssues(organizationId: string): Promise<IssueWithRelations[]> {
+  // Get initiatives for triage (state=triage, not snoozed)
+  static async getTriageInitiatives(organizationId: string): Promise<InitiativeWithRelations[]> {
     const { data, error } = await supabase
-      .from('issues')
+      .from('initiatives')
       .select(`
         *,
-        initiative:initiatives(*),
+        businessUnit:business_units(*),
         project:projects(*),
-        assignee:users!issues_assignee_id_fkey(id, name, email, avatar_url),
-        reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url),
-        labels:issue_labels(label_id, labels(*))
+        assignee:users!initiatives_assignee_id_fkey(id, name, email, avatar_url),
+        reporter:users!initiatives_reporter_id_fkey(id, name, email, avatar_url),
+        labels:initiative_labels(label_id, labels(*))
       `)
       .eq('organization_id', organizationId)
       .eq('state', 'triage')
@@ -76,20 +76,20 @@ export class IssuesAPI {
       .order('created_at', { ascending: false })
 
     if (error) throw error
-    return this.transformIssuesWithLabels(data || [])
+    return this.transformInitiativesWithLabels(data || [])
   }
 
-  // Get all issues (for admin/general views)
-  static async getIssues(organizationId: string): Promise<IssueWithRelations[]> {
+  // Get all initiatives (for admin/general views)
+  static async getInitiatives(organizationId: string): Promise<InitiativeWithRelations[]> {
     const { data, error} = await supabase
-      .from('issues')
+      .from('initiatives')
       .select(`
         *,
-        initiative:initiatives(*),
+        businessUnit:business_units(*),
         project:projects(*),
-        assignee:users!issues_assignee_id_fkey(id, name, email, avatar_url),
-        reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url),
-        labels:issue_labels(label_id, labels(*))
+        assignee:users!initiatives_assignee_id_fkey(id, name, email, avatar_url),
+        reporter:users!initiatives_reporter_id_fkey(id, name, email, avatar_url),
+        labels:initiative_labels(label_id, labels(*))
       `)
       .eq('organization_id', organizationId)
       .neq('state', 'triage')
@@ -97,22 +97,22 @@ export class IssuesAPI {
       .order('updated_at', { ascending: false })
 
     if (error) throw error
-    return this.transformIssuesWithLabels(data || [])
+    return this.transformInitiativesWithLabels(data || [])
   }
 
-  // Get issues by role filter
-  static async getIssuesByRole(organizationId: string, role: string, userId?: string, initiativeId?: string): Promise<IssueWithRelations[]> {
-    console.log('[IssuesAPI] getIssuesByRole called with:', { organizationId, role, userId, initiativeId });
+  // Get initiatives by role filter
+  static async getInitiativesByRole(organizationId: string, role: string, userId?: string, businessUnitId?: string): Promise<InitiativeWithRelations[]> {
+    console.log('[InitiativesAPI] getInitiativesByRole called with:', { organizationId, role, userId, businessUnitId });
     
     let query = supabase
-      .from('issues')
+      .from('initiatives')
       .select(`
         *,
-        initiative:initiatives(*),
+        businessUnit:business_units(*),
         project:projects(*),
-        assignee:users!issues_assignee_id_fkey(id, name, email, avatar_url),
-        reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url),
-        labels:issue_labels(label_id, labels(*))
+        assignee:users!initiatives_assignee_id_fkey(id, name, email, avatar_url),
+        reporter:users!initiatives_reporter_id_fkey(id, name, email, avatar_url),
+        labels:initiative_labels(label_id, labels(*))
       `)
       .eq('organization_id', organizationId)
       .neq('state', 'triage')
@@ -125,8 +125,8 @@ export class IssuesAPI {
         }
         break
       case 'BU':
-        if (initiativeId) {
-          query = query.eq('initiative_id', initiativeId)
+        if (businessUnitId) {
+          query = query.eq('business_unit_id', businessUnitId)
         }
         break
       case 'CEO':
@@ -139,25 +139,25 @@ export class IssuesAPI {
 
     const { data, error } = await query
     if (error) {
-      console.error('[IssuesAPI] Error loading issues:', error);
+      console.error('[InitiativesAPI] Error loading initiatives:', error);
       throw error;
     }
     
-    console.log('[IssuesAPI] Loaded', data?.length || 0, 'issues for role:', role);
-    return this.transformIssuesWithLabels(data || [])
+    console.log('[InitiativesAPI] Loaded', data?.length || 0, 'initiatives for role:', role);
+    return this.transformInitiativesWithLabels(data || [])
   }
 
-  // Get issues scoped to a specific project
-  static async getIssuesByProject(organizationId: string, projectId: string): Promise<IssueWithRelations[]> {
+  // Get initiatives scoped to a specific project
+  static async getInitiativesByProject(organizationId: string, projectId: string): Promise<InitiativeWithRelations[]> {
     const { data, error } = await supabase
-      .from('issues')
+      .from('initiatives')
       .select(`
         *,
-        initiative:initiatives(*),
+        businessUnit:business_units(*),
         project:projects(*),
-        assignee:users!issues_assignee_id_fkey(id, name, email, avatar_url),
-        reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url),
-        labels:issue_labels(label_id, labels(*))
+        assignee:users!initiatives_assignee_id_fkey(id, name, email, avatar_url),
+        reporter:users!initiatives_reporter_id_fkey(id, name, email, avatar_url),
+        labels:initiative_labels(label_id, labels(*))
       `)
       .eq('organization_id', organizationId)
       .eq('project_id', projectId)
@@ -166,20 +166,20 @@ export class IssuesAPI {
       .order('updated_at', { ascending: false })
 
     if (error) throw error
-    return this.transformIssuesWithLabels(data || [])
+    return this.transformInitiativesWithLabels(data || [])
   }
 
-  // Create new issue
-  static async createIssue(organizationId: string, issueData: CreateIssueData): Promise<Issue> {
-    const { labels, ...issueFields } = issueData
+  // Create new initiative
+  static async createInitiative(organizationId: string, initiativeData: CreateInitiativeData): Promise<Initiative> {
+    const { labels, ...initiativeFields } = initiativeData
     
-    // Generate issue key (e.g., GON-123)
-    const key = await this.generateIssueKey(organizationId)
+    // Generate initiative key (e.g., GON-123)
+    const key = await this.generateInitiativeKey(organizationId)
     
-    const { data: issue, error } = await supabase
-      .from('issues')
+    const { data: initiative, error } = await supabase
+      .from('initiatives')
       .insert({
-        ...issueFields,
+        ...initiativeFields,
         key,
         organization_id: organizationId,
         state: 'triage'
@@ -191,15 +191,15 @@ export class IssuesAPI {
 
     // Add labels if provided
     if (labels && labels.length > 0) {
-      await this.addLabelsToIssue(issue.id, labels)
+      await this.addLabelsToInitiative(initiative.id, labels)
     }
 
-    return issue
+    return initiative
   }
 
   // Triage action (accept/decline/duplicate/snooze)
-  static async triageIssue(issueId: string, action: TriageAction, actorUserId: string): Promise<Issue> {
-    console.log('[IssuesAPI] triageIssue called:', { issueId, action: action.action, actorUserId })
+  static async triageInitiative(initiativeId: string, action: TriageAction, actorUserId: string): Promise<Initiative> {
+    console.log('[InitiativesAPI] triageInitiative called:', { initiativeId, action: action.action, actorUserId })
     
     let updateData: any = {
       triaged_at: new Date().toISOString(),
@@ -208,52 +208,52 @@ export class IssuesAPI {
 
     switch (action.action) {
       case 'accept':
-        if (!action.accept_data?.initiative_id) {
-          throw new Error('initiative_id is required when accepting an issue')
+        if (!action.accept_data?.business_unit_id) {
+          throw new Error('business_unit_id is required when accepting an initiative')
         }
         updateData = {
           ...updateData,
           state: 'todo',
-          initiative_id: action.accept_data.initiative_id,
+          business_unit_id: action.accept_data.business_unit_id,
           project_id: action.accept_data.project_id,
           assignee_id: action.accept_data.assignee_id,
           priority: action.accept_data.priority,
           due_at: action.accept_data.due_at
         }
-        console.log('[IssuesAPI] Accepting issue with data:', updateData)
+        console.log('[InitiativesAPI] Accepting initiative with data:', updateData)
         break
       case 'decline':
         updateData.state = 'canceled'
-        console.log('[IssuesAPI] Declining issue')
+        console.log('[InitiativesAPI] Declining initiative')
         break
       case 'duplicate':
         updateData.state = 'duplicate'
-        updateData.duplicate_of_id = action.duplicate_of_id
-        console.log('[IssuesAPI] Marking as duplicate')
+        updateData.duplicate_of_initiative_id = action.duplicate_of_id
+        console.log('[InitiativesAPI] Marking as duplicate')
         break
       case 'snooze':
         updateData.snooze_until = action.snooze_until
-        console.log('[IssuesAPI] Snoozing until:', action.snooze_until)
+        console.log('[InitiativesAPI] Snoozing until:', action.snooze_until)
         break
     }
 
     const { data, error } = await supabase
-      .from('issues')
+      .from('initiatives')
       .update(updateData)
-      .eq('id', issueId)
+      .eq('id', initiativeId)
       .select()
       .single()
 
     if (error) {
-      console.error('[IssuesAPI] Error updating issue:', error)
+      console.error('[InitiativesAPI] Error updating initiative:', error)
       throw error
     }
     
-    console.log('[IssuesAPI] Issue updated successfully:', { 
+    console.log('[InitiativesAPI] Initiative updated successfully:', { 
       id: data.id, 
       key: data.key, 
       new_state: data.state,
-      initiative_id: data.initiative_id,
+      business_unit_id: data.business_unit_id,
       project_id: data.project_id
     })
 
@@ -264,14 +264,14 @@ export class IssuesAPI {
                           action.action === 'snooze' ? 'snoozed' : 
                           action.action as any
     
-    // Get organization_id from the issue
+    // Get organization_id from the initiative
     const organizationId = data.organization_id
     
     await this.createActivity(
-      issueId, 
+      initiativeId, 
       activityAction, 
       actorUserId, 
-      organizationId, // Now passing organizationId as 4th parameter
+      organizationId,
       {
         reason: action.reason,
         ...action.accept_data,
@@ -283,12 +283,12 @@ export class IssuesAPI {
     return data
   }
 
-  // Update issue state
-  static async updateIssueState(issueId: string, newState: IssueState): Promise<Issue> {
+  // Update initiative state
+  static async updateInitiativeState(initiativeId: string, newState: InitiativeState): Promise<Initiative> {
     const { data, error } = await supabase
-      .from('issues')
+      .from('initiatives')
       .update({ state: newState })
-      .eq('id', issueId)
+      .eq('id', initiativeId)
       .select()
       .single()
 
@@ -296,60 +296,60 @@ export class IssuesAPI {
     return data
   }
 
-  // Update issue (general update function for drag & drop and other updates)
-  static async updateIssue(issueId: string, updateData: Partial<Issue>): Promise<IssueWithRelations> {
+  // Update initiative (general update function for drag & drop and other updates)
+  static async updateInitiative(initiativeId: string, updateData: Partial<Initiative>): Promise<InitiativeWithRelations> {
     const { data, error } = await supabase
-      .from('issues')
+      .from('initiatives')
       .update(updateData)
-      .eq('id', issueId)
+      .eq('id', initiativeId)
       .select(`
         *,
-        initiative:initiatives(*),
+        businessUnit:business_units(*),
         project:projects(*),
-        assignee:users!issues_assignee_id_fkey(id, name, email, avatar_url),
-        reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url),
-        labels:issue_labels(label_id, labels(*))
+        assignee:users!initiatives_assignee_id_fkey(id, name, email, avatar_url),
+        reporter:users!initiatives_reporter_id_fkey(id, name, email, avatar_url),
+        labels:initiative_labels(label_id, labels(*))
       `)
       .single()
 
     if (error) throw error
-    return this.transformIssueWithLabels(data)
+    return this.transformInitiativeWithLabels(data)
   }
 
-  // Update issue assignee
-  static async updateIssueAssignee(issueId: string, assigneeId: string | null): Promise<IssueWithRelations> {
+  // Update initiative assignee
+  static async updateInitiativeAssignee(initiativeId: string, assigneeId: string | null): Promise<InitiativeWithRelations> {
     const { data, error } = await supabase
-      .from('issues')
+      .from('initiatives')
       .update({ assignee_id: assigneeId })
-      .eq('id', issueId)
+      .eq('id', initiativeId)
       .select(`
         *,
-        initiative:initiatives(*),
+        businessUnit:business_units(*),
         project:projects(*),
-        assignee:users!issues_assignee_id_fkey(id, name, email, avatar_url),
-        reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url),
-        labels:issue_labels(label_id, labels(*))
+        assignee:users!initiatives_assignee_id_fkey(id, name, email, avatar_url),
+        reporter:users!initiatives_reporter_id_fkey(id, name, email, avatar_url),
+        labels:initiative_labels(label_id, labels(*))
       `)
       .single()
 
     if (error) throw error
-    return this.transformIssueWithLabels(data)
+    return this.transformInitiativeWithLabels(data)
   }
 
-  // Delete issue by ID
-  static async deleteIssue(issueId: string): Promise<void> {
+  // Delete initiative by ID
+  static async deleteInitiative(initiativeId: string): Promise<void> {
     const { error } = await supabase
-      .from('issues')
+      .from('initiatives')
       .delete()
-      .eq('id', issueId)
+      .eq('id', initiativeId)
 
     if (error) throw error
   }
 
-  // Delete issue by key (e.g., "SAP-1")
-  static async deleteIssueByKey(key: string, organizationId?: string): Promise<void> {
+  // Delete initiative by key (e.g., "SAP-1")
+  static async deleteInitiativeByKey(key: string, organizationId?: string): Promise<void> {
     let query = supabase
-      .from('issues')
+      .from('initiatives')
       .delete()
       .eq('key', key)
 
@@ -362,21 +362,21 @@ export class IssuesAPI {
     if (error) throw error
   }
 
-  // Get issue by ID with full relations
-  static async getIssueById(issueId: string, organizationId?: string): Promise<IssueWithRelations | null> {
-    console.log('[IssuesAPI] getIssueById called with:', { issueId, organizationId });
+  // Get initiative by ID with full relations
+  static async getInitiativeById(initiativeId: string, organizationId?: string): Promise<InitiativeWithRelations | null> {
+    console.log('[InitiativesAPI] getInitiativeById called with:', { initiativeId, organizationId });
     
     let query = supabase
-      .from('issues')
+      .from('initiatives')
       .select(`
         *,
-        initiative:initiatives(*),
+        businessUnit:business_units(*),
         project:projects(*),
-        assignee:users!issues_assignee_id_fkey(id, name, email, avatar_url),
-        reporter:users!issues_reporter_id_fkey(id, name, email, avatar_url),
-        labels:issue_labels(label_id, labels(*))
+        assignee:users!initiatives_assignee_id_fkey(id, name, email, avatar_url),
+        reporter:users!initiatives_reporter_id_fkey(id, name, email, avatar_url),
+        labels:initiative_labels(label_id, labels(*))
       `)
-      .eq('id', issueId)
+      .eq('id', initiativeId)
       .single()
 
     if (organizationId) {
@@ -386,45 +386,45 @@ export class IssuesAPI {
     const { data, error } = await query
 
     if (error) {
-      console.error('[IssuesAPI] Error loading issue by ID:', error);
+      console.error('[InitiativesAPI] Error loading initiative by ID:', error);
       throw error;
     }
     
     if (!data) {
-      console.warn('[IssuesAPI] Issue not found:', issueId);
+      console.warn('[InitiativesAPI] Initiative not found:', initiativeId);
       return null;
     }
 
-    console.log('[IssuesAPI] Issue loaded successfully:', data.key);
-    return this.transformIssueWithLabels(data)
+    console.log('[InitiativesAPI] Initiative loaded successfully:', data.key);
+    return this.transformInitiativeWithLabels(data)
   }
 
   // Private helper methods
-  private static async addLabelsToIssue(issueId: string, labelIds: string[]): Promise<void> {
+  private static async addLabelsToInitiative(initiativeId: string, labelIds: string[]): Promise<void> {
     const labelLinks = labelIds.map(labelId => ({
-      issue_id: issueId,
+      initiative_id: initiativeId,
       label_id: labelId
     }))
 
     const { error } = await supabase
-      .from('issue_labels')
+      .from('initiative_labels')
       .insert(labelLinks)
 
     if (error) throw error
   }
 
   private static async createActivity(
-    issueId: string, 
+    initiativeId: string, 
     action: string, 
     actorUserId: string, 
     organizationId: string,
     payload: any
   ): Promise<void> {
     const { error } = await supabase
-      .from('issue_activity')
+      .from('initiative_activity')
       .insert({
         organization_id: organizationId,
-        issue_id: issueId,
+        initiative_id: initiativeId,
         actor_user_id: actorUserId,
         action: action as any,
         payload
@@ -433,30 +433,30 @@ export class IssuesAPI {
     if (error) throw error
   }
 
-  // Get issue activities (for showing conversation history, etc)
-  static async getIssueActivities(issueId: string) {
+  // Get initiative activities (for showing conversation history, etc)
+  static async getInitiativeActivities(initiativeId: string) {
     const { data, error } = await supabase
-      .from('issue_activity')
+      .from('initiative_activity')
       .select(`
         *,
-        actor:users!issue_activity_actor_user_id_fkey(id, name, email, avatar_url, role)
+        actor:users!initiative_activity_actor_user_id_fkey(id, name, email, avatar_url, role)
       `)
-      .eq('issue_id', issueId)
+      .eq('initiative_id', initiativeId)
       .order('created_at', { ascending: true })
 
     if (error) throw error
     return data || []
   }
 
-  private static transformIssuesWithLabels(issues: any[]): IssueWithRelations[] {
-    return issues.map(issue => this.transformIssueWithLabels(issue))
+  private static transformInitiativesWithLabels(initiatives: any[]): InitiativeWithRelations[] {
+    return initiatives.map(initiative => this.transformInitiativeWithLabels(initiative))
   }
 
-  private static transformIssueWithLabels(issue: any): IssueWithRelations {
-    const labels = issue.labels?.map((il: any) => il.labels).filter(Boolean) || []
+  private static transformInitiativeWithLabels(initiative: any): InitiativeWithRelations {
+    const labels = initiative.labels?.map((il: any) => il.labels).filter(Boolean) || []
     
     return {
-      ...issue,
+      ...initiative,
       labels
     }
   }
@@ -522,7 +522,7 @@ export class IssuesAPI {
     // Handle sapiraAssignments error gracefully
     let sapiraAssignments: any[] = []
     if (sapiraAssignmentsResult?.error) {
-      console.warn('[IssuesAPI] Error fetching sapira assignments:', sapiraAssignmentsResult.error)
+      console.warn('[InitiativesAPI] Error fetching sapira assignments:', sapiraAssignmentsResult.error)
       // If there's an error, set to empty array
       sapiraAssignments = []
     } else if (sapiraAssignmentsResult?.data) {
@@ -593,10 +593,10 @@ export class IssuesAPI {
     return data || []
   }
 
-  // Get available initiatives for filters
-  static async getInitiatives(organizationId?: string) {
+  // Get available business units for filters
+  static async getBusinessUnits(organizationId?: string) {
     let query = supabase
-      .from('initiatives')
+      .from('business_units')
       .select('id, name, slug')
       .eq('active', true)
       .order('name')
@@ -611,3 +611,10 @@ export class IssuesAPI {
     return data || []
   }
 }
+
+// Legacy aliases for backwards compatibility during migration
+// TODO: Remove after full codebase migration
+export { InitiativesAPI as IssuesAPI }
+export type { InitiativeWithRelations as IssueWithRelations }
+export type { CreateInitiativeData as CreateIssueData }
+export type { AcceptInitiativeData as AcceptIssueData }

@@ -1,6 +1,13 @@
 import { supabase } from '../supabase/client'
 
 interface SendTeamsMessageParams {
+  initiativeId: string
+  message: string
+  messageType?: 'comment' | 'status_update' | 'assignment' | 'info'
+}
+
+// Legacy alias
+interface SendTeamsMessageParamsLegacy {
   issueId: string
   message: string
   messageType?: 'comment' | 'status_update' | 'assignment' | 'info'
@@ -35,16 +42,16 @@ export class TeamsMessenger {
   private static systemUserId = '11111111-1111-1111-1111-111111111111' // SAP/Bot user (Pablo Senabre - Gonvarri)
   
   /**
-   * Sends a proactive message to the Teams conversation linked to an issue
+   * Sends a proactive message to the Teams conversation linked to an initiative
    */
-  static async sendMessageToIssue(params: SendTeamsMessageParams): Promise<boolean> {
+  static async sendMessageToInitiative(params: SendTeamsMessageParams): Promise<boolean> {
     try {
-      // 1. Get conversation reference from issue_links
+      // 1. Get conversation reference from initiative_links
       // Note: We get the most recent link if multiple exist for the same conversation
       const { data: links, error } = await supabase
-        .from('issue_links')
+        .from('initiative_links')
         .select('teams_context, url')
-        .eq('issue_id', params.issueId)
+        .eq('initiative_id', params.initiativeId)
         .eq('provider', 'teams')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -52,7 +59,7 @@ export class TeamsMessenger {
       const link = links?.[0]
       
       if (error || !link?.teams_context) {
-        console.warn('No Teams context found for issue:', params.issueId)
+        console.warn('No Teams context found for initiative:', params.initiativeId)
         return false
       }
       
@@ -80,21 +87,30 @@ export class TeamsMessenger {
         console.error('Failed to send Teams message via bot server:', {
           status: response.status,
           error: errorText,
-          issueId: params.issueId
+          initiativeId: params.initiativeId
         })
         return false
       }
       
       // 4. Log activity in database
-      await this.logTeamsMessageSent(params.issueId, params.message, params.messageType)
+      await this.logTeamsMessageSent(params.initiativeId, params.message, params.messageType)
       
-      console.log('✅ Teams message sent successfully for issue:', params.issueId)
+      console.log('✅ Teams message sent successfully for initiative:', params.initiativeId)
       return true
       
     } catch (error) {
       console.error('Error sending Teams message:', error)
       return false
     }
+  }
+
+  // Legacy alias
+  static async sendMessageToIssue(params: SendTeamsMessageParamsLegacy): Promise<boolean> {
+    return this.sendMessageToInitiative({
+      initiativeId: params.issueId,
+      message: params.message,
+      messageType: params.messageType
+    })
   }
   
   
@@ -124,26 +140,26 @@ export class TeamsMessenger {
    * Logs that a message was sent to Teams
    */
   private static async logTeamsMessageSent(
-    issueId: string, 
+    initiativeId: string, 
     message: string,
     messageType?: string
   ): Promise<void> {
     try {
-      // Update sync timestamp on all Teams links for this issue
+      // Update sync timestamp on all Teams links for this initiative
       await supabase
-        .from('issue_links')
+        .from('initiative_links')
         .update({ 
           synced_at: new Date().toISOString() 
         })
-        .eq('issue_id', issueId)
+        .eq('initiative_id', initiativeId)
         .eq('provider', 'teams')
       
       // Create activity record
       await supabase
-        .from('issue_activity')
+        .from('initiative_activity')
         .insert({
           organization_id: this.organizationId,
-          issue_id: issueId,
+          initiative_id: initiativeId,
           actor_user_id: this.systemUserId,
           action: 'commented',
           payload: {
@@ -160,14 +176,14 @@ export class TeamsMessenger {
   }
   
   /**
-   * Helper: Check if an issue has Teams context (can receive messages)
+   * Helper: Check if an initiative has Teams context (can receive messages)
    */
-  static async hasTeamsContext(issueId: string): Promise<boolean> {
+  static async hasTeamsContext(initiativeId: string): Promise<boolean> {
     try {
       const { data } = await supabase
-        .from('issue_links')
+        .from('initiative_links')
         .select('teams_context')
-        .eq('issue_id', issueId)
+        .eq('initiative_id', initiativeId)
         .eq('provider', 'teams')
         .order('created_at', { ascending: false })
         .limit(1)

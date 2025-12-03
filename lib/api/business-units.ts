@@ -1,7 +1,7 @@
 import { supabase } from '../supabase/client'
-import { Initiative, Database } from '../database/types'
+import { BusinessUnit, Database } from '../database/types'
 
-export interface InitiativeWithManager extends Initiative {
+export interface BusinessUnitWithManager extends BusinessUnit {
   manager?: {
     id: string
     name: string
@@ -14,25 +14,25 @@ export interface InitiativeWithManager extends Initiative {
     updated_at: string | null
   } | null
   _count?: {
-    issues: number
-    active_issues: number
-    completed_issues: number
+    initiatives: number
+    active_initiatives: number
+    completed_initiatives: number
   }
 }
 
-export class InitiativesAPI {
-  // Get initiatives (active by default)
-  static async getInitiatives(
+export class BusinessUnitsAPI {
+  // Get business units (active by default)
+  static async getBusinessUnits(
     organizationId?: string,
     options?: { includeInactive?: boolean }
-  ): Promise<InitiativeWithManager[]> {
+  ): Promise<BusinessUnitWithManager[]> {
     const includeInactive = options?.includeInactive ?? false
 
     let query = supabase
-      .from('initiatives')
+      .from('business_units')
       .select(`
         *,
-        manager:users!initiatives_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
+        manager:users!business_units_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
       `)
     
     // Only filter by organization if provided
@@ -49,27 +49,27 @@ export class InitiativesAPI {
 
     if (error) throw error
 
-    // Get issue counts for each initiative
-    const initiativesWithCounts = await Promise.all(
-      (data || []).map(async (initiative) => {
-        const counts = await this.getIssueCountsForInitiative(initiative.id)
+    // Get initiative counts for each business unit
+    const businessUnitsWithCounts = await Promise.all(
+      (data || []).map(async (businessUnit) => {
+        const counts = await this.getInitiativeCountsForBusinessUnit(businessUnit.id)
         return {
-          ...initiative,
+          ...businessUnit,
           _count: counts
         }
       })
     )
 
-    return initiativesWithCounts
+    return businessUnitsWithCounts
   }
 
-  // Get initiative by ID
-  static async getInitiativeById(id: string): Promise<InitiativeWithManager | null> {
+  // Get business unit by ID
+  static async getBusinessUnitById(id: string): Promise<BusinessUnitWithManager | null> {
     const { data, error } = await supabase
-      .from('initiatives')
+      .from('business_units')
       .select(`
         *,
-        manager:users!initiatives_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
+        manager:users!business_units_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
       `)
       .eq('id', id)
       .single()
@@ -80,7 +80,7 @@ export class InitiativesAPI {
     }
     if (!data) return null
 
-    const counts = await this.getIssueCountsForInitiative(id)
+    const counts = await this.getInitiativeCountsForBusinessUnit(id)
     
     return {
       ...data,
@@ -88,19 +88,19 @@ export class InitiativesAPI {
     }
   }
 
-  // Get initiative by slug
-  static async getInitiativeBySlug(slug: string, organizationId?: string): Promise<InitiativeWithManager | null> {
+  // Get business unit by slug
+  static async getBusinessUnitBySlug(slug: string, organizationId?: string): Promise<BusinessUnitWithManager | null> {
     if (!slug) {
-      console.warn('[InitiativesAPI] getInitiativeBySlug called with empty slug');
+      console.warn('[BusinessUnitsAPI] getBusinessUnitBySlug called with empty slug');
       return null;
     }
 
     // Try exact match first
     let query = supabase
-      .from('initiatives')
+      .from('business_units')
       .select(`
         *,
-        manager:users!initiatives_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
+        manager:users!business_units_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
       `)
       .eq('slug', slug)
 
@@ -112,13 +112,13 @@ export class InitiativesAPI {
 
     // If exact match fails, try case-insensitive search
     if (error && error.code === 'PGRST116') {
-      console.log('[InitiativesAPI] Exact slug match failed, trying case-insensitive search');
+      console.log('[BusinessUnitsAPI] Exact slug match failed, trying case-insensitive search');
       
       let caseInsensitiveQuery = supabase
-        .from('initiatives')
+        .from('business_units')
         .select(`
           *,
-          manager:users!initiatives_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
+          manager:users!business_units_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
         `)
         .ilike('slug', slug)
 
@@ -131,17 +131,17 @@ export class InitiativesAPI {
       if (result.data && result.data.length > 0) {
         data = result.data[0]
         error = null
-        console.log('[InitiativesAPI] Found initiative with case-insensitive match:', data.slug);
+        console.log('[BusinessUnitsAPI] Found business unit with case-insensitive match:', data.slug);
       } else {
         // Try to find by name if slug doesn't match
-        console.log('[InitiativesAPI] Slug not found, trying to search by name pattern');
-        const namePattern = slug.replace(/-/g, ' ').replace(/tes-1/i, 'testing the test of the test');
+        console.log('[BusinessUnitsAPI] Slug not found, trying to search by name pattern');
+        const namePattern = slug.replace(/-/g, ' ')
         
         let nameQuery = supabase
-          .from('initiatives')
+          .from('business_units')
           .select(`
             *,
-            manager:users!initiatives_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
+            manager:users!business_units_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
           `)
           .ilike('name', `%${namePattern}%`)
 
@@ -154,25 +154,25 @@ export class InitiativesAPI {
         if (nameResult.data && nameResult.data.length > 0) {
           data = nameResult.data[0]
           error = null
-          console.log('[InitiativesAPI] Found initiative by name pattern:', data.name, data.slug);
+          console.log('[BusinessUnitsAPI] Found business unit by name pattern:', data.name, data.slug);
         }
       }
     }
 
     if (error) {
       if (error.code === 'PGRST116') {
-        console.warn('[InitiativesAPI] Initiative not found with slug:', slug, 'organizationId:', organizationId);
+        console.warn('[BusinessUnitsAPI] Business unit not found with slug:', slug, 'organizationId:', organizationId);
         return null // Not found
       }
-      console.error('[InitiativesAPI] Error fetching initiative by slug:', error);
+      console.error('[BusinessUnitsAPI] Error fetching business unit by slug:', error);
       throw error
     }
     if (!data) {
-      console.warn('[InitiativesAPI] No data returned for slug:', slug);
+      console.warn('[BusinessUnitsAPI] No data returned for slug:', slug);
       return null;
     }
 
-    const counts = await this.getIssueCountsForInitiative(data.id)
+    const counts = await this.getInitiativeCountsForBusinessUnit(data.id)
     
     return {
       ...data,
@@ -180,13 +180,13 @@ export class InitiativesAPI {
     }
   }
 
-  // Get initiative by manager (for BU role)
-  static async getInitiativeByManager(managerId: string, organizationId?: string): Promise<InitiativeWithManager | null> {
+  // Get business unit by manager (for BU role)
+  static async getBusinessUnitByManager(managerId: string, organizationId?: string): Promise<BusinessUnitWithManager | null> {
     let query = supabase
-      .from('initiatives')
+      .from('business_units')
       .select(`
         *,
-        manager:users!initiatives_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
+        manager:users!business_units_manager_user_id_fkey(id, name, email, avatar_url, role, organization_id, active, created_at, updated_at)
       `)
       .eq('manager_user_id', managerId)
       .eq('active', true)
@@ -204,7 +204,7 @@ export class InitiativesAPI {
     }
     if (!data) return null
 
-    const counts = await this.getIssueCountsForInitiative(data.id)
+    const counts = await this.getInitiativeCountsForBusinessUnit(data.id)
     
     return {
       ...data,
@@ -212,15 +212,15 @@ export class InitiativesAPI {
     }
   }
 
-  // Create new initiative
-  static async createInitiative(
-    initiativeData: Omit<Initiative, 'id' | 'organization_id' | 'created_at' | 'updated_at'>,
+  // Create new business unit
+  static async createBusinessUnit(
+    businessUnitData: Omit<BusinessUnit, 'id' | 'organization_id' | 'created_at' | 'updated_at'>,
     organizationId: string
-  ): Promise<Initiative> {
+  ): Promise<BusinessUnit> {
     const { data, error } = await supabase
-      .from('initiatives')
+      .from('business_units')
       .insert({
-        ...initiativeData,
+        ...businessUnitData,
         organization_id: organizationId
       })
       .select()
@@ -230,10 +230,10 @@ export class InitiativesAPI {
     return data
   }
 
-  // Update initiative
-  static async updateInitiative(id: string, updates: Partial<Initiative>): Promise<Initiative> {
+  // Update business unit
+  static async updateBusinessUnit(id: string, updates: Partial<BusinessUnit>): Promise<BusinessUnit> {
     const { data, error } = await supabase
-      .from('initiatives')
+      .from('business_units')
       .update(updates)
       .eq('id', id)
       .select()
@@ -244,34 +244,34 @@ export class InitiativesAPI {
   }
 
   // Private helper methods
-  private static async getIssueCountsForInitiative(initiativeId: string) {
-    const { data: allIssues, error: allError } = await supabase
-      .from('issues')
+  private static async getInitiativeCountsForBusinessUnit(businessUnitId: string) {
+    const { data: allInitiatives, error: allError } = await supabase
+      .from('initiatives')
       .select('id, state')
-      .eq('initiative_id', initiativeId)
+      .eq('business_unit_id', businessUnitId)
 
     if (allError) throw allError
 
-    const issues = allIssues || []
+    const initiatives = allInitiatives || []
     const activeStates = ['todo', 'in_progress', 'blocked', 'waiting_info']
     const completedStates = ['done']
 
     return {
-      issues: issues.length,
-      active_issues: issues.filter(issue => activeStates.includes(issue.state || '')).length,
-      completed_issues: issues.filter(issue => completedStates.includes(issue.state || '')).length
+      initiatives: initiatives.length,
+      active_initiatives: initiatives.filter(initiative => activeStates.includes(initiative.state || '')).length,
+      completed_initiatives: initiatives.filter(initiative => completedStates.includes(initiative.state || '')).length
     }
   }
 
-  // Update initiative manager
-  static async updateInitiativeManager(initiativeId: string, managerId: string | null, organizationId?: string): Promise<void> {
+  // Update business unit manager
+  static async updateBusinessUnitManager(businessUnitId: string, managerId: string | null, organizationId?: string): Promise<void> {
     let query = supabase
-      .from('initiatives')
+      .from('business_units')
       .update({ 
         manager_user_id: managerId,
         updated_at: new Date().toISOString()
       })
-      .eq('id', initiativeId)
+      .eq('id', businessUnitId)
 
     if (organizationId) {
       query = query.eq('organization_id', organizationId)
@@ -282,15 +282,15 @@ export class InitiativesAPI {
     if (error) throw error
   }
 
-  // Update initiative status
-  static async updateInitiativeStatus(initiativeId: string, active: boolean, organizationId?: string): Promise<void> {
+  // Update business unit status
+  static async updateBusinessUnitStatus(businessUnitId: string, active: boolean, organizationId?: string): Promise<void> {
     let query = supabase
-      .from('initiatives')
+      .from('business_units')
       .update({ 
         active: active,
         updated_at: new Date().toISOString()
       })
-      .eq('id', initiativeId)
+      .eq('id', businessUnitId)
 
     if (organizationId) {
       query = query.eq('organization_id', organizationId)
@@ -303,7 +303,7 @@ export class InitiativesAPI {
 
   // Get available users for manager assignment
   // Includes: ALL Sapira Team users (@sapira.ai) + organization users with SAP/CEO/BU roles
-  static async getAvailableManagers(organizationId?: string): Promise<InitiativeWithManager['manager'][]> {
+  static async getAvailableManagers(organizationId?: string): Promise<BusinessUnitWithManager['manager'][]> {
     const baseUserFields = 'id, name, email, avatar_url, role, organization_id, active, created_at, updated_at'
 
     // Fetch all Sapira Team users (all @sapira.ai users, regardless of organization)
@@ -405,15 +405,15 @@ export class InitiativesAPI {
     return combined.sort((a: any, b: any) => (a.name || a.email || '').localeCompare(b.name || b.email || ''))
   }
 
-  // Get initiative activities (for showing timeline/history)
-  static async getInitiativeActivities(initiativeId: string) {
+  // Get business unit activities (for showing timeline/history)
+  static async getBusinessUnitActivities(businessUnitId: string) {
     const { data, error } = await supabase
-      .from('initiative_activity')
+      .from('business_unit_activity')
       .select(`
         *,
-        actor:users!initiative_activity_actor_user_id_fkey(id, name, email, avatar_url, role)
+        actor:users!business_unit_activity_actor_user_id_fkey(id, name, email, avatar_url, role)
       `)
-      .eq('initiative_id', initiativeId)
+      .eq('business_unit_id', businessUnitId)
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -422,17 +422,17 @@ export class InitiativesAPI {
 
   // Create a manual activity log entry (for special events not captured by triggers)
   static async createActivity(
-    initiativeId: string,
+    businessUnitId: string,
     action: string,
     actorUserId: string | null,
     organizationId: string,
     payload?: any
   ): Promise<void> {
     const { error } = await supabase
-      .from('initiative_activity')
+      .from('business_unit_activity')
       .insert({
         organization_id: organizationId,
-        initiative_id: initiativeId,
+        business_unit_id: businessUnitId,
         actor_user_id: actorUserId,
         action: action,
         payload: payload || {}
@@ -441,3 +441,9 @@ export class InitiativesAPI {
     if (error) throw error
   }
 }
+
+// Legacy alias for backwards compatibility during migration
+// TODO: Remove after full codebase migration
+export { BusinessUnitsAPI as InitiativesAPI }
+export type { BusinessUnitWithManager as InitiativeWithManager }
+

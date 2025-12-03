@@ -14,51 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
-      initiative_activity: {
+      business_unit_activity: {
         Row: {
-          action: Database["public"]["Enums"]["initiative_activity_action"]
+          action: Database["public"]["Enums"]["business_unit_activity_action"]
           actor_user_id: string | null
           created_at: string | null
           id: string
-          initiative_id: string
+          business_unit_id: string
           organization_id: string
           payload: Json | null
         }
         Insert: {
-          action: Database["public"]["Enums"]["initiative_activity_action"]
+          action: Database["public"]["Enums"]["business_unit_activity_action"]
           actor_user_id?: string | null
           created_at?: string | null
           id?: string
-          initiative_id: string
+          business_unit_id: string
           organization_id: string
           payload?: Json | null
         }
         Update: {
-          action?: Database["public"]["Enums"]["initiative_activity_action"]
+          action?: Database["public"]["Enums"]["business_unit_activity_action"]
           actor_user_id?: string | null
           created_at?: string | null
           id?: string
-          initiative_id?: string
+          business_unit_id?: string
           organization_id?: string
           payload?: Json | null
         }
         Relationships: [
           {
-            foreignKeyName: "initiative_activity_actor_user_id_fkey"
+            foreignKeyName: "business_unit_activity_actor_user_id_fkey"
             columns: ["actor_user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "initiative_activity_initiative_id_fkey"
-            columns: ["initiative_id"]
+            foreignKeyName: "business_unit_activity_business_unit_id_fkey"
+            columns: ["business_unit_id"]
             isOneToOne: false
-            referencedRelation: "initiatives"
+            referencedRelation: "business_units"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "initiative_activity_organization_id_fkey"
+            foreignKeyName: "business_unit_activity_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -66,7 +66,7 @@ export type Database = {
           },
         ]
       }
-      initiatives: {
+      business_units: {
         Row: {
           active: boolean | null
           created_at: string | null
@@ -102,14 +102,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "initiatives_manager_user_id_fkey"
+            foreignKeyName: "business_units_manager_user_id_fkey"
             columns: ["manager_user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "initiatives_organization_id_fkey"
+            foreignKeyName: "business_units_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -117,13 +117,13 @@ export type Database = {
           },
         ]
       }
-      issue_activity: {
+      initiative_activity: {
         Row: {
           action: Database["public"]["Enums"]["activity_action"]
           actor_user_id: string | null
           created_at: string | null
           id: string
-          issue_id: string
+          initiative_id: string
           organization_id: string
           payload: Json | null
         }
@@ -132,7 +132,7 @@ export type Database = {
           actor_user_id?: string | null
           created_at?: string | null
           id?: string
-          issue_id: string
+          initiative_id: string
           organization_id: string
           payload?: Json | null
         }
@@ -141,27 +141,27 @@ export type Database = {
           actor_user_id?: string | null
           created_at?: string | null
           id?: string
-          issue_id?: string
+          initiative_id?: string
           organization_id?: string
           payload?: Json | null
         }
         Relationships: [
           {
-            foreignKeyName: "issue_activity_actor_user_id_fkey"
+            foreignKeyName: "initiative_activity_actor_user_id_fkey"
             columns: ["actor_user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "issue_activity_issue_id_fkey"
-            columns: ["issue_id"]
+            foreignKeyName: "initiative_activity_initiative_id_fkey"
+            columns: ["initiative_id"]
             isOneToOne: false
-            referencedRelation: "issues"
+            referencedRelation: "initiatives"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "issue_activity_organization_id_fkey"
+            foreignKeyName: "initiative_activity_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -169,29 +169,29 @@ export type Database = {
           },
         ]
       }
-      issue_labels: {
+      initiative_labels: {
         Row: {
-          issue_id: string
+          initiative_id: string
           label_id: string
         }
         Insert: {
-          issue_id: string
+          initiative_id: string
           label_id: string
         }
         Update: {
-          issue_id?: string
+          initiative_id?: string
           label_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "issue_labels_issue_id_fkey"
-            columns: ["issue_id"]
+            foreignKeyName: "initiative_labels_initiative_id_fkey"
+            columns: ["initiative_id"]
             isOneToOne: false
-            referencedRelation: "issues"
+            referencedRelation: "initiatives"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "issue_labels_label_id_fkey"
+            foreignKeyName: "initiative_labels_label_id_fkey"
             columns: ["label_id"]
             isOneToOne: false
             referencedRelation: "labels"
@@ -199,12 +199,12 @@ export type Database = {
           },
         ]
       }
-      issue_links: {
+      initiative_links: {
         Row: {
           created_at: string | null
           external_id: string | null
           id: string
-          issue_id: string
+          initiative_id: string
           provider: Database["public"]["Enums"]["link_provider"]
           synced_at: string | null
           teams_context: Json | null
@@ -214,7 +214,7 @@ export type Database = {
           created_at?: string | null
           external_id?: string | null
           id?: string
-          issue_id: string
+          initiative_id: string
           provider: Database["public"]["Enums"]["link_provider"]
           synced_at?: string | null
           teams_context?: Json | null
@@ -224,7 +224,7 @@ export type Database = {
           created_at?: string | null
           external_id?: string | null
           id?: string
-          issue_id?: string
+          initiative_id?: string
           provider?: Database["public"]["Enums"]["link_provider"]
           synced_at?: string | null
           teams_context?: Json | null
@@ -232,36 +232,36 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "issue_links_issue_id_fkey"
-            columns: ["issue_id"]
+            foreignKeyName: "initiative_links_initiative_id_fkey"
+            columns: ["initiative_id"]
             isOneToOne: false
-            referencedRelation: "issues"
+            referencedRelation: "initiatives"
             referencedColumns: ["id"]
           },
         ]
       }
-      issues: {
+      initiatives: {
         Row: {
           assignee_id: string | null
-          blocked_by_issue_id: string | null
+          blocked_by_initiative_id: string | null
           blocker_reason: string | null
           core_technology: string | null
           created_at: string | null
           description: string | null
           difficulty: number | null
           due_at: string | null
-          duplicate_of_id: string | null
+          duplicate_of_initiative_id: string | null
           estimated_hours: number | null
           id: string
           impact: string | null
           impact_score: number | null
-          initiative_id: string | null
+          business_unit_id: string | null
           key: string
           organization_id: string
-          origin: Database["public"]["Enums"]["issue_origin"] | null
-          parent_issue_id: string | null
+          origin: Database["public"]["Enums"]["initiative_origin"] | null
+          parent_initiative_id: string | null
           planned_start_at: string | null
-          priority: Database["public"]["Enums"]["issue_priority"] | null
+          priority: Database["public"]["Enums"]["initiative_priority"] | null
           project_id: string | null
           reporter_id: string | null
           rice_score: number | null
@@ -269,7 +269,7 @@ export type Database = {
           short_description: string | null
           sla_due_date: string | null
           snooze_until: string | null
-          state: Database["public"]["Enums"]["issue_state"] | null
+          state: Database["public"]["Enums"]["initiative_state"] | null
           title: string
           triaged_at: string | null
           triaged_by_user_id: string | null
@@ -277,25 +277,25 @@ export type Database = {
         }
         Insert: {
           assignee_id?: string | null
-          blocked_by_issue_id?: string | null
+          blocked_by_initiative_id?: string | null
           blocker_reason?: string | null
           core_technology?: string | null
           created_at?: string | null
           description?: string | null
           difficulty?: number | null
           due_at?: string | null
-          duplicate_of_id?: string | null
+          duplicate_of_initiative_id?: string | null
           estimated_hours?: number | null
           id?: string
           impact?: string | null
           impact_score?: number | null
-          initiative_id?: string | null
+          business_unit_id?: string | null
           key: string
           organization_id: string
-          origin?: Database["public"]["Enums"]["issue_origin"] | null
-          parent_issue_id?: string | null
+          origin?: Database["public"]["Enums"]["initiative_origin"] | null
+          parent_initiative_id?: string | null
           planned_start_at?: string | null
-          priority?: Database["public"]["Enums"]["issue_priority"] | null
+          priority?: Database["public"]["Enums"]["initiative_priority"] | null
           project_id?: string | null
           reporter_id?: string | null
           rice_score?: number | null
@@ -303,7 +303,7 @@ export type Database = {
           short_description?: string | null
           sla_due_date?: string | null
           snooze_until?: string | null
-          state?: Database["public"]["Enums"]["issue_state"] | null
+          state?: Database["public"]["Enums"]["initiative_state"] | null
           title: string
           triaged_at?: string | null
           triaged_by_user_id?: string | null
@@ -311,25 +311,25 @@ export type Database = {
         }
         Update: {
           assignee_id?: string | null
-          blocked_by_issue_id?: string | null
+          blocked_by_initiative_id?: string | null
           blocker_reason?: string | null
           core_technology?: string | null
           created_at?: string | null
           description?: string | null
           difficulty?: number | null
           due_at?: string | null
-          duplicate_of_id?: string | null
+          duplicate_of_initiative_id?: string | null
           estimated_hours?: number | null
           id?: string
           impact?: string | null
           impact_score?: number | null
-          initiative_id?: string | null
+          business_unit_id?: string | null
           key?: string
           organization_id?: string
-          origin?: Database["public"]["Enums"]["issue_origin"] | null
-          parent_issue_id?: string | null
+          origin?: Database["public"]["Enums"]["initiative_origin"] | null
+          parent_initiative_id?: string | null
           planned_start_at?: string | null
-          priority?: Database["public"]["Enums"]["issue_priority"] | null
+          priority?: Database["public"]["Enums"]["initiative_priority"] | null
           project_id?: string | null
           reporter_id?: string | null
           rice_score?: number | null
@@ -337,7 +337,7 @@ export type Database = {
           short_description?: string | null
           sla_due_date?: string | null
           snooze_until?: string | null
-          state?: Database["public"]["Enums"]["issue_state"] | null
+          state?: Database["public"]["Enums"]["initiative_state"] | null
           title?: string
           triaged_at?: string | null
           triaged_by_user_id?: string | null
@@ -345,63 +345,63 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "issues_assignee_id_fkey"
+            foreignKeyName: "initiatives_assignee_id_fkey"
             columns: ["assignee_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "issues_blocked_by_issue_id_fkey"
-            columns: ["blocked_by_issue_id"]
-            isOneToOne: false
-            referencedRelation: "issues"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "issues_duplicate_of_id_fkey"
-            columns: ["duplicate_of_id"]
-            isOneToOne: false
-            referencedRelation: "issues"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "issues_initiative_id_fkey"
-            columns: ["initiative_id"]
+            foreignKeyName: "initiatives_blocked_by_initiative_id_fkey"
+            columns: ["blocked_by_initiative_id"]
             isOneToOne: false
             referencedRelation: "initiatives"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "issues_organization_id_fkey"
+            foreignKeyName: "initiatives_duplicate_of_initiative_id_fkey"
+            columns: ["duplicate_of_initiative_id"]
+            isOneToOne: false
+            referencedRelation: "initiatives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "initiatives_business_unit_id_fkey"
+            columns: ["business_unit_id"]
+            isOneToOne: false
+            referencedRelation: "business_units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "initiatives_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "issues_parent_issue_id_fkey"
-            columns: ["parent_issue_id"]
+            foreignKeyName: "initiatives_parent_initiative_id_fkey"
+            columns: ["parent_initiative_id"]
             isOneToOne: false
-            referencedRelation: "issues"
+            referencedRelation: "initiatives"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "issues_project_id_fkey"
+            foreignKeyName: "initiatives_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "issues_reporter_id_fkey"
+            foreignKeyName: "initiatives_reporter_id_fkey"
             columns: ["reporter_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "issues_triaged_by_user_id_fkey"
+            foreignKeyName: "initiatives_triaged_by_user_id_fkey"
             columns: ["triaged_by_user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -473,7 +473,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
-          initiative_id: string | null
+          business_unit_id: string | null
           name: string
           organization_id: string
           owner_user_id: string | null
@@ -488,7 +488,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
-          initiative_id?: string | null
+          business_unit_id?: string | null
           name: string
           organization_id: string
           owner_user_id?: string | null
@@ -503,7 +503,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
-          initiative_id?: string | null
+          business_unit_id?: string | null
           name?: string
           organization_id?: string
           owner_user_id?: string | null
@@ -516,10 +516,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "projects_initiative_id_fkey"
-            columns: ["initiative_id"]
+            foreignKeyName: "projects_business_unit_id_fkey"
+            columns: ["business_unit_id"]
             isOneToOne: false
-            referencedRelation: "initiatives"
+            referencedRelation: "business_units"
             referencedColumns: ["id"]
           },
           {
@@ -702,7 +702,71 @@ export type Database = {
             foreignKeyName: "surveys_target_bu_id_fkey"
             columns: ["target_bu_id"]
             isOneToOne: false
-            referencedRelation: "initiatives"
+            referencedRelation: "business_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_invitations: {
+        Row: {
+          business_unit_id: string | null
+          created_at: string | null
+          email: string
+          expires_at: string | null
+          id: string
+          invited_by_user_id: string | null
+          organization_id: string
+          role: Database["public"]["Enums"]["user_role"]
+          status: string | null
+          token: string
+          updated_at: string | null
+        }
+        Insert: {
+          business_unit_id?: string | null
+          created_at?: string | null
+          email: string
+          expires_at?: string | null
+          id?: string
+          invited_by_user_id?: string | null
+          organization_id: string
+          role?: Database["public"]["Enums"]["user_role"]
+          status?: string | null
+          token: string
+          updated_at?: string | null
+        }
+        Update: {
+          business_unit_id?: string | null
+          created_at?: string | null
+          email?: string
+          expires_at?: string | null
+          id?: string
+          invited_by_user_id?: string | null
+          organization_id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          status?: string | null
+          token?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_invitations_business_unit_id_fkey"
+            columns: ["business_unit_id"]
+            isOneToOne: false
+            referencedRelation: "business_units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_invitations_invited_by_user_id_fkey"
+            columns: ["invited_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -713,7 +777,7 @@ export type Database = {
           auth_user_id: string
           created_at: string | null
           id: string
-          initiative_id: string | null
+          business_unit_id: string | null
           organization_id: string
           role: string
           updated_at: string | null
@@ -723,7 +787,7 @@ export type Database = {
           auth_user_id: string
           created_at?: string | null
           id?: string
-          initiative_id?: string | null
+          business_unit_id?: string | null
           organization_id: string
           role: string
           updated_at?: string | null
@@ -733,17 +797,17 @@ export type Database = {
           auth_user_id?: string
           created_at?: string | null
           id?: string
-          initiative_id?: string | null
+          business_unit_id?: string | null
           organization_id?: string
           role?: string
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "user_organizations_initiative_id_fkey"
-            columns: ["initiative_id"]
+            foreignKeyName: "user_organizations_business_unit_id_fkey"
+            columns: ["business_unit_id"]
             isOneToOne: false
-            referencedRelation: "initiatives"
+            referencedRelation: "business_units"
             referencedColumns: ["id"]
           },
           {
@@ -807,7 +871,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_user_initiative: {
+      get_user_business_unit: {
         Args: { org_id: string }
         Returns: string
       }
@@ -829,7 +893,7 @@ export type Database = {
         | "labeled"
         | "assigned"
         | "state_changed"
-      initiative_activity_action:
+      business_unit_activity_action:
         | "created"
         | "updated"
         | "status_changed"
@@ -839,12 +903,12 @@ export type Database = {
         | "description_updated"
         | "project_added"
         | "project_removed"
-        | "issue_accepted"
+        | "initiative_accepted"
         | "archived"
         | "restored"
-      issue_origin: "teams" | "email" | "slack" | "api" | "url"
-      issue_priority: "P0" | "P1" | "P2" | "P3"
-      issue_state:
+      initiative_origin: "teams" | "email" | "slack" | "api" | "url"
+      initiative_priority: "P0" | "P1" | "P2" | "P3"
+      initiative_state:
         | "triage"
         | "todo"
         | "in_progress"
@@ -867,7 +931,19 @@ export type Database = {
 }
 
 // Type aliases for convenience
-export type Issue = Database['public']['Tables']['issues']['Row']
-export type IssueState = Database['public']['Enums']['issue_state']
-export type IssuePriority = Database['public']['Enums']['issue_priority']
-export type IssueOrigin = Database['public']['Enums']['issue_origin']
+export type Initiative = Database['public']['Tables']['initiatives']['Row']
+export type InitiativeState = Database['public']['Enums']['initiative_state']
+export type InitiativePriority = Database['public']['Enums']['initiative_priority']
+export type InitiativeOrigin = Database['public']['Enums']['initiative_origin']
+export type BusinessUnit = Database['public']['Tables']['business_units']['Row']
+export type Project = Database['public']['Tables']['projects']['Row']
+export type User = Database['public']['Tables']['users']['Row']
+export type Organization = Database['public']['Tables']['organizations']['Row']
+export type Label = Database['public']['Tables']['labels']['Row']
+
+// Legacy aliases for backwards compatibility during migration
+// TODO: Remove these after full codebase migration
+export type Issue = Initiative
+export type IssueState = InitiativeState
+export type IssuePriority = InitiativePriority
+export type IssueOrigin = InitiativeOrigin

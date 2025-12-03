@@ -58,7 +58,13 @@ function OnboardingContent() {
   }
 
   const handleSkip = () => {
-    router.push("/home")
+    // If we're past the initial steps, go to summary instead of home
+    const summaryRequiredSteps: OnboardingStep[] = ["discovery", "workspace", "deploy"]
+    if (summaryRequiredSteps.includes(currentStep)) {
+      goToStep("summary")
+    } else {
+      router.push("/home")
+    }
   }
 
   const handleComplete = () => {

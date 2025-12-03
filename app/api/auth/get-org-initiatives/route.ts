@@ -22,20 +22,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Organización no encontrada" }, { status: 404 })
   }
 
-  // Get active initiatives (Business Units) for this organization
-  const { data: initiatives, error: initiativesError } = await admin
-    .from("initiatives")
+  // Get active business units for this organization
+  const { data: businessUnits, error: businessUnitsError } = await admin
+    .from("business_units")
     .select("id, name, slug")
     .eq("organization_id", org.id)
     .eq("active", true)
     .order("name")
 
-  if (initiativesError) {
+  if (businessUnitsError) {
     return NextResponse.json({ error: "Error al obtener Business Units" }, { status: 500 })
   }
 
   return NextResponse.json({
-    initiatives: initiatives || [],
+    // Return with both names for backwards compatibility
+    businessUnits: businessUnits || [],
+    initiatives: businessUnits || [], // Legacy alias
   })
 }
 

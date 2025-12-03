@@ -63,7 +63,7 @@ export async function GET() {
       .from('user_organizations')
       .select(`
         role,
-        initiative_id,
+        business_unit_id,
         sapira_role_type,
         organization_id,
         organizations (

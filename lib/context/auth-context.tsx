@@ -16,7 +16,9 @@ interface Organization {
 interface UserOrganization {
   organization: Organization
   role: Role
-  initiative_id: string | null
+  business_unit_id: string | null
+  // Legacy alias
+  initiative_id?: string | null
   sapira_role_type?: 'FDE' | 'ADVISORY_LEAD' | 'ACCOUNT_MANAGER' | null
 }
 
@@ -160,7 +162,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const orgs = (data || []).map((item: any) => ({
         organization: item.organizations as Organization,
         role: item.role as Role,
-        initiative_id: item.initiative_id,
+        business_unit_id: item.business_unit_id,
+        // Legacy alias
+        initiative_id: item.business_unit_id,
         sapira_role_type: item.sapira_role_type || null
       })).filter((org: any) => org.organization) // Filter out any without organization data
 

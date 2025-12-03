@@ -6,7 +6,7 @@ export const runtime = 'nodejs'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}))
-    const { organization_id, email, role, initiative_id } = body
+    const { organization_id, email, role, business_unit_id } = body
 
     if (!organization_id) {
       return NextResponse.json({ error: 'Missing organization_id' }, { status: 400 })
@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 })
     }
 
-    if (role === "BU" && !initiative_id) {
-      return NextResponse.json({ error: "BU role requires initiative_id" }, { status: 400 })
+    if (role === "BU" && !business_unit_id) {
+      return NextResponse.json({ error: "BU role requires business_unit_id" }, { status: 400 })
     }
 
     const authUserId = await getAuthUserId()
@@ -66,8 +66,8 @@ export async function POST(req: NextRequest) {
     // Build redirect URL - ensure it's absolute and uses production URL
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://backofficepharo.vercel.app'
     const redirectTo = orgData?.slug
-      ? `${baseUrl}/${orgData.slug}/auth/callback?organization_id=${organization_id}&role=${role}${initiative_id ? `&initiative_id=${initiative_id}` : ''}`
-      : `${baseUrl}/auth/callback?organization_id=${organization_id}&role=${role}${initiative_id ? `&initiative_id=${initiative_id}` : ''}`
+      ? `${baseUrl}/${orgData.slug}/auth/callback?organization_id=${organization_id}&role=${role}${business_unit_id ? `&business_unit_id=${business_unit_id}` : ''}`
+      : `${baseUrl}/auth/callback?organization_id=${organization_id}&role=${role}${business_unit_id ? `&business_unit_id=${business_unit_id}` : ''}`
 
     console.log('[API /org/users/invite] Redirect URL:', redirectTo)
     console.log('[API /org/users/invite] NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL)
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
       data: {
         organization_id,
         role,
-        initiative_id: initiative_id || null,
+        business_unit_id: business_unit_id || null,
       },
       redirectTo,
     })
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
         organization_id,
         email: email.toLowerCase(),
         role,
-        initiative_id: initiative_id || null,
+        business_unit_id: business_unit_id || null,
         invited_by_user_id: authUserId,
         token: inviteData.user?.id || null,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days

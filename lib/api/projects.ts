@@ -1,17 +1,20 @@
 import { supabase } from '../supabase/client'
-import { Project, ProjectStatus, Database } from '../database/types'
-import { IssuesAPI } from './issues'
+import { Project, Database } from '../database/types'
+import { InitiativesAPI } from './issues'
+
+// Type alias for project status
+type ProjectStatus = Database['public']['Enums']['project_status']
 
 export interface ProjectWithRelations extends Project {
   owner?: Database['public']['Tables']['users']['Row']
-  initiative?: Database['public']['Tables']['initiatives']['Row'] | null
+  businessUnit?: Database['public']['Tables']['business_units']['Row'] | null
   _count?: {
-    issues: number
-    active_issues: number
-    completed_issues: number
+    initiatives: number
+    active_initiatives: number
+    completed_initiatives: number
   }
   _progress?: {
-    calculated: number // Progress based on completed issues
+    calculated: number // Progress based on completed initiatives
     manual: number | null // Manual progress from DB
   }
 }
@@ -24,7 +27,7 @@ export class ProjectsAPI {
       .select(`
         *,
         owner:users!projects_owner_user_id_fkey(id, name, email, avatar_url, role),
-        initiative:initiatives!projects_initiative_id_fkey(id, name, slug, description)
+        businessUnit:business_units!projects_business_unit_id_fkey(id, name, slug, description)
       `)
     
     // Only filter by organization if provided
@@ -37,10 +40,10 @@ export class ProjectsAPI {
 
     if (error) throw error
 
-    // Get issue counts and calculated progress for each project
+    // Get initiative counts and calculated progress for each project
     const projectsWithCounts = await Promise.all(
       (data || []).map(async (project) => {
-        const counts = await this.getIssueCountsForProject(project.id)
+        const counts = await this.getInitiativeCountsForProject(project.id)
         const calculatedProgress = this.calculateProgress(counts)
         
         return {
@@ -64,7 +67,7 @@ export class ProjectsAPI {
       .select(`
         *,
         owner:users!projects_owner_user_id_fkey(id, name, email, avatar_url, role),
-        initiative:initiatives!projects_initiative_id_fkey(id, name, slug, description)
+        businessUnit:business_units!projects_business_unit_id_fkey(id, name, slug, description)
       `)
 
     if (organizationId) {
@@ -80,10 +83,10 @@ export class ProjectsAPI {
     const { data, error } = await query
     if (error) throw error
 
-    // Get issue counts and calculated progress for each project
+    // Get initiative counts and calculated progress for each project
     const projectsWithCounts = await Promise.all(
       (data || []).map(async (project) => {
-        const counts = await this.getIssueCountsForProject(project.id)
+        const counts = await this.getInitiativeCountsForProject(project.id)
         const calculatedProgress = this.calculateProgress(counts)
         
         return {
@@ -107,7 +110,7 @@ export class ProjectsAPI {
       .select(`
         *,
         owner:users!projects_owner_user_id_fkey(id, name, email, avatar_url, role),
-        initiative:initiatives!projects_initiative_id_fkey(id, name, slug, description)
+        businessUnit:business_units!projects_business_unit_id_fkey(id, name, slug, description)
       `)
       .eq('id', id)
       .single()
@@ -115,7 +118,7 @@ export class ProjectsAPI {
     if (error) throw error
     if (!data) return null
 
-    const counts = await this.getIssueCountsForProject(id)
+    const counts = await this.getInitiativeCountsForProject(id)
     const calculatedProgress = this.calculateProgress(counts)
     
     return {
@@ -169,28 +172,28 @@ export class ProjectsAPI {
   }
 
   // Private helper methods
-  private static async getIssueCountsForProject(projectId: string) {
-    const { data: allIssues, error: allError } = await supabase
-      .from('issues')
+  private static async getInitiativeCountsForProject(projectId: string) {
+    const { data: allInitiatives, error: allError } = await supabase
+      .from('initiatives')
       .select('id, state')
       .eq('project_id', projectId)
 
     if (allError) throw allError
 
-    const issues = allIssues || []
+    const initiatives = allInitiatives || []
     const activeStates = ['todo', 'in_progress', 'blocked', 'waiting_info']
     const completedStates = ['done']
 
     return {
-      issues: issues.length,
-      active_issues: issues.filter(issue => activeStates.includes(issue.state || '')).length,
-      completed_issues: issues.filter(issue => completedStates.includes(issue.state || '')).length
+      initiatives: initiatives.length,
+      active_initiatives: initiatives.filter(initiative => activeStates.includes(initiative.state || '')).length,
+      completed_initiatives: initiatives.filter(initiative => completedStates.includes(initiative.state || '')).length
     }
   }
 
-  private static calculateProgress(counts: { issues: number; completed_issues: number }): number {
-    if (counts.issues === 0) return 0
-    return Math.round((counts.completed_issues / counts.issues) * 100)
+  private static calculateProgress(counts: { initiatives: number; completed_initiatives: number }): number {
+    if (counts.initiatives === 0) return 0
+    return Math.round((counts.completed_initiatives / counts.initiatives) * 100)
   }
 
   // Update project status
@@ -209,12 +212,12 @@ export class ProjectsAPI {
     if (error) throw error
   }
 
-  // Update project business unit (direct initiative assignment)
+  // Update project business unit
   static async updateProjectBusinessUnit(projectId: string, businessUnitId: string | null, organizationId?: string): Promise<void> {
     let query = supabase
       .from('projects')
       .update({ 
-        initiative_id: businessUnitId,
+        business_unit_id: businessUnitId,
         updated_at: new Date().toISOString()
       })
       .eq('id', projectId)
@@ -227,18 +230,18 @@ export class ProjectsAPI {
     
     if (error) throw error
 
-    // Also update all issues in this project to have the same initiative_id
+    // Also update all initiatives in this project to have the same business_unit_id
     // This keeps data consistent
-    const { error: issuesError } = await supabase
-      .from('issues')
+    const { error: initiativesError } = await supabase
+      .from('initiatives')
       .update({ 
-        initiative_id: businessUnitId,
+        business_unit_id: businessUnitId,
         updated_at: new Date().toISOString()
       })
       .eq('project_id', projectId)
-      .neq('state', 'triage') // Don't update triage issues
+      .neq('state', 'triage') // Don't update triage initiatives
     
-    if (issuesError) throw issuesError
+    if (initiativesError) throw initiativesError
   }
 
   // Update project owner
@@ -260,14 +263,14 @@ export class ProjectsAPI {
   // Get available users for owner assignment
   // Includes both organization users and Sapira team members assigned to the organization
   static async getAvailableUsers(organizationId?: string): Promise<any[]> {
-    // Use the same logic as IssuesAPI.getAvailableUsers
-    return await IssuesAPI.getAvailableUsers(organizationId)
+    // Use the same logic as InitiativesAPI.getAvailableUsers
+    return await InitiativesAPI.getAvailableUsers(organizationId)
   }
 
   // Get available business units
   static async getBusinessUnits(organizationId?: string): Promise<any[]> {
     let query = supabase
-      .from('initiatives')
+      .from('business_units')
       .select('id, name, description, slug')
       .eq('active', true)
       .order('name')

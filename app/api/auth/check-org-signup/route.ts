@@ -55,9 +55,9 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // Get active initiatives (Business Units) for this organization
-  const { data: initiatives } = await admin
-    .from("initiatives")
+  // Get active business units for this organization
+  const { data: businessUnits } = await admin
+    .from("business_units")
     .select("id, name, slug")
     .eq("organization_id", org.id)
     .eq("active", true)
@@ -68,7 +68,8 @@ export async function GET(req: NextRequest) {
     orgName: org.name,
     organizationId: org.id,
     organization,
-    initiatives: initiatives || [],
+    businessUnits: businessUnits || [],
+    initiatives: businessUnits || [], // Legacy alias
   })
 }
 

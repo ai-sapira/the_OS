@@ -3,11 +3,11 @@ import { TeamsMessenger } from '@/lib/api/teams-messenger'
 
 /**
  * POST /api/teams/send-message
- * Sends a proactive message to the Teams conversation linked to an issue
+ * Sends a proactive message to the Teams conversation linked to an initiative
  * 
  * Request body:
  * {
- *   issue_id: string,
+ *   initiative_id: string (or issue_id for backwards compatibility),
  *   message: string,
  *   message_type?: 'comment' | 'status_update' | 'assignment' | 'info'
  * }
@@ -16,20 +16,23 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
+    // Support both initiative_id and issue_id for backwards compatibility
+    const initiativeId = body.initiative_id || body.issue_id
+    
     // Validation
-    if (!body.issue_id || !body.message?.trim()) {
+    if (!initiativeId || !body.message?.trim()) {
       return NextResponse.json(
         { 
           error: 'Missing required fields',
-          details: 'Both issue_id and message are required' 
+          details: 'Both initiative_id and message are required' 
         },
         { status: 400 }
       )
     }
     
     // Send message to Teams
-    const success = await TeamsMessenger.sendMessageToIssue({
-      issueId: body.issue_id,
+    const success = await TeamsMessenger.sendMessageToInitiative({
+      initiativeId: initiativeId,
       message: body.message.trim(),
       messageType: body.message_type || 'comment'
     })
@@ -62,25 +65,27 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/teams/send-message?issue_id=xxx
- * Checks if an issue has Teams context (can receive messages)
+ * GET /api/teams/send-message?initiative_id=xxx (or issue_id for backwards compatibility)
+ * Checks if an initiative has Teams context (can receive messages)
  */
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
-    const issueId = searchParams.get('issue_id')
+    // Support both initiative_id and issue_id for backwards compatibility
+    const initiativeId = searchParams.get('initiative_id') || searchParams.get('issue_id')
     
-    if (!issueId) {
+    if (!initiativeId) {
       return NextResponse.json(
-        { error: 'Missing issue_id parameter' },
+        { error: 'Missing initiative_id parameter' },
         { status: 400 }
       )
     }
     
-    const hasContext = await TeamsMessenger.hasTeamsContext(issueId)
+    const hasContext = await TeamsMessenger.hasTeamsContext(initiativeId)
     
     return NextResponse.json({
-      issue_id: issueId,
+      initiative_id: initiativeId,
+      issue_id: initiativeId, // Legacy alias
       has_teams_context: hasContext,
       can_send_messages: hasContext
     })

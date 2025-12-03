@@ -1,20 +1,23 @@
 import { supabase } from '../supabase/client'
 import { 
-  Survey, 
-  SurveyQuestion, 
-  SurveyResponse, 
-  SurveyStatus,
-  SurveyAudience,
-  QuestionType,
+  Database,
   User,
-  Initiative
+  BusinessUnit
 } from '../database/types'
+
+// Type aliases from Database
+type Survey = Database['public']['Tables']['surveys']['Row']
+type SurveyQuestion = Database['public']['Tables']['survey_questions']['Row']
+type SurveyResponse = Database['public']['Tables']['survey_responses']['Row']
+type SurveyStatus = Database['public']['Enums']['survey_status']
+type SurveyAudience = Database['public']['Enums']['survey_audience']
+type QuestionType = Database['public']['Enums']['question_type']
 
 // Extended Survey type with relations
 export type SurveyWithRelations = Survey & {
   creator_user_id?: string | null
   creator?: User | null
-  target_bu?: Initiative | null
+  target_bu?: BusinessUnit | null
   questions?: SurveyQuestion[] | null
   response_count?: number
   my_response_status?: 'pending' | 'completed'
@@ -78,7 +81,7 @@ export class SurveysAPI {
       .select(`
         *,
         creator:users!surveys_creator_user_id_fkey(id, name, email, avatar_url, role),
-        target_bu:initiatives!surveys_target_bu_id_fkey(id, name, slug, description),
+        target_bu:business_units!surveys_target_bu_id_fkey(id, name, slug, description),
         questions:survey_questions(*)
       `)
     
@@ -130,7 +133,7 @@ export class SurveysAPI {
       .select(`
         *,
         creator:users!surveys_creator_user_id_fkey(id, name, email, avatar_url, role),
-        target_bu:initiatives!surveys_target_bu_id_fkey(id, name, slug, description),
+        target_bu:business_units!surveys_target_bu_id_fkey(id, name, slug, description),
         questions:survey_questions(*)
       `)
       .eq('id', id)
@@ -380,10 +383,10 @@ export class SurveysAPI {
     return data || []
   }
 
-  // Get available BUs for targeting (helper for UI)
-  static async getAvailableBUs(organizationId?: string): Promise<Initiative[]> {
+  // Get available Business Units for targeting (helper for UI)
+  static async getAvailableBUs(organizationId?: string): Promise<BusinessUnit[]> {
     let query = supabase
-      .from('initiatives')
+      .from('business_units')
       .select('*')
       .eq('active', true)
     
@@ -399,4 +402,3 @@ export class SurveysAPI {
     return data || []
   }
 }
-

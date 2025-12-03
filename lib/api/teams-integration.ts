@@ -1,4 +1,4 @@
-import { IssuesAPI, type CreateIssueData } from './issues'
+import { InitiativesAPI, type CreateInitiativeData } from './issues'
 import { supabase } from '../supabase/client'
 
 export interface TeamsConversationReference {
@@ -49,11 +49,14 @@ export interface TeamsConversationData {
   conversation_reference?: TeamsConversationReference // For proactive messaging
 }
 
-export interface TeamsIssueCreationResult {
-  issue_id: string
-  issue_key: string
+export interface TeamsInitiativeCreationResult {
+  initiative_id: string
+  initiative_key: string
   link_id: string
 }
+
+// Legacy alias
+export type TeamsIssueCreationResult = TeamsInitiativeCreationResult
 
 export class TeamsIntegration {
   private static organizationId = '01234567-8901-2345-6789-012345678901' // Gonvarri
@@ -69,12 +72,12 @@ export class TeamsIntegration {
   }
 
   /**
-   * Maps Business Unit name to initiative_id (fetched from DB)
+   * Maps Business Unit name to business_unit_id (fetched from DB)
    */
-  private static async getInitiativeIdByName(businessUnitName: string): Promise<string | null> {
+  private static async getBusinessUnitIdByName(businessUnitName: string): Promise<string | null> {
     try {
       const { data, error } = await supabase
-        .from('initiatives')
+        .from('business_units')
         .select('id')
         .eq('organization_id', this.organizationId)
         .ilike('name', `%${businessUnitName}%`)
@@ -119,25 +122,25 @@ export class TeamsIntegration {
   }
 
   /**
-   * Creates an issue from Teams conversation analysis
+   * Creates an initiative from Teams conversation analysis
    * Called by webhook or API endpoint
    */
-  static async createIssueFromTeamsConversation(
+  static async createInitiativeFromTeamsConversation(
     conversationData: TeamsConversationData
-  ): Promise<TeamsIssueCreationResult> {
+  ): Promise<TeamsInitiativeCreationResult> {
     const { ai_analysis, conversation_id, conversation_url, conversation_reference } = conversationData
 
     try {
-      console.log('[TeamsIntegration] 🚀 Starting issue creation from Teams conversation')
+      console.log('[TeamsIntegration] 🚀 Starting initiative creation from Teams conversation')
       
       // Map business_unit and project names to IDs if provided
-      let initiative_id = null
+      let business_unit_id = null
       let project_id = null
       
       if (ai_analysis.business_unit) {
         try {
-          initiative_id = await this.getInitiativeIdByName(ai_analysis.business_unit)
-          console.log(`📍 Mapped Business Unit "${ai_analysis.business_unit}" → ${initiative_id || 'NOT FOUND'}`)
+          business_unit_id = await this.getBusinessUnitIdByName(ai_analysis.business_unit)
+          console.log(`📍 Mapped Business Unit "${ai_analysis.business_unit}" → ${business_unit_id || 'NOT FOUND'}`)
         } catch (error) {
           console.error('[TeamsIntegration] ❌ Error mapping business unit:', error)
         }
@@ -152,24 +155,24 @@ export class TeamsIntegration {
         }
       }
 
-      // 1. Create the issue in triage with Gonvarri fields
-      console.log('[TeamsIntegration] 📝 Creating issue...')
-      const issueData: CreateIssueData = {
-        title: ai_analysis.title || this.generateIssueTitle(ai_analysis.summary), // Use AI-generated title if available
-        description: this.generateIssueDescription(conversationData),
+      // 1. Create the initiative in triage with Gonvarri fields
+      console.log('[TeamsIntegration] 📝 Creating initiative...')
+      const initiativeData: CreateInitiativeData = {
+        title: ai_analysis.title || this.generateInitiativeTitle(ai_analysis.summary), // Use AI-generated title if available
+        description: this.generateInitiativeDescription(conversationData),
         short_description: ai_analysis.short_description,
         impact: ai_analysis.impact,
         core_technology: ai_analysis.core_technology,
         priority: ai_analysis.priority,
         origin: 'teams',
         reporter_id: this.aiAgentUserId,
-        initiative_id: initiative_id || undefined, // Business Unit mapped from AI
+        business_unit_id: business_unit_id || undefined, // Business Unit mapped from AI
         project_id: project_id || undefined, // Project mapped from AI
         labels: [] // We'll add these after creation
       }
 
-      const issue = await IssuesAPI.createIssue(this.organizationId, issueData)
-      console.log(`[TeamsIntegration] ✅ Issue created: ${issue.id} (${issue.key})`)
+      const initiative = await InitiativesAPI.createInitiative(this.organizationId, initiativeData)
+      console.log(`[TeamsIntegration] ✅ Initiative created: ${initiative.id} (${initiative.key})`)
 
       // 1.5. Calculate and update RICE score
       console.log('[TeamsIntegration] 🎯 Calculating RICE score...')
@@ -181,13 +184,13 @@ export class TeamsIntegration {
           )
           
           const { error: riceError } = await supabase
-            .from('issues')
+            .from('initiatives')
             .update({ 
               rice_score: riceScore,
               difficulty: ai_analysis.difficulty,
               impact_score: ai_analysis.impact_score
             })
-            .eq('id', issue.id)
+            .eq('id', initiative.id)
           
           if (riceError) {
             console.error('[TeamsIntegration] ❌ Error updating RICE score:', riceError)
@@ -206,7 +209,7 @@ export class TeamsIntegration {
       // 2. Create link to Teams conversation (with conversation_reference for proactive messaging)
       console.log('[TeamsIntegration] 🔗 Creating Teams link...')
       const linkData: any = {
-        issue_id: issue.id,
+        initiative_id: initiative.id,
         provider: 'teams',
         external_id: conversation_id,
         url: conversation_url,
@@ -219,13 +222,13 @@ export class TeamsIntegration {
       }
 
       const { data: link, error: linkError } = await supabase
-        .from('issue_links')
+        .from('initiative_links')
         .insert(linkData)
         .select()
         .single()
 
       if (linkError) {
-        console.error('[TeamsIntegration] ❌ Error creating issue link:', linkError)
+        console.error('[TeamsIntegration] ❌ Error creating initiative link:', linkError)
         throw linkError
       }
       console.log(`[TeamsIntegration] ✅ Link created: ${link.id}`)
@@ -234,7 +237,7 @@ export class TeamsIntegration {
       console.log('[TeamsIntegration] 🏷️ Adding labels...')
       if (ai_analysis.suggested_labels.length > 0) {
         try {
-          await this.addSuggestedLabels(issue.id, ai_analysis.suggested_labels)
+          await this.addSuggestedLabels(initiative.id, ai_analysis.suggested_labels)
           console.log('[TeamsIntegration] ✅ Labels added')
         } catch (error) {
           console.error('[TeamsIntegration] ⚠️ Error adding labels (non-critical):', error)
@@ -245,45 +248,50 @@ export class TeamsIntegration {
       // 4. Create detailed activity record
       console.log('[TeamsIntegration] 📋 Creating activity records...')
       try {
-        await this.createTeamsActivity(issue.id, conversationData)
+        await this.createTeamsActivity(initiative.id, conversationData)
         console.log('[TeamsIntegration] ✅ Activity records created')
       } catch (error) {
         console.error('[TeamsIntegration] ⚠️ Error creating activity (non-critical):', error)
         // Non-critical, continue
       }
 
-      console.log('[TeamsIntegration] 🎉 Issue creation complete!')
+      console.log('[TeamsIntegration] 🎉 Initiative creation complete!')
       return {
-        issue_id: issue.id,
-        issue_key: issue.key,
+        initiative_id: initiative.id,
+        initiative_key: initiative.key,
         link_id: link.id
       }
     } catch (error) {
-      console.error('[TeamsIntegration] ❌ FATAL ERROR in createIssueFromTeamsConversation:', error)
+      console.error('[TeamsIntegration] ❌ FATAL ERROR in createInitiativeFromTeamsConversation:', error)
       throw error
     }
   }
 
+  // Legacy alias
+  static async createIssueFromTeamsConversation(conversationData: TeamsConversationData): Promise<TeamsInitiativeCreationResult> {
+    return this.createInitiativeFromTeamsConversation(conversationData)
+  }
+
   /**
-   * Updates issue with new Teams activity
+   * Updates initiative with new Teams activity
    */
   static async syncTeamsConversation(
-    issueId: string,
+    initiativeId: string,
     conversationData: TeamsConversationData
   ): Promise<void> {
     // Update the link sync timestamp
     await supabase
-      .from('issue_links')
+      .from('initiative_links')
       .update({ synced_at: new Date().toISOString() })
-      .eq('issue_id', issueId)
+      .eq('initiative_id', initiativeId)
       .eq('provider', 'teams')
 
     // Create activity record for the sync
     await supabase
-      .from('issue_activity')
+      .from('initiative_activity')
       .insert({
         organization_id: this.organizationId,
-        issue_id: issueId,
+        initiative_id: initiativeId,
         actor_user_id: this.aiAgentUserId,
         action: 'updated',
         payload: {
@@ -299,7 +307,7 @@ export class TeamsIntegration {
   /**
    * Calculate RICE score based on impact and difficulty
    * 
-   * For Teams issues, score range is 60-100:
+   * For Teams initiatives, score range is 60-100:
    * - Impact: 1-3 (low to high business impact)
    * - Difficulty: 1-3 (low to high technical complexity)
    * 
@@ -316,7 +324,7 @@ export class TeamsIntegration {
     return Math.max(60, Math.min(100, score))
   }
   
-  private static generateIssueTitle(summary: string): string {
+  private static generateInitiativeTitle(summary: string): string {
     // Extract short, meaningful title (2-4 words ideally)
     const cleanSummary = summary.trim()
     
@@ -336,7 +344,7 @@ export class TeamsIntegration {
     return shortTitle.length > 50 ? shortTitle.substring(0, 47) + '...' : shortTitle
   }
 
-  private static generateIssueDescription(data: TeamsConversationData): string {
+  private static generateInitiativeDescription(data: TeamsConversationData): string {
     const { ai_analysis } = data
     
     // Use the AI-generated summary as the main description
@@ -386,7 +394,7 @@ export class TeamsIntegration {
     return this.mockAssignees.default
   }
 
-  private static async addSuggestedLabels(issueId: string, suggestedLabels: string[]): Promise<void> {
+  private static async addSuggestedLabels(initiativeId: string, suggestedLabels: string[]): Promise<void> {
     // Get existing labels that match the suggestions
     const { data: existingLabels } = await supabase
       .from('labels')
@@ -396,27 +404,27 @@ export class TeamsIntegration {
 
     if (!existingLabels || existingLabels.length === 0) return
 
-    // Link the labels to the issue
+    // Link the labels to the initiative
     const labelLinks = existingLabels.map(label => ({
-      issue_id: issueId,
+      initiative_id: initiativeId,
       label_id: label.id
     }))
 
     await supabase
-      .from('issue_labels')
+      .from('initiative_labels')
       .insert(labelLinks)
   }
 
   private static async createTeamsActivity(
-    issueId: string,
+    initiativeId: string,
     conversationData: TeamsConversationData
   ): Promise<void> {
     // 1. Create metadata activity
     await supabase
-      .from('issue_activity')
+      .from('initiative_activity')
       .insert({
         organization_id: this.organizationId,
-        issue_id: issueId,
+        initiative_id: initiativeId,
         actor_user_id: this.aiAgentUserId,
         action: 'created',
         payload: {
@@ -442,10 +450,10 @@ export class TeamsIntegration {
 
     // 2. Create conversation history activity
     await supabase
-      .from('issue_activity')
+      .from('initiative_activity')
       .insert({
         organization_id: this.organizationId,
-        issue_id: issueId,
+        initiative_id: initiativeId,
         actor_user_id: this.aiAgentUserId,
         action: 'commented',
         payload: {

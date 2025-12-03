@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}))
-    const { organization_id, role, initiative_id } = body
+    const { organization_id, role, business_unit_id } = body
 
     if (!organization_id) {
       return NextResponse.json({ error: 'Missing organization_id' }, { status: 400 })
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     const userEmail = authUser.user.email.toLowerCase()
     const userRole = role || authUser.user.user_metadata?.role || "EMP"
-    const initId = initiative_id || authUser.user.user_metadata?.initiative_id || null
+    const buId = business_unit_id || authUser.user.user_metadata?.business_unit_id || null
 
     // Create or update user in users table
     const { data: existingUser } = await admin
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
         auth_user_id: authUserId,
         organization_id: organization_id,
         role: userRole,
-        initiative_id: initId,
+        business_unit_id: buId,
         sapira_role_type: userRole === "SAP" ? sapiraRoleType : null,
         active: true,
       })
