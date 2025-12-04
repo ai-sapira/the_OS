@@ -407,17 +407,37 @@ export class BusinessUnitsAPI {
 
   // Get business unit activities (for showing timeline/history)
   static async getBusinessUnitActivities(businessUnitId: string) {
-    const { data, error } = await supabase
-      .from('business_unit_activity')
-      .select(`
-        *,
-        actor:users!business_unit_activity_actor_user_id_fkey(id, name, email, avatar_url, role)
-      `)
-      .eq('business_unit_id', businessUnitId)
-      .order('created_at', { ascending: false })
+    try {
+      // Use explicit FK name since it has a legacy name (initiative_activity_actor_user_id_fkey)
+      const { data, error } = await supabase
+        .from('business_unit_activity')
+        .select(`
+          *,
+          actor:users!initiative_activity_actor_user_id_fkey(id, name, email, avatar_url, role)
+        `)
+        .eq('business_unit_id', businessUnitId)
+        .order('created_at', { ascending: false })
 
-    if (error) throw error
-    return data || []
+      if (error) {
+        // If join fails, try without it
+        console.warn('[BusinessUnitsAPI] Join failed, fetching activities without actor:', error.message)
+        const { data: simpleData, error: simpleError } = await supabase
+          .from('business_unit_activity')
+          .select('*')
+          .eq('business_unit_id', businessUnitId)
+          .order('created_at', { ascending: false })
+        
+        if (simpleError) {
+          console.warn('[BusinessUnitsAPI] Activity table error:', simpleError.message)
+          return []
+        }
+        return simpleData || []
+      }
+      return data || []
+    } catch (err) {
+      console.warn('[BusinessUnitsAPI] Error fetching activities:', err)
+      return []
+    }
   }
 
   // Create a manual activity log entry (for special events not captured by triggers)
@@ -442,8 +462,6 @@ export class BusinessUnitsAPI {
   }
 }
 
-// Legacy alias for backwards compatibility during migration
-// TODO: Remove after full codebase migration
-export { BusinessUnitsAPI as InitiativesAPI }
-export type { BusinessUnitWithManager as InitiativeWithManager }
+// Exported types for use in other modules
+export type { BusinessUnitWithManager }
 

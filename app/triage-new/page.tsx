@@ -1489,6 +1489,7 @@ export default function TriageNewPage() {
         onAccept={handleAcceptIssue}
         onDecline={handleDeclineIssue}
         onSnooze={handleSnoozeIssue}
+        initialAction={triageAction === 'duplicate' ? 'accept' : (triageAction || 'accept')}
       />
 
       <CommandPalette 

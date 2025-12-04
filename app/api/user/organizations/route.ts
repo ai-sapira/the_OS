@@ -9,7 +9,7 @@ export async function GET() {
   console.log('[API /user/organizations] Request received')
 
   try {
-    const supabaseServer = createServerSupabaseClient()
+    const supabaseServer = await createServerSupabaseClient()
     const {
       data: { session },
     } = await supabaseServer.auth.getSession()

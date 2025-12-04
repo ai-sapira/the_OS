@@ -45,6 +45,7 @@ import { InitiativesAPI } from "@/lib/api/initiatives";
 import { IssuesAPI, IssueWithRelations } from "@/lib/api/initiatives";
 import { ProjectStatus } from "@/lib/database/types";
 import { useAuth } from "@/lib/context/auth-context";
+import { NewIssueModal } from "@/components/new-issue-modal";
 
 // Status Chip Component - Editable
 function StatusChip({ 
@@ -470,9 +471,11 @@ function MetricsSection({ project }: { project: ProjectWithRelations }) {
 
 // Initiatives List Component - Shows the issues (initiatives) associated with the project
 function ProjectInitiativesList({ 
-  project 
+  project,
+  refreshKey 
 }: { 
-  project: ProjectWithRelations 
+  project: ProjectWithRelations
+  refreshKey?: number 
 }) {
   const router = useRouter();
   const { currentOrg } = useAuth();
@@ -502,7 +505,7 @@ function ProjectInitiativesList({
     };
 
     loadIssues();
-  }, [project.id, currentOrg?.organization?.id]);
+  }, [project.id, currentOrg?.organization?.id, refreshKey]);
 
   if (loading) {
     return (
@@ -556,8 +559,8 @@ function ProjectInitiativesList({
 
             {/* Business Unit Column */}
             <div className="text-sm text-gray-500">
-              {issue.initiative ? (
-                <span className="text-xs">{issue.initiative.name}</span>
+              {issue.businessUnit ? (
+                <span className="text-xs">{issue.businessUnit.name}</span>
               ) : (
                 <span className="text-xs text-gray-400">—</span>
               )}
@@ -587,6 +590,8 @@ export default function ProjectDetailPage() {
   
   const [project, setProject] = useState<ProjectWithRelations | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showNewIssueModal, setShowNewIssueModal] = useState(false);
+  const [initiativesRefreshKey, setInitiativesRefreshKey] = useState(0);
 
   useEffect(() => {
     const loadProject = async () => {
@@ -700,7 +705,7 @@ export default function ProjectDetailPage() {
                         project.id,
                         newBU?.id || null
                       );
-                      setProject({ ...project, initiative: newBU });
+                      setProject({ ...project, businessUnit: newBU });
                     } catch (error) {
                       console.error('Error updating business unit:', error);
                     }
@@ -762,17 +767,32 @@ export default function ProjectDetailPage() {
               <h2 className="text-sm font-semibold text-gray-900">
                 Initiatives
               </h2>
-              <Button size="sm" variant="outline" className="h-7 text-xs">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="h-7 text-xs"
+                onClick={() => setShowNewIssueModal(true)}
+              >
                 + New Initiative
               </Button>
             </div>
 
             <div className="border border-gray-200 rounded-lg bg-white">
-              <ProjectInitiativesList project={project} />
+              <ProjectInitiativesList project={project} refreshKey={initiativesRefreshKey} />
             </div>
           </div>
         </div>
         </motion.div>
+
+        {/* New Initiative Modal */}
+        <NewIssueModal
+          open={showNewIssueModal}
+          onOpenChange={setShowNewIssueModal}
+          defaultProjectId={project.id}
+          onCreateIssue={() => {
+            setInitiativesRefreshKey(prev => prev + 1);
+          }}
+        />
       </ResizablePageSheet>
     </ResizableAppShell>
   );

@@ -41,11 +41,11 @@ import {
 } from "@/components/ui/popover";
 
 // API and Types
-import { InitiativesAPI, InitiativeWithManager } from "@/lib/api/initiatives";
+import { BusinessUnitsAPI, BusinessUnitWithManager } from "@/lib/api/business-units";
 import { ProjectsAPI, ProjectWithRelations } from "@/lib/api/projects";
 import { EditableProjectStatusDropdown } from "@/components/ui/editable-project-status-dropdown";
 import { EditableProjectOwnerDropdown } from "@/components/ui/editable-project-owner-dropdown";
-import { InitiativeActivityTimeline } from "@/components/initiative-activity-timeline";
+import { BusinessUnitActivityTimeline } from "@/components/business-unit-activity-timeline";
 import { NewProjectModal } from "@/components/new-project-modal";
 import { useAuth } from "@/lib/context/auth-context";
 
@@ -121,7 +121,7 @@ function ManagerChip({
   currentManager,
   onManagerChange
 }: { 
-  currentManager?: InitiativeWithManager['manager'],
+  currentManager?: BusinessUnitWithManager['manager'],
   onManagerChange?: (newManager: any) => void
 }) {
   const [open, setOpen] = useState(false);
@@ -137,8 +137,8 @@ function ManagerChip({
   const loadManagers = async () => {
     try {
       setLoading(true);
-      const managers = await InitiativesAPI.getAvailableManagers();
-      setAvailableManagers(managers);
+      const managers = await BusinessUnitsAPI.getAvailableManagers();
+      setAvailableManagers(managers || []);
     } catch (error) {
       console.error('Error loading managers:', error);
     } finally {
@@ -233,11 +233,11 @@ function ManagerChip({
 // Auto-save Description Component
 function AutoSaveDescription({ 
   initialValue, 
-  initiativeId,
+  businessUnitId,
   onSave
 }: { 
   initialValue: string,
-  initiativeId: string,
+  businessUnitId: string,
   onSave?: () => void
 }) {
   const [value, setValue] = useState(initialValue);
@@ -261,7 +261,7 @@ function AutoSaveDescription({
       if (newValue !== initialValue) {
         setIsSaving(true);
         try {
-          await InitiativesAPI.updateInitiative(initiativeId, { description: newValue });
+          await BusinessUnitsAPI.updateBusinessUnit(businessUnitId, { description: newValue });
           onSave?.();
         } catch (error) {
           console.error('Error saving description:', error);
@@ -291,7 +291,7 @@ function AutoSaveDescription({
 }
 
 // Metrics Section Component - Simplified
-function MetricsSection({ initiative }: { initiative: InitiativeWithManager }) {
+function MetricsSection({ businessUnit }: { businessUnit: BusinessUnitWithManager }) {
   // Mock data - Different for each BU
   // These would come from actual data in a real implementation
   const metrics = [
@@ -342,11 +342,11 @@ function MetricsSection({ initiative }: { initiative: InitiativeWithManager }) {
 }
 
 // Projects List Component (similar to projects page)
-function InitiativeProjectsList({ 
-  initiativeId,
+function BusinessUnitProjectsList({ 
+  businessUnitId,
   refreshKey
 }: { 
-  initiativeId: string
+  businessUnitId: string
   refreshKey?: number
 }) {
   const router = useRouter();
@@ -364,12 +364,12 @@ function InitiativeProjectsList({
       try {
         setLoading(true);
         
-        // Get all projects and filter those belonging to this initiative
+        // Get all projects and filter those belonging to this business unit
         const allProjects = await ProjectsAPI.getProjects(currentOrg.organization.id);
         
-        // Filter projects that belong to this initiative
+        // Filter projects that belong to this business unit
         const filteredProjects = allProjects.filter(project => {
-          return project.initiative?.id === initiativeId;
+          return project.business_unit_id === businessUnitId || project.businessUnit?.id === businessUnitId;
         });
         
         setProjects(filteredProjects);
@@ -382,7 +382,7 @@ function InitiativeProjectsList({
     };
 
     loadProjects();
-  }, [initiativeId, currentOrg?.organization?.id, refreshKey]);
+  }, [businessUnitId, currentOrg?.organization?.id, refreshKey]);
 
   if (loading) {
     return (
@@ -495,19 +495,19 @@ function InitiativeProjectsList({
   );
 }
 
-export default function InitiativeDetailPage() {
+export default function BusinessUnitDetailPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params.slug as string;
   const { currentOrg } = useAuth();
   
-  const [initiative, setInitiative] = useState<InitiativeWithManager | null>(null);
+  const [businessUnit, setBusinessUnit] = useState<BusinessUnitWithManager | null>(null);
   const [loading, setLoading] = useState(true);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [projectsRefreshKey, setProjectsRefreshKey] = useState(0);
 
   useEffect(() => {
-    const loadInitiative = async () => {
+    const loadBusinessUnit = async () => {
       if (!currentOrg?.organization?.id) {
         setLoading(false);
         return;
@@ -522,24 +522,24 @@ export default function InitiativeDetailPage() {
         setLoading(true);
         // Decode the slug in case it's URL encoded
         const decodedSlug = decodeURIComponent(slug);
-        console.log('[InitiativeDetailPage] Loading initiative with slug:', decodedSlug);
+        console.log('[BusinessUnitDetailPage] Loading business unit with slug:', decodedSlug);
         
-        const found = await InitiativesAPI.getInitiativeBySlug(decodedSlug, currentOrg.organization.id);
+        const found = await BusinessUnitsAPI.getBusinessUnitBySlug(decodedSlug, currentOrg.organization.id);
         
         if (found) {
-          console.log('[InitiativeDetailPage] Found initiative:', found.name, found.slug);
-          setInitiative(found);
+          console.log('[BusinessUnitDetailPage] Found business unit:', found.name, found.slug);
+          setBusinessUnit(found);
         } else {
-          console.warn('[InitiativeDetailPage] Initiative not found with slug:', decodedSlug);
+          console.warn('[BusinessUnitDetailPage] Business unit not found with slug:', decodedSlug);
         }
       } catch (error) {
-        console.error('[InitiativeDetailPage] Error loading initiative:', error);
+        console.error('[BusinessUnitDetailPage] Error loading business unit:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadInitiative();
+    loadBusinessUnit();
   }, [slug, currentOrg?.organization?.id]);
 
   if (loading) {
@@ -554,12 +554,12 @@ export default function InitiativeDetailPage() {
     );
   }
 
-  if (!initiative) {
+  if (!businessUnit) {
     return (
       <ResizableAppShell>
         <ResizablePageSheet>
           <div className="flex items-center justify-center py-12">
-            <div className="text-muted-foreground text-sm">Initiative no encontrada</div>
+            <div className="text-muted-foreground text-sm">Business unit no encontrada</div>
           </div>
         </ResizablePageSheet>
       </ResizableAppShell>
@@ -582,13 +582,13 @@ export default function InitiativeDetailPage() {
               <span className="text-[14px] text-gray-500">Workspace</span>
               <span className="text-[14px] text-gray-400">›</span>
               <span 
-                onClick={() => router.push('/initiatives')} 
+                onClick={() => router.push('/business-units')} 
                 className="text-[14px] text-gray-500 hover:text-gray-900 cursor-pointer transition-colors"
               >
-                Initiatives
+                Business Units
               </span>
               <span className="text-[14px] text-gray-400">›</span>
-              <span className="text-[14px] font-medium">{initiative.name}</span>
+              <span className="text-[14px] font-medium">{businessUnit.name}</span>
             </div>
           </motion.div>
         }
@@ -615,18 +615,18 @@ export default function InitiativeDetailPage() {
                 </div>
                 
                 <h1 className="text-xl font-semibold text-gray-900">
-                  {initiative.name}
+                  {businessUnit.name}
                 </h1>
               </div>
               
               {/* Right side - Properties chips editables */}
               <div className="flex items-center gap-2">
               <StatusChip 
-                currentStatus={initiative.active ?? true}
+                currentStatus={businessUnit.active ?? true}
                 onStatusChange={async (newStatus) => {
                   try {
-                    await InitiativesAPI.updateInitiativeStatus(initiative.id, newStatus);
-                    setInitiative({ ...initiative, active: newStatus });
+                    await BusinessUnitsAPI.updateBusinessUnitStatus(businessUnit.id, newStatus);
+                    setBusinessUnit({ ...businessUnit, active: newStatus });
                   } catch (error) {
                     console.error('Error updating status:', error);
                   }
@@ -634,14 +634,14 @@ export default function InitiativeDetailPage() {
               />
                 
                 <ManagerChip 
-                  currentManager={initiative.manager}
+                  currentManager={businessUnit.manager}
                   onManagerChange={async (newManager) => {
                     try {
-                      await InitiativesAPI.updateInitiativeManager(
-                        initiative.id, 
+                      await BusinessUnitsAPI.updateBusinessUnitManager(
+                        businessUnit.id, 
                         newManager?.id || null
                       );
-                      setInitiative({ ...initiative, manager: newManager });
+                      setBusinessUnit({ ...businessUnit, manager: newManager });
                     } catch (error) {
                       console.error('Error updating manager:', error);
                     }
@@ -656,8 +656,8 @@ export default function InitiativeDetailPage() {
             <h2 className="text-sm font-semibold text-gray-900 mb-3">Description</h2>
             <div className="pb-0 mb-6 border-b border-gray-200 -mx-5 px-5">
             <AutoSaveDescription 
-              initialValue={initiative.description || ""}
-              initiativeId={initiative.id}
+              initialValue={businessUnit.description || ""}
+              businessUnitId={businessUnit.id}
             />
             </div>
           </div>
@@ -666,7 +666,7 @@ export default function InitiativeDetailPage() {
           <div className="px-5">
             <h2 className="text-sm font-semibold text-gray-900 mb-4">Performance Metrics</h2>
             <div className="pb-6 mb-6 border-b border-gray-200 -mx-5 px-5">
-              <MetricsSection initiative={initiative} />
+              <MetricsSection businessUnit={businessUnit} />
             </div>
           </div>
 
@@ -688,8 +688,8 @@ export default function InitiativeDetailPage() {
             
             <div className="pb-6 mb-6 border-b border-gray-200 -mx-5 px-5">
               <div className="border border-gray-200 rounded-lg bg-white">
-                <InitiativeProjectsList 
-                  initiativeId={initiative.id} 
+                <BusinessUnitProjectsList 
+                  businessUnitId={businessUnit.id} 
                   refreshKey={projectsRefreshKey}
                 />
               </div>
@@ -703,7 +703,7 @@ export default function InitiativeDetailPage() {
             </h2>
             <div className="pb-6 mb-6 border-b border-gray-200 -mx-5 px-5">
               <div className="border border-gray-200 rounded-lg bg-white p-5">
-                <InitiativeActivityTimeline initiativeId={initiative.id} />
+                <BusinessUnitActivityTimeline businessUnitId={businessUnit.id} />
               </div>
             </div>
           </div>
@@ -727,7 +727,7 @@ export default function InitiativeDetailPage() {
         <NewProjectModal
           open={showNewProjectModal}
           onOpenChange={setShowNewProjectModal}
-          defaultInitiativeId={initiative.id}
+          defaultInitiativeId={businessUnit.id}
           onCreateProject={() => {
             setProjectsRefreshKey(prev => prev + 1);
           }}

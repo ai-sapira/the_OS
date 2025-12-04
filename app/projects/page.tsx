@@ -417,9 +417,9 @@ function ProjectsCardList({
             case "Business Unit":
               filtered = filtered.filter(project => {
                 if (filterValue === "Unassigned") {
-                  return !project.initiative;
+                  return !project.businessUnit;
                 } else {
-                  return project.initiative?.name === filterValue;
+                  return project.businessUnit?.name === filterValue;
                 }
               });
               break;
@@ -492,11 +492,11 @@ function ProjectsCardList({
               <div className="flex justify-start min-w-0" onClick={(e) => e.stopPropagation()}>
                 <EditableProjectBUDropdown
                   currentBU={
-                    project.initiative
+                    project.businessUnit
                       ? {
-                          id: project.initiative.id,
-                          name: project.initiative.name,
-                          description: project.initiative.description || undefined,
+                          id: project.businessUnit.id,
+                          name: project.businessUnit.name,
+                          description: project.businessUnit.description || undefined,
                         }
                       : null
                   }

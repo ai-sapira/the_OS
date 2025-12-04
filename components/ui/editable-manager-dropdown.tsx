@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { ManagerButton } from "@/components/ui/manager-button";
+import { ManagerButton, ManagerDisplay } from "@/components/ui/manager-button";
 import {
   Select,
   SelectContent,
@@ -133,11 +133,10 @@ export function EditableManagerDropdown({
           {currentManager?.name || "Unassigned"}
         </SelectValue>
         {currentManager ? (
-          <ManagerButton
+          <ManagerDisplay
             name={currentManager.name}
             initials={currentManager.name.split(" ").map(n => n[0]).join("")}
             imageUrl={currentManager.avatar_url}
-            onClick={() => {}}
           />
         ) : (
           <div className="flex items-center gap-2 text-muted-foreground">

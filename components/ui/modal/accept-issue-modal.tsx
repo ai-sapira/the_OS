@@ -96,6 +96,7 @@ interface AcceptIssueModalProps {
   onAccept: (data: any) => void
   onDecline: (data: any) => void
   onSnooze: (data: any) => void
+  initialAction?: 'accept' | 'decline' | 'snooze'
 }
 
 export function AcceptIssueModal({
@@ -104,7 +105,8 @@ export function AcceptIssueModal({
   onOpenChange,
   onAccept,
   onDecline,
-  onSnooze
+  onSnooze,
+  initialAction = 'accept'
 }: AcceptIssueModalProps) {
   const { currentOrg } = useAuth()
   const organizationId = currentOrg?.organization?.id
@@ -154,7 +156,8 @@ export function AcceptIssueModal({
   // Reset form when modal opens
   useEffect(() => {
     if (open && issue) {
-      setAction('accept')
+      // Use initialAction if provided, otherwise default to 'accept'
+      setAction(initialAction)
       setComment("")
       
       const initiativeId = issue.initiative_id || (typeof issue.initiative === 'string' ? issue.initiative : issue.initiative?.id) || null
@@ -168,7 +171,7 @@ export function AcceptIssueModal({
       
       setTimeout(() => commentRef.current?.focus(), 100)
     }
-  }, [open, issue])
+  }, [open, issue, initialAction])
 
   const handleSubmit = () => {
     if (!issue) return

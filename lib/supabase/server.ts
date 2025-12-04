@@ -4,7 +4,8 @@ import { createClient } from "@supabase/supabase-js"
 import { Database } from "../database/types"
 
 // Server-side Supabase client with user session (for RLS)
-export function createServerSupabaseClient() {
+// Uses the new Next.js 15+ compatible API with getAll/setAll
+export async function createServerSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -16,17 +17,21 @@ export function createServerSupabaseClient() {
     throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY is not defined")
   }
 
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value
+      getAll() {
+        return cookieStore.getAll()
       },
-      set(name: string, value: string, options: any) {
-        cookieStore.set({ name, value, ...options })
-      },
-      remove(name: string, options: any) {
-        cookieStore.set({ name, value: "", ...options })
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          )
+        } catch {
+          // The `setAll` method was called from a Server Component.
+          // This can be ignored if you have middleware refreshing user sessions.
+        }
       },
     },
   })
@@ -78,7 +83,7 @@ export async function isOrgAdmin(authUserId: string, organizationId: string): Pr
 
 // Get user's auth ID from session
 export async function getAuthUserId(): Promise<string | null> {
-  const supabase = createServerSupabaseClient()
+  const supabase = await createServerSupabaseClient()
   const {
     data: { session },
   } = await supabase.auth.getSession()

@@ -25,7 +25,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { useSupabaseData } from "@/hooks/use-supabase-data"
 import { ProjectsAPI } from "@/lib/api/projects"
-import { InitiativesAPI } from "@/lib/api/initiatives"
+import { BusinessUnitsAPI } from "@/lib/api/business-units"
 import type { ProjectStatus } from "@/lib/database/types"
 import { useAuth } from "@/lib/context/auth-context"
 import { getSapiraProfileLabel } from "@/components/role-switcher"
@@ -83,8 +83,8 @@ export function NewProjectModal({ open, onOpenChange, onCreateProject, defaultIn
 
       try {
         setLoadingUsers(true)
-        const availableUsers = await InitiativesAPI.getAvailableManagers(currentOrg.organization.id)
-        setUsers(availableUsers)
+        const availableUsers = await BusinessUnitsAPI.getAvailableManagers(currentOrg.organization.id)
+        setUsers(availableUsers || [])
       } catch (error) {
         console.error("Error loading users:", error)
       } finally {
@@ -131,7 +131,7 @@ export function NewProjectModal({ open, onOpenChange, onCreateProject, defaultIn
         .replace(/[\s_-]+/g, "-")
         .replace(/^-+|-+$/g, "")
 
-      const newInitiative = await InitiativesAPI.createInitiative(
+      const newBusinessUnit = await BusinessUnitsAPI.createBusinessUnit(
         {
           name: newBUName.trim(),
           slug,
@@ -144,8 +144,8 @@ export function NewProjectModal({ open, onOpenChange, onCreateProject, defaultIn
 
       await refreshData()
       
-      if (newInitiative?.id) {
-        setSelectedInitiativeId(newInitiative.id)
+      if (newBusinessUnit?.id) {
+        setSelectedInitiativeId(newBusinessUnit.id)
       }
       
       setShowCreateBU(false)

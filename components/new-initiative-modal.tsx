@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { useSupabaseData } from "@/hooks/use-supabase-data"
-import { InitiativesAPI } from "@/lib/api/initiatives"
+import { BusinessUnitsAPI } from "@/lib/api/business-units"
 import { useAuth } from "@/lib/context/auth-context"
 import { getSapiraProfileLabel } from "@/components/role-switcher"
 import { NewProjectModal } from "@/components/new-project-modal"
@@ -62,8 +62,8 @@ export function NewInitiativeModal({ open, onOpenChange, onCreateInitiative }: N
 
       try {
         setLoadingManagers(true)
-        const availableManagers = await InitiativesAPI.getAvailableManagers(currentOrg.organization.id)
-        setManagers(availableManagers)
+        const availableManagers = await BusinessUnitsAPI.getAvailableManagers(currentOrg.organization.id)
+        setManagers(availableManagers || [])
       } catch (error) {
         console.error("Error loading managers:", error)
       } finally {
@@ -104,7 +104,7 @@ export function NewInitiativeModal({ open, onOpenChange, onCreateInitiative }: N
         .replace(/[\s_-]+/g, "-")
         .replace(/^-+|-+$/g, "")
 
-      const newInitiative = await InitiativesAPI.createInitiative(
+      const newBusinessUnit = await BusinessUnitsAPI.createBusinessUnit(
         {
           name: name.trim(),
           slug,
@@ -117,13 +117,13 @@ export function NewInitiativeModal({ open, onOpenChange, onCreateInitiative }: N
 
       await refreshData()
       
-      // Store created initiative info for chained flow
-      if (newInitiative?.id) {
-        setCreatedInitiativeId(newInitiative.id)
+      // Store created business unit info for chained flow
+      if (newBusinessUnit?.id) {
+        setCreatedInitiativeId(newBusinessUnit.id)
         setCreatedInitiativeName(name.trim())
       }
       
-      onCreateInitiative?.(newInitiative?.id)
+      onCreateInitiative?.(newBusinessUnit?.id)
 
       if (createMore) {
         resetForm()

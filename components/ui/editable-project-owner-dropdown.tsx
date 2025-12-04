@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { ManagerButton } from "@/components/ui/manager-button";
+import { ManagerButton, ManagerDisplay } from "@/components/ui/manager-button";
 import {
   Command,
   CommandEmpty,
@@ -164,11 +164,10 @@ export function EditableProjectOwnerDropdown({
           {currentOwner?.name || "Unassigned"}
         </SelectValue>
         {currentOwner ? (
-          <ManagerButton
+          <ManagerDisplay
             name={currentOwner.name}
             initials={currentOwner.name.split(" ").map(n => n[0]).join("")}
             imageUrl={currentOwner.avatar_url}
-            onClick={() => {}}
           />
         ) : (
           <div className="flex items-center gap-2 text-muted-foreground">

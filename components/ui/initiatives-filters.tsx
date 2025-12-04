@@ -451,13 +451,6 @@ export function InitiativesFiltersBar({
         </div>
       </div>
 
-      {/* Display Settings */}
-      <div className="flex items-center space-x-2">
-         <Button variant="outline" size="sm" className="h-7 bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-600 hover:text-gray-700 border-dashed px-3 text-xs rounded-lg">
-          <SettingsIcon className="mr-1.5 h-3.5 w-3.5 text-gray-500" />
-          Display
-        </Button>
-      </div>
     </div>
   );
 }

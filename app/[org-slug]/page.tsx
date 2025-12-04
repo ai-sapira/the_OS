@@ -3,8 +3,8 @@ import Link from "next/link"
 import { createAdminSupabaseClient } from "@/lib/supabase/server"
 
 interface OrgLandingProps {
-  params: { "org-slug": string }
-  searchParams?: { [key: string]: string | string[] | undefined }
+  params: Promise<{ "org-slug": string }>
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 async function fetchOrganization(slug: string) {
@@ -43,7 +43,9 @@ async function fetchOrganization(slug: string) {
 }
 
 export default async function OrgLandingPage({ params, searchParams }: OrgLandingProps) {
-  const slug = params["org-slug"].toLowerCase()
+  const resolvedParams = await params
+  const resolvedSearchParams = await searchParams
+  const slug = resolvedParams["org-slug"].toLowerCase()
   const organization = await fetchOrganization(slug)
 
   if (!organization) {
@@ -52,7 +54,7 @@ export default async function OrgLandingPage({ params, searchParams }: OrgLandin
 
   // Note: The cookie is set by middleware, no need to set it here
 
-  const emailParam = typeof searchParams?.email === "string" ? searchParams?.email : ""
+  const emailParam = typeof resolvedSearchParams?.email === "string" ? resolvedSearchParams?.email : ""
   const queryEmail = emailParam ? `&email=${encodeURIComponent(emailParam)}` : ""
 
   const loginUrl = `/login?org=${encodeURIComponent(slug)}${queryEmail}`
