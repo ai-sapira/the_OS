@@ -115,11 +115,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: {
-        id: message.id,
-        content: message.content,
-        sender_type: message.sender_type,
-        sender_name: message.sender_name,
-        created_at: message.created_at,
+        ...message,
         slack_sent: !!slackResult?.ok,
       },
     });

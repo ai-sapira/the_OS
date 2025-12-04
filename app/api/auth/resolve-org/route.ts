@@ -40,9 +40,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Email inválido" }, { status: 400 })
   }
 
-  const admin = createAdminSupabaseClient()
+  let admin
+  try {
+    admin = createAdminSupabaseClient()
+  } catch (initError: any) {
+    console.error("[resolve-org] Failed to create admin client:", initError.message)
+    return NextResponse.json(
+      { error: "Error de configuración del servidor" },
+      { status: 500 }
+    )
+  }
 
   try {
+    console.log("[resolve-org] Processing email:", email, "domain:", domain)
+    
     // Special handling for @sapira.ai users - they don't have a single organization
     // They should go directly to login and then select organization
     if (domain === "sapira.ai") {

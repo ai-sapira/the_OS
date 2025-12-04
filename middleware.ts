@@ -146,22 +146,23 @@ export async function middleware(req: NextRequest) {
     }
   )
 
-  // Only check session for private routes
+  // Refresh the session - this updates the cookies if needed
+  // We use getUser() which validates with the server
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  // Redirect authenticated users away from auth pages
-  if (session && (isRoot || isLogin)) {
+  // Only redirect authenticated users away from login/landing pages
+  // For protected routes, let the client-side AuthGuard handle redirection
+  // This avoids race conditions with cookie synchronization after login
+  if (user && (isRoot || isLogin)) {
     const redirectUrl = new URL('/initiatives', req.url)
     return NextResponse.redirect(redirectUrl)
   }
 
-  // Redirect unauthenticated users to landing
-  if (!session) {
-    const redirectUrl = new URL('/', req.url)
-    return NextResponse.redirect(redirectUrl)
-  }
+  // Don't redirect unauthenticated users from middleware
+  // The client-side AuthGuard in client-layout.tsx will handle this
+  // This prevents the race condition where cookies aren't synced yet after login
 
   return res
 }

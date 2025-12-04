@@ -79,9 +79,16 @@ export default function FDEChatPage() {
   useEffect(() => {
     const loadMessages = async () => {
       if (!currentOrg?.organization?.id) {
+        console.log('[FDE Chat] No org ID, skipping load');
         setLoading(false);
         return;
       }
+
+      console.log('[FDE Chat] Loading messages for org:', currentOrg.organization.id);
+      
+      // Check if we have a session
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[FDE Chat] Session:', session ? 'exists' : 'none', session?.user?.id);
 
       try {
         const { data, error } = await supabase
@@ -90,10 +97,12 @@ export default function FDEChatPage() {
           .eq('organization_id', currentOrg.organization.id)
           .order('created_at', { ascending: true });
 
+        console.log('[FDE Chat] Query result:', { count: data?.length, error: error?.message });
+        
         if (error) throw error;
         setMessages(data || []);
       } catch (error) {
-        console.error('Error loading messages:', error);
+        console.error('[FDE Chat] Error loading messages:', error);
       } finally {
         setLoading(false);
       }
@@ -136,6 +145,21 @@ export default function FDEChatPage() {
     setNewMessage('');
     setSending(true);
 
+    // Optimistic update - show message immediately
+    const optimisticMessage: Message = {
+      id: `temp-${Date.now()}`,
+      organization_id: currentOrg.organization.id,
+      content: messageContent,
+      sender_type: 'user',
+      sender_user_id: user?.id || null,
+      sender_name: currentUserName || 'You',
+      created_at: new Date().toISOString(),
+      slack_ts: null,
+      slack_channel_id: null,
+    };
+    
+    setMessages(prev => [...prev, optimisticMessage]);
+
     try {
       const response = await fetch('/api/slack/send', {
         method: 'POST',
@@ -150,13 +174,25 @@ export default function FDEChatPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        const errorData = await response.json();
+        console.error('[FDE Chat] Send error:', errorData);
+        throw new Error(errorData.error || 'Failed to send message');
       }
 
-      // Message will be added via realtime subscription
+      const result = await response.json();
+      console.log('[FDE Chat] Message sent:', result);
+      
+      // Replace optimistic message with real one if returned
+      if (result.message) {
+        setMessages(prev => 
+          prev.map(m => m.id === optimisticMessage.id ? result.message : m)
+        );
+      }
     } catch (error) {
-      console.error('Error sending message:', error);
-      // Restore message on error
+      console.error('[FDE Chat] Error sending message:', error);
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
+      // Restore message input
       setNewMessage(messageContent);
     } finally {
       setSending(false);

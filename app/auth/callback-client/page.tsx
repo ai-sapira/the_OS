@@ -95,12 +95,12 @@ export default function AuthCallbackPage() {
 
               // No organization info - check if user is Sapira
               const userEmail = sessionData.session.user.email?.toLowerCase() || ''
+              
               if (userEmail.endsWith('@sapira.ai')) {
                 router.push('/select-org')
                 return
               }
 
-              // Regular user - redirect to initiatives
               router.push('/initiatives')
               return
             }

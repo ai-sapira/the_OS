@@ -31,8 +31,19 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // If not loading and user is authenticated
-    if (!loading && user) {
+    // Wait for auth to finish loading
+    if (loading) {
+      return
+    }
+
+    // If user is not authenticated, redirect to login
+    if (!user) {
+      router.push('/login')
+      return
+    }
+
+    // If user is authenticated
+    if (user) {
       // If user has multiple orgs but none selected, redirect to selector
       if (userOrgs.length > 1 && !currentOrg) {
         router.push('/select-org')

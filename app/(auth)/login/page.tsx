@@ -117,41 +117,22 @@ export default function LoginPage() {
       const isSapiraUser = userEmail?.toLowerCase().endsWith('@sapira.ai')
       const redirectParam = searchParams.get('redirect')
 
-      if (isSapiraUser) {
-        // For Sapira users, redirect to organization selector
-        console.log('[Login] Sapira user detected, redirecting to organization selector')
-        setIsTransitioning(true)
-        await new Promise(resolve => setTimeout(resolve, 600))
-        // Use redirect param if provided, otherwise default to select-org
-        const redirectPath = redirectParam === 'select-org' ? '/select-org' : '/select-org'
-        router.push(redirectPath)
-        return
-      }
-
-      // For non-Sapira users, continue with normal flow
+      // Store pending org slug for AuthProvider
       if (orgSlug) {
         localStorage.setItem('sapira.pendingOrgSlug', orgSlug)
-        // Note: We don't await this - the AuthProvider will handle org selection
-        // The select-org API call here is optional (for server-side persistence)
-        // and may fail due to cookie race conditions, which is fine
-        fetch('/api/auth/select-org', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ slug: orgSlug }),
-          credentials: 'include', // Required to send auth cookies
-        }).catch(selectError => {
-          console.warn('[Login] select-org API call failed (non-blocking):', selectError)
-        })
       }
 
       // Start transition animation
       setIsTransitioning(true)
 
-      await new Promise(resolve => setTimeout(resolve, 600))
+      // Small delay to allow auth state to propagate
+      await new Promise(resolve => setTimeout(resolve, 100))
 
-      router.push('/initiatives')
+      // Determine redirect path
+      const redirectPath = isSapiraUser ? '/select-org' : '/initiatives'
+      console.log('[Login] Redirecting to:', redirectPath)
+
+      router.push(redirectPath)
     } catch (err: any) {
       console.error('[Login] ❌ Login error:', err)
       setError(err.message || 'Error al iniciar sesión')

@@ -139,17 +139,6 @@ export default function SignupPage() {
         if (signInError) {
           router.push(`/login?registered=true&org=${encodeURIComponent(orgSlug)}&email=${encodeURIComponent(email)}`)
         } else {
-          try {
-            await fetch('/api/auth/select-org', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ slug: orgSlug }),
-            })
-          } catch (selectError) {
-            console.error('[Signup] Failed to persist selected org:', selectError)
-          }
           router.push('/initiatives')
         }
       } catch (loginErr) {
