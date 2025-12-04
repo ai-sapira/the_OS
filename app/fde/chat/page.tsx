@@ -7,30 +7,25 @@ import {
   Send,
   ArrowLeft,
   Paperclip,
-  Smile,
   MoreVertical,
-  Phone,
-  Video,
-  Info,
   CheckCircle2,
   Clock,
   Circle,
   Archive,
   PanelLeftClose,
   PanelLeft,
+  Loader2,
+  Phone,
+  Video,
+  Info
 } from "lucide-react";
-import { 
-  ResizableAppShell, 
-  ResizablePageSheet,
-  PageHeader
-} from "@/components/layout";
+import { ResizableAppShell } from "@/components/layout";
 import { motion, AnimatePresence } from "framer-motion";
 
 // UI Components
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -62,18 +57,19 @@ interface Message {
   created_at: string;
 }
 
-// Status config for conversation header
+// Status config
 const statusConfig = {
-  active: { color: 'bg-emerald-500', label: 'Activa', icon: Circle },
-  pending: { color: 'bg-amber-500', label: 'Esperando respuesta', icon: Clock },
-  resolved: { color: 'bg-slate-400', label: 'Resuelta', icon: CheckCircle2 },
-  archived: { color: 'bg-slate-300', label: 'Archivada', icon: Archive },
+  active: { color: 'bg-emerald-500', label: 'Activa', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+  pending: { color: 'bg-amber-500', label: 'Esperando respuesta', bg: 'bg-amber-50', text: 'text-amber-700' },
+  resolved: { color: 'bg-slate-400', label: 'Resuelta', bg: 'bg-slate-50', text: 'text-slate-600' },
+  archived: { color: 'bg-slate-300', label: 'Archivada', bg: 'bg-slate-50', text: 'text-slate-500' },
 };
 
 export default function FDEChatPage() {
   const router = useRouter();
   const { currentOrg, user, loading: authLoading } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   // State
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -85,7 +81,7 @@ export default function FDEChatPage() {
   const [newMessage, setNewMessage] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // FDE Contact info from org settings
+  // FDE Contact info
   const organizationSettings = (currentOrg?.organization?.settings as Record<string, any> | undefined) ?? {};
   const sapiraContact = organizationSettings.sapira_contact as {
     name?: string;
@@ -99,9 +95,10 @@ export default function FDEChatPage() {
   const fdeAvatarUrl = sapiraContact?.avatar_url || null;
   const fdeInitials = fdeName.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]?.toUpperCase()).join('') || 'ST';
 
-  // Get current user info
-  const currentUserName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'You';
+  // Current user info
+  const currentUserName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Tú';
   const currentUserEmail = user?.email || '';
+  const currentUserInitials = currentUserName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
 
   // Load conversations
   useEffect(() => {
@@ -121,7 +118,7 @@ export default function FDEChatPage() {
         if (error) throw error;
         setConversations(data || []);
 
-        // Auto-select first conversation if none selected
+        // Auto-select first conversation
         if (data && data.length > 0 && !selectedConversation) {
           setSelectedConversation(data[0]);
         }
@@ -138,7 +135,7 @@ export default function FDEChatPage() {
   // Load messages when conversation is selected
   useEffect(() => {
     const loadMessages = async () => {
-      if (!selectedConversation) {
+      if (!selectedConversation || selectedConversation.id.startsWith('temp-')) {
         setMessages([]);
         return;
       }
@@ -155,13 +152,12 @@ export default function FDEChatPage() {
         if (error) throw error;
         setMessages(data || []);
 
-        // Mark conversation as read
+        // Mark as read
         if (selectedConversation.unread_count > 0) {
           await supabase.rpc('mark_conversation_as_read', { 
             p_conversation_id: selectedConversation.id 
           });
           
-          // Update local state
           setConversations(prev => prev.map(c => 
             c.id === selectedConversation.id ? { ...c, unread_count: 0 } : c
           ));
@@ -177,11 +173,11 @@ export default function FDEChatPage() {
     loadMessages();
   }, [selectedConversation?.id]);
 
-  // Subscribe to realtime updates
+  // Realtime subscriptions
   useEffect(() => {
     if (!currentOrg?.organization?.id) return;
 
-    // Subscribe to new messages
+    // Messages subscription
     const messagesChannel = supabase
       .channel('fde_messages_realtime')
       .on(
@@ -195,15 +191,27 @@ export default function FDEChatPage() {
         (payload) => {
           const newMsg = payload.new as Message;
           
-          // If message is in current conversation, add to list
           if (newMsg.conversation_id === selectedConversation?.id) {
-            setMessages(prev => [...prev, newMsg]);
+            setMessages(prev => {
+              // Check if already exists
+              const exists = prev.some(m => 
+                m.id === newMsg.id || 
+                (m.id.startsWith('temp-') && m.content === newMsg.content && m.sender_type === newMsg.sender_type)
+              );
+              if (exists) {
+                return prev.map(m => 
+                  (m.id.startsWith('temp-') && m.content === newMsg.content && m.sender_type === newMsg.sender_type)
+                    ? newMsg : m
+                );
+              }
+              return [...prev, newMsg];
+            });
           }
         }
       )
       .subscribe();
 
-    // Subscribe to conversation updates
+    // Conversations subscription
     const conversationsChannel = supabase
       .channel('fde_conversations_realtime')
       .on(
@@ -216,22 +224,29 @@ export default function FDEChatPage() {
         },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setConversations(prev => [payload.new as Conversation, ...prev]);
+            const newConv = payload.new as Conversation;
+            setConversations(prev => {
+              // Don't add if we already have it (from API response)
+              if (prev.some(c => c.id === newConv.id)) return prev;
+              // Remove any temp conversation and add the real one
+              const filtered = prev.filter(c => !c.id.startsWith('temp-'));
+              return [newConv, ...filtered];
+            });
           } else if (payload.eventType === 'UPDATE') {
             const updated = payload.new as Conversation;
             setConversations(prev => {
-              // Move updated conversation to top if it has new messages
               const filtered = prev.filter(c => c.id !== updated.id);
               return [updated, ...filtered];
             });
-            // Update selected conversation if it's the one being updated
             if (selectedConversation?.id === updated.id) {
               setSelectedConversation(updated);
             }
           } else if (payload.eventType === 'DELETE') {
-            setConversations(prev => prev.filter(c => c.id !== (payload.old as any).id));
-            if (selectedConversation?.id === (payload.old as any).id) {
+            const deletedId = (payload.old as any).id;
+            setConversations(prev => prev.filter(c => c.id !== deletedId));
+            if (selectedConversation?.id === deletedId) {
               setSelectedConversation(null);
+              setMessages([]);
             }
           }
         }
@@ -244,16 +259,23 @@ export default function FDEChatPage() {
     };
   }, [currentOrg?.organization?.id, selectedConversation?.id]);
 
-  // Auto scroll to bottom
+  // Auto scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Handle new conversation
-  const handleNewConversation = async () => {
+  // Create new conversation
+  const handleNewConversation = useCallback(() => {
     if (!currentOrg?.organization?.id) return;
 
-    // Create a new conversation optimistically
+    // Check if there's already a temp conversation
+    const existingTemp = conversations.find(c => c.id.startsWith('temp-'));
+    if (existingTemp) {
+      setSelectedConversation(existingTemp);
+      setMessages([]);
+      return;
+    }
+
     const tempConversation: Conversation = {
       id: `temp-${Date.now()}`,
       organization_id: currentOrg.organization.id,
@@ -276,21 +298,54 @@ export default function FDEChatPage() {
     setConversations(prev => [tempConversation, ...prev]);
     setSelectedConversation(tempConversation);
     setMessages([]);
-  };
+    
+    // Focus textarea
+    setTimeout(() => textareaRef.current?.focus(), 100);
+  }, [currentOrg?.organization?.id, user?.id, conversations]);
 
-  // Handle send message
-  const handleSend = async () => {
+  // Delete conversation
+  const handleDeleteConversation = useCallback(async (id: string) => {
+    // If temp, just remove from state
+    if (id.startsWith('temp-')) {
+      setConversations(prev => prev.filter(c => c.id !== id));
+      if (selectedConversation?.id === id) {
+        setSelectedConversation(null);
+        setMessages([]);
+      }
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('fde_conversations')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Remove from state
+      setConversations(prev => prev.filter(c => c.id !== id));
+      if (selectedConversation?.id === id) {
+        setSelectedConversation(null);
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error('[FDE Chat] Error deleting conversation:', error);
+    }
+  }, [selectedConversation?.id]);
+
+  // Send message
+  const handleSend = useCallback(async () => {
     if (!newMessage.trim() || !currentOrg?.organization?.id || sending) return;
 
     const messageContent = newMessage.trim();
     setNewMessage('');
     setSending(true);
 
-    // Determine if this is a new conversation (temp ID)
     const isNewConversation = selectedConversation?.id.startsWith('temp-');
     const conversationId = isNewConversation ? undefined : selectedConversation?.id;
 
-    // Optimistic update
+    // Optimistic message
     const optimisticMessage: Message = {
       id: `temp-${Date.now()}`,
       organization_id: currentOrg.organization.id,
@@ -298,7 +353,7 @@ export default function FDEChatPage() {
       content: messageContent,
       sender_type: 'user',
       sender_user_id: user?.id || null,
-      sender_name: currentUserName || 'You',
+      sender_name: currentUserName,
       created_at: new Date().toISOString(),
       slack_thread_ts: null,
       slack_channel_id: null,
@@ -320,20 +375,18 @@ export default function FDEChatPage() {
           userId: user?.id,
           userName: currentUserName,
           userEmail: currentUserEmail,
-          conversationId: conversationId,
+          conversationId,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to send message');
+        throw new Error('Failed to send message');
       }
 
       const result = await response.json();
 
-      // If this was a new conversation, update the conversation list with the real ID
+      // If new conversation, update state with real conversation
       if (isNewConversation && result.conversation) {
-        // Fetch the new conversation from the server
         const { data: newConv } = await supabase
           .from('fde_conversations')
           .select('*')
@@ -341,6 +394,7 @@ export default function FDEChatPage() {
           .single();
 
         if (newConv) {
+          // Remove temp, add real
           setConversations(prev => {
             const filtered = prev.filter(c => !c.id.startsWith('temp-'));
             return [newConv, ...filtered];
@@ -349,32 +403,36 @@ export default function FDEChatPage() {
         }
       }
 
-      // Replace optimistic message with real one
+      // Handle optimistic message replacement
       if (result.message) {
-        setMessages(prev => 
-          prev.map(m => m.id === optimisticMessage.id ? result.message : m)
-        );
+        setMessages(prev => {
+          const realExists = prev.some(m => m.id === result.message.id);
+          if (realExists) {
+            return prev.filter(m => m.id !== optimisticMessage.id);
+          }
+          return prev.map(m => m.id === optimisticMessage.id ? result.message : m);
+        });
       }
     } catch (error) {
-      console.error('[FDE Chat] Error sending message:', error);
-      // Remove optimistic message on error
+      console.error('[FDE Chat] Error sending:', error);
       setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
       setNewMessage(messageContent);
     } finally {
       setSending(false);
     }
-  };
+  }, [newMessage, currentOrg?.organization?.id, selectedConversation?.id, user?.id, currentUserName, currentUserEmail, sending]);
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  // Keyboard handler
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
 
-  // Handle conversation status change
+  // Status change
   const handleStatusChange = async (status: 'active' | 'resolved' | 'archived') => {
-    if (!selectedConversation) return;
+    if (!selectedConversation || selectedConversation.id.startsWith('temp-')) return;
 
     const { error } = await supabase
       .from('fde_conversations')
@@ -389,9 +447,9 @@ export default function FDEChatPage() {
     }
   };
 
+  // Formatters
   const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    return new Date(dateStr).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   };
 
   const formatDate = (dateStr: string) => {
@@ -402,7 +460,7 @@ export default function FDEChatPage() {
 
     if (date.toDateString() === today.toDateString()) return 'Hoy';
     if (date.toDateString() === yesterday.toDateString()) return 'Ayer';
-    return date.toLocaleDateString('es-ES', { month: 'short', day: 'numeric', year: 'numeric' });
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
   };
 
   // Group messages by date
@@ -423,299 +481,322 @@ export default function FDEChatPage() {
     return groups;
   }, [messages]);
 
-  // Current conversation status
   const currentStatus = selectedConversation ? statusConfig[selectedConversation.status] : null;
 
   return (
     <ResizableAppShell>
-      <ResizablePageSheet
-        header={
-          <PageHeader>
-            <div className="flex items-center justify-between w-full h-full" style={{ paddingLeft: '28px', paddingRight: '20px' }}>
-              <div className="flex items-center gap-3">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => router.push('/my-sapira')}
-                  className="h-8 px-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-                
-                {/* Toggle sidebar button */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                  className="h-8 w-8 p-0"
-                >
-                  {sidebarCollapsed ? (
-                    <PanelLeft className="h-4 w-4" />
-                  ) : (
-                    <PanelLeftClose className="h-4 w-4" />
-                  )}
-                </Button>
+      <div className="flex h-screen w-full bg-[var(--surface-1)]">
+        {/* Sidebar - Conversation List */}
+        <AnimatePresence initial={false}>
+          {!sidebarCollapsed && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 320, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
+              className="flex-shrink-0 border-r border-[var(--stroke)] bg-[var(--surface-sheet)] relative z-20"
+            >
+              <ConversationList
+                conversations={conversations}
+                selectedId={selectedConversation?.id || null}
+                onSelect={setSelectedConversation}
+                onNewConversation={handleNewConversation}
+                onDeleteConversation={handleDeleteConversation}
+                loading={loading}
+                fdeName={fdeName}
+                fdeAvatarUrl={fdeAvatarUrl}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-                {selectedConversation && (
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <Avatar className="h-9 w-9">
-                        {fdeAvatarUrl ? (
-                          <AvatarImage src={fdeAvatarUrl} alt={fdeName} />
-                        ) : null}
-                        <AvatarFallback className="bg-violet-100 text-violet-700 text-sm font-medium">
-                          {fdeInitials}
-                        </AvatarFallback>
-                      </Avatar>
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col min-w-0 relative bg-white h-full">
+          {/* Chat Header */}
+          <header className="h-16 border-b border-[var(--stroke)] flex items-center justify-between px-6 flex-shrink-0 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="h-8 w-8 p-0 text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--surface-2)]"
+              >
+                {sidebarCollapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+              </Button>
+
+              {selectedConversation ? (
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Avatar className="h-9 w-9 border border-[var(--stroke)]">
+                      {fdeAvatarUrl && <AvatarImage src={fdeAvatarUrl} alt={fdeName} />}
+                      <AvatarFallback className="bg-[var(--surface-3)] text-[var(--text-2)] text-xs font-semibold">
+                        {fdeInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                    {currentStatus && (
+                      <div className={cn(
+                        "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white",
+                        currentStatus.color
+                      )} />
+                    )}
+                  </div>
+                  <div>
+                    <h1 className="text-[14px] font-semibold text-[var(--text-1)] leading-tight">
+                      {selectedConversation.title || 'Nueva conversación'}
+                    </h1>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[12px] text-[var(--text-3)]">{fdeName}</span>
                       {currentStatus && (
-                        <div className={cn(
-                          "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white",
-                          currentStatus.color
-                        )} />
+                        <>
+                          <span className="text-[var(--text-3)]">•</span>
+                          <span className={cn("text-[11px] font-medium", currentStatus.text)}>
+                            {currentStatus.label}
+                          </span>
+                        </>
                       )}
                     </div>
-                    <div>
-                      <h1 className="text-sm font-semibold text-slate-900">{selectedConversation.title}</h1>
-                      <p className="text-xs text-slate-500">{currentStatus?.label}</p>
-                    </div>
                   </div>
-                )}
-              </div>
-              
-              <div className="flex items-center gap-1">
-                {selectedConversation && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreVertical className="h-4 w-4 text-slate-500" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleStatusChange('active')}>
-                        <Circle className="h-3 w-3 mr-2 fill-emerald-500 text-emerald-500" />
-                        Marcar como activa
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleStatusChange('resolved')}>
-                        <CheckCircle2 className="h-3 w-3 mr-2 text-slate-500" />
-                        Marcar como resuelta
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => handleStatusChange('archived')}>
-                        <Archive className="h-3 w-3 mr-2 text-slate-400" />
-                        Archivar conversación
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <Phone className="h-4 w-4 text-slate-500" />
-                </Button>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <Video className="h-4 w-4 text-slate-500" />
-                </Button>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <Info className="h-4 w-4 text-slate-500" />
-                </Button>
-              </div>
-            </div>
-          </PageHeader>
-        }
-      >
-        <div className="-mx-5 -mt-4 flex h-[calc(100vh-120px)]">
-          {/* Conversation sidebar */}
-          <AnimatePresence>
-            {!sidebarCollapsed && (
-              <motion.div
-                initial={{ width: 0, opacity: 0 }}
-                animate={{ width: 320, opacity: 1 }}
-                exit={{ width: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="flex-shrink-0 overflow-hidden"
-              >
-                <ConversationList
-                  conversations={conversations}
-                  selectedId={selectedConversation?.id || null}
-                  onSelect={setSelectedConversation}
-                  onNewConversation={handleNewConversation}
-                  loading={loading}
-                  fdeName={fdeName}
-                  fdeAvatarUrl={fdeAvatarUrl}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Chat area */}
-          <div className="flex-1 flex flex-col min-w-0">
-            {/* Messages area */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 bg-slate-50">
-              {!selectedConversation ? (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
-                    <MessageSquare className="h-8 w-8 text-slate-400" />
-                  </div>
-                  <h3 className="text-lg font-medium text-slate-900 mb-1">Selecciona una conversación</h3>
-                  <p className="text-sm text-slate-500 max-w-sm">
-                    Elige una conversación de la lista o inicia una nueva.
-                  </p>
-                  <Button 
-                    onClick={handleNewConversation}
-                    className="mt-4 bg-slate-900 hover:bg-slate-800"
-                  >
-                    Nueva conversación
-                  </Button>
-                </div>
-              ) : messagesLoading ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-slate-500">Cargando mensajes...</div>
-                </div>
-              ) : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <div className="h-16 w-16 rounded-full bg-violet-100 flex items-center justify-center mb-4">
-                    <MessageSquare className="h-8 w-8 text-violet-600" />
-                  </div>
-                  <h3 className="text-lg font-medium text-slate-900 mb-1">Inicia la conversación</h3>
-                  <p className="text-sm text-slate-500 max-w-sm">
-                    Envía un mensaje para comenzar. Tu equipo de soporte lo recibirá en Slack.
-                  </p>
                 </div>
               ) : (
-                <div className="space-y-6 max-w-3xl mx-auto">
-                  {groupedMessages.map((group) => (
-                    <div key={group.date}>
-                      {/* Date separator */}
-                      <div className="flex items-center justify-center mb-4">
-                        <div className="px-3 py-1 rounded-full bg-white border border-slate-200 text-xs text-slate-500 shadow-sm">
-                          {group.date}
-                        </div>
-                      </div>
-                      
-                      {/* Messages */}
-                      <div className="space-y-3">
-                        <AnimatePresence>
-                          {group.messages.map((message) => {
-                            const isUser = message.sender_type === 'user';
-                            
-                            return (
-                              <motion.div
-                                key={message.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0 }}
-                                className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
-                              >
-                                {!isUser && (
-                                  <Avatar className="h-8 w-8 flex-shrink-0">
-                                    {message.sender_avatar_url ? (
-                                      <AvatarImage src={message.sender_avatar_url} />
-                                    ) : fdeAvatarUrl ? (
-                                      <AvatarImage src={fdeAvatarUrl} />
-                                    ) : null}
-                                    <AvatarFallback className="bg-violet-100 text-violet-700 text-xs font-medium">
-                                      {message.sender_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                )}
-                                
-                                <div className={`max-w-[70%] ${isUser ? 'order-1' : ''}`}>
-                                  {!isUser && (
-                                    <div className="text-xs text-slate-500 mb-1 ml-1">
-                                      {message.sender_name}
-                                    </div>
-                                  )}
-                                  <div
-                                    className={`rounded-2xl px-4 py-2.5 ${
-                                      isUser
-                                        ? 'bg-slate-900 text-white rounded-br-md'
-                                        : 'bg-white border border-slate-200 text-slate-900 rounded-bl-md shadow-sm'
-                                    }`}
-                                  >
-                                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                                  </div>
-                                  <div className={`flex items-center gap-1 mt-1 ${isUser ? 'justify-end' : 'justify-start'} px-1`}>
-                                    <span className="text-[10px] text-slate-400">
-                                      {formatTime(message.created_at)}
-                                    </span>
-                                    {isUser && (
-                                      <CheckCircle2 className="h-3 w-3 text-slate-400" />
-                                    )}
-                                  </div>
-                                </div>
-
-                                {isUser && (
-                                  <Avatar className="h-8 w-8 flex-shrink-0">
-                                    <AvatarFallback className="bg-slate-200 text-slate-700 text-xs font-medium">
-                                      {currentUserName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                )}
-                              </motion.div>
-                            );
-                          })}
-                        </AnimatePresence>
-                      </div>
-                    </div>
-                  ))}
-                  <div ref={messagesEndRef} />
-                </div>
+                <h1 className="text-[16px] font-semibold text-[var(--text-1)]">Mensajes</h1>
               )}
             </div>
 
-            {/* Input area */}
-            {selectedConversation && (
-              <div className="border-t border-slate-200 bg-white px-6 py-4">
-                <div className="max-w-3xl mx-auto">
-                  <div className="flex items-end gap-3">
-                    <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-slate-400 hover:text-slate-600">
+            {selectedConversation && !selectedConversation.id.startsWith('temp-') && (
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-[var(--text-2)] hover:bg-[var(--surface-2)]">
+                  <Phone className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-[var(--text-2)] hover:bg-[var(--surface-2)]">
+                  <Video className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-[var(--text-2)] hover:bg-[var(--surface-2)]">
+                  <Info className="h-4 w-4" />
+                </Button>
+                
+                <div className="w-px h-5 bg-[var(--stroke)] mx-1" />
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-[var(--text-2)] hover:bg-[var(--surface-2)]">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem onClick={() => handleStatusChange('active')}>
+                      <Circle className="h-3.5 w-3.5 mr-2 fill-emerald-500 text-emerald-500" />
+                      Marcar activa
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleStatusChange('resolved')}>
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-slate-500" />
+                      Marcar resuelta
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleStatusChange('archived')}>
+                      <Archive className="h-3.5 w-3.5 mr-2 text-slate-400" />
+                      Archivar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+          </header>
+
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-12 py-6 relative">
+            {!selectedConversation ? (
+              <div className="flex flex-col items-center justify-center h-full text-center pb-20">
+                <div className="h-20 w-20 rounded-3xl bg-[var(--surface-2)] flex items-center justify-center mb-6 shadow-sm border border-[var(--stroke)]">
+                  <MessageSquare className="h-8 w-8 text-[var(--text-3)]" />
+                </div>
+                <h3 className="text-xl font-semibold text-[var(--text-1)] mb-2">
+                  Selecciona una conversación
+                </h3>
+                <p className="text-[14px] text-[var(--text-2)] max-w-md mb-8 leading-relaxed">
+                  Elige una conversación de la lista para continuar chateando o inicia un nuevo tema de consulta.
+                </p>
+                <Button 
+                  onClick={handleNewConversation} 
+                  size="lg"
+                  className="h-11 px-6 bg-[var(--text-1)] hover:bg-[var(--text-1)]/90 rounded-full shadow-lg shadow-gray-200"
+                >
+                  Nueva conversación
+                </Button>
+              </div>
+            ) : messagesLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-6 w-6 animate-spin text-[var(--text-3)]" />
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center pb-20">
+                <div className="h-16 w-16 rounded-full bg-[var(--surface-2)] flex items-center justify-center mb-4">
+                  <Send className="h-6 w-6 text-[var(--text-3)]" />
+                </div>
+                <h3 className="text-[16px] font-medium text-[var(--text-1)] mb-1">
+                  Comienza a escribir
+                </h3>
+                <p className="text-[13px] text-[var(--text-3)] max-w-sm">
+                  Envía un mensaje para contactar con {fdeName}.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-8 pb-24">
+                {groupedMessages.map((group) => (
+                  <div key={group.date} className="relative">
+                    {/* Sticky Date */}
+                    <div className="sticky top-0 flex justify-center z-10 pointer-events-none mb-6">
+                      <span className="text-[11px] font-medium text-[var(--text-2)] bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm border border-[var(--stroke)]">
+                        {group.date}
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <AnimatePresence mode="popLayout">
+                        {group.messages.map((message, i, arr) => {
+                          const isUser = message.sender_type === 'user';
+                          // Check if previous message was from same sender to group visuals
+                          const isSequence = i > 0 && arr[i-1].sender_type === message.sender_type;
+                          
+                          return (
+                            <motion.div
+                              key={message.id}
+                              initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              className={cn(
+                                "flex gap-3 max-w-3xl mx-auto", 
+                                isUser ? "justify-end" : "justify-start"
+                              )}
+                            >
+                              {/* FDE Avatar (only show for first message in sequence) */}
+                              {!isUser && (
+                                <div className="w-8 flex-shrink-0 flex flex-col justify-end">
+                                  {!isSequence ? (
+                                    <Avatar className="h-8 w-8 border border-[var(--stroke)] shadow-sm">
+                                      {message.sender_avatar_url || fdeAvatarUrl ? (
+                                        <AvatarImage src={message.sender_avatar_url || fdeAvatarUrl || ''} />
+                                      ) : null}
+                                      <AvatarFallback className="bg-[var(--surface-2)] text-[var(--text-2)] text-[10px] font-bold">
+                                        {message.sender_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                  ) : <div className="w-8" />}
+                                </div>
+                              )}
+                              
+                              <div className={cn(
+                                "flex flex-col max-w-[75%]",
+                                isUser ? "items-end" : "items-start"
+                              )}>
+                                {!isUser && !isSequence && (
+                                  <span className="text-[11px] text-[var(--text-3)] ml-1 mb-1 font-medium">
+                                    {message.sender_name}
+                                  </span>
+                                )}
+                                
+                                <div
+                                  className={cn(
+                                    "px-5 py-3 text-[14px] leading-relaxed shadow-sm",
+                                    isUser
+                                      ? "bg-[#111827] text-white rounded-[20px] rounded-br-md"
+                                      : "bg-white text-[var(--text-1)] rounded-[20px] rounded-bl-md border border-[var(--stroke)]"
+                                  )}
+                                >
+                                  <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                                </div>
+                                
+                                <span className={cn(
+                                  "text-[10px] text-[var(--text-3)] mt-1 opacity-0 group-hover:opacity-100 transition-opacity",
+                                  isUser ? "mr-1" : "ml-1"
+                                )}>
+                                  {formatTime(message.created_at)}
+                                </span>
+                              </div>
+
+                              {/* User Avatar (optional, can be hidden for cleaner look) */}
+                              {isUser && (
+                                <div className="w-8 flex-shrink-0 flex flex-col justify-end">
+                                  {!isSequence && (
+                                    <Avatar className="h-8 w-8 border border-[var(--stroke)] bg-[var(--surface-2)]">
+                                      <AvatarFallback className="text-[var(--text-2)] text-[10px] font-bold">
+                                        {currentUserInitials}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                  )}
+                                </div>
+                              )}
+                            </motion.div>
+                          );
+                        })}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </div>
+
+          {/* Floating Input Area */}
+          {selectedConversation && (
+            <div className="absolute bottom-0 left-0 right-0 p-4 sm:px-8 lg:px-12 pb-6 bg-gradient-to-t from-white via-white/95 to-transparent z-20">
+              <div className="max-w-3xl mx-auto relative">
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-slate-200 to-slate-100 rounded-[24px] blur opacity-30 group-hover:opacity-50 transition duration-500"></div>
+                  <div className="relative flex items-end gap-2 bg-white rounded-[20px] shadow-xl border border-[var(--stroke)] p-2 pr-3">
+                    
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-10 w-10 rounded-full text-[var(--text-3)] hover:text-[var(--text-1)] hover:bg-[var(--surface-2)] flex-shrink-0"
+                    >
                       <Paperclip className="h-5 w-5" />
                     </Button>
-                    
-                    <div className="flex-1 relative">
-                      <Input
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                        placeholder="Escribe un mensaje..."
-                        className="pr-12 h-12 rounded-xl bg-slate-50 border-slate-200 focus:bg-white"
-                        disabled={sending || selectedConversation.status === 'archived'}
-                      />
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-slate-400 hover:text-slate-600"
-                      >
-                        <Smile className="h-5 w-5" />
-                      </Button>
-                    </div>
+
+                    <Textarea
+                      ref={textareaRef}
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Escribe un mensaje..."
+                      className="min-h-[40px] max-h-32 resize-none text-[14px] border-0 focus-visible:ring-0 bg-transparent px-2 py-2.5 leading-6"
+                      disabled={sending || selectedConversation.status === 'archived'}
+                      rows={1}
+                    />
                     
                     <Button 
                       onClick={handleSend}
                       disabled={!newMessage.trim() || sending || selectedConversation.status === 'archived'}
-                      className="h-12 w-12 rounded-xl bg-slate-900 hover:bg-slate-800 p-0"
+                      size="icon"
+                      className={cn(
+                        "h-10 w-10 rounded-full transition-all duration-200 flex-shrink-0 shadow-sm",
+                        newMessage.trim() 
+                          ? "bg-[#111827] hover:bg-black text-white transform hover:scale-105" 
+                          : "bg-[var(--surface-2)] text-[var(--text-3)] hover:bg-[var(--surface-3)]"
+                      )}
                     >
                       {sending ? (
-                        <Clock className="h-5 w-5 animate-spin" />
+                        <Loader2 className="h-5 w-5 animate-spin" />
                       ) : (
-                        <Send className="h-5 w-5" />
+                        <Send className="h-5 w-5 ml-0.5" />
                       )}
                     </Button>
                   </div>
-                  
-                  {selectedConversation.status === 'archived' ? (
-                    <p className="text-xs text-amber-600 text-center mt-2">
-                      Esta conversación está archivada. Reactívala para enviar mensajes.
-                    </p>
-                  ) : (
-                    <p className="text-xs text-slate-400 text-center mt-2">
-                      Los mensajes se sincronizan con Slack. Tu equipo responderá lo antes posible.
-                    </p>
-                  )}
                 </div>
+                
+                {selectedConversation.status === 'archived' ? (
+                  <p className="text-[11px] text-amber-600 text-center mt-3 font-medium">
+                    Conversación archivada. Envía un mensaje para reactivarla.
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-[var(--text-3)] text-center mt-3">
+                    Presiona <kbd className="font-sans font-semibold">Enter</kbd> para enviar, <kbd className="font-sans font-semibold">Shift + Enter</kbd> para nueva línea
+                  </p>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
-      </ResizablePageSheet>
+      </div>
     </ResizableAppShell>
   );
 }

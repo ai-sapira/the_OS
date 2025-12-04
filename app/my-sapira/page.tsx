@@ -8,25 +8,23 @@ import {
   CheckCircle2,
   Clock,
   Mail,
-  Send,
   ArrowRight,
   FileText,
   Users,
-  Sparkles,
-  ExternalLink,
+  Zap,
   Phone,
   MapPin,
-  Briefcase,
+  ChevronDown,
+  Sparkles,
   TrendingUp,
-  Target,
-  Zap,
+  ExternalLink,
 } from "lucide-react";
 import { 
   ResizableAppShell, 
   ResizablePageSheet
 } from "@/components/layout";
 import { PopupModal } from "react-calendly";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 // UI Components
 import { Button } from "@/components/ui/button";
@@ -51,13 +49,138 @@ interface Meeting {
   with_fde: boolean;
 }
 
-// Types for messages
-interface Message {
-  id: string;
-  content: string;
-  sender_type: 'user' | 'fde' | 'system';
-  sender_name: string;
-  created_at: string;
+// MeetingList component - similar to Home page style
+function MeetingList({ meetings, isPast = false }: { meetings: Meeting[], isPast?: boolean }) {
+  const [expandedMeetings, setExpandedMeetings] = useState<Set<string>>(new Set())
+
+  const toggleMeeting = (meetingId: string) => {
+    const newExpanded = new Set(expandedMeetings)
+    if (newExpanded.has(meetingId)) {
+      newExpanded.delete(meetingId)
+    } else {
+      newExpanded.add(meetingId)
+    }
+    setExpandedMeetings(newExpanded)
+  }
+
+  const formatMeetingDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+  };
+
+  const getRelativeDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffDays = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Tomorrow';
+    if (diffDays === -1) return 'Yesterday';
+    if (diffDays > 0 && diffDays < 7) return `In ${diffDays} days`;
+    if (diffDays < 0 && diffDays > -7) return `${Math.abs(diffDays)} days ago`;
+    if (diffDays < 0) return `${Math.abs(Math.floor(diffDays / 7))} weeks ago`;
+    
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  return (
+    <div className="space-y-2">
+      {meetings.map((meeting) => {
+        const isExpanded = expandedMeetings.has(meeting.id)
+        const hasDetails = (meeting.attendees && meeting.attendees.length > 0) || meeting.notes
+
+        return (
+          <div key={meeting.id} className={`${isPast ? 'opacity-60' : ''}`}>
+            <div 
+              className={`flex items-center gap-3 p-2 hover:bg-gray-50/80 rounded-lg transition-colors group ${hasDetails ? 'cursor-pointer' : ''}`}
+              onClick={() => hasDetails && toggleMeeting(meeting.id)}
+            >
+              <Badge 
+                variant="outline" 
+                className={`text-[10px] font-medium shrink-0 ${
+                  meeting.with_fde 
+                    ? isPast
+                      ? "bg-purple-50 border-purple-200 text-purple-500"
+                      : "bg-purple-50 border-purple-200 text-purple-700"
+                    : isPast
+                      ? "bg-gray-50 border-gray-200 text-gray-500"
+                      : "bg-gray-50 border-gray-200 text-gray-600"
+                }`}
+              >
+                {formatMeetingDate(meeting.meeting_date)}
+              </Badge>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className={`text-sm font-medium truncate ${isPast ? 'text-gray-600' : 'text-gray-900'}`}>
+                    {meeting.title}
+                  </h3>
+                  {meeting.with_fde && (
+                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 bg-purple-50 border-purple-200 ${isPast ? 'text-purple-500' : 'text-purple-600'}`}>
+                      FDE
+                    </Badge>
+                  )}
+                </div>
+                <div className={`flex items-center gap-2 text-xs mt-0.5 ${isPast ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <span>{getRelativeDate(meeting.meeting_date)}</span>
+                  <span className="text-gray-300">·</span>
+                  <span>{meeting.duration_minutes} min</span>
+                </div>
+              </div>
+              {hasDetails && (
+                <ChevronDown 
+                  className={`h-3.5 w-3.5 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                />
+              )}
+            </div>
+            
+            <AnimatePresence>
+              {isExpanded && hasDetails && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="mt-2 ml-11 space-y-2 pb-2"
+                >
+                  {meeting.attendees && meeting.attendees.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-gray-700">
+                        <Users className="h-3 w-3 text-gray-500" />
+                        Attendees ({meeting.attendees.length})
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {meeting.attendees.map((attendee, idx) => (
+                          <Badge 
+                            key={idx} 
+                            variant="outline" 
+                            className="text-[10px] px-1.5 py-0.5 bg-gray-50 text-gray-700 border-gray-200"
+                          >
+                            {attendee}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {meeting.notes && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-gray-700">
+                        <FileText className="h-3 w-3 text-gray-500" />
+                        Notes
+                      </div>
+                      <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded p-2 line-clamp-3">
+                        {meeting.notes}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 export default function MySapiraPage() {
@@ -75,9 +198,8 @@ export default function MySapiraPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loadingMeetings, setLoadingMeetings] = useState(true);
   
-  // State for messages
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loadingMessages, setLoadingMessages] = useState(true);
+  // State for message count
+  const [messageCount, setMessageCount] = useState(0);
 
   // Set root element after mount
   useEffect(() => {
@@ -105,7 +227,7 @@ export default function MySapiraPage() {
   const contactRole = sapiraContact?.role || 'Forward Deploy Engineer'
   const contactCalendlyUrl = sapiraContact?.calendly_url || null
   const contactAvatarUrl = sapiraContact?.avatar_url || null
-  const contactBio = sapiraContact?.bio || 'Your dedicated FDE, here to help you get the most out of Sapira. I specialize in automation, AI implementations, and making your workflows seamless.'
+  const contactBio = sapiraContact?.bio || 'Your dedicated FDE, here to help you get the most out of Sapira.'
   const contactLocation = sapiraContact?.location || 'Madrid, Spain'
   const contactPhone = sapiraContact?.phone || null
   const contactSkills = sapiraContact?.skills || ['Automation', 'AI/ML', 'Process Optimization', 'Integration']
@@ -159,7 +281,7 @@ export default function MySapiraPage() {
               new Date(b.updated_at || b.created_at || 0).getTime() -
               new Date(a.updated_at || a.created_at || 0).getTime()
           )
-          .slice(0, 5);
+          .slice(0, 4);
 
         setRecentIssues(sortedIssues);
       } catch (error) {
@@ -188,7 +310,7 @@ export default function MySapiraPage() {
           .select('*')
           .eq('organization_id', currentOrg.organization.id)
           .order('meeting_date', { ascending: false })
-          .limit(3);
+          .limit(5);
 
         if (error) throw error;
         setMeetings(data || []);
@@ -202,64 +324,48 @@ export default function MySapiraPage() {
     loadMeetings();
   }, [currentOrg?.organization?.id]);
 
-  // Load messages from Supabase
+  // Load message count from Supabase
   useEffect(() => {
-    const loadMessages = async () => {
-      if (!currentOrg?.organization?.id) {
-        setLoadingMessages(false);
-        return;
-      }
+    const loadMessageCount = async () => {
+      if (!currentOrg?.organization?.id) return;
 
       try {
-        const { data, error } = await supabase
+        const { count, error } = await supabase
           .from('fde_messages')
-          .select('*')
-          .eq('organization_id', currentOrg.organization.id)
-          .order('created_at', { ascending: false })
-          .limit(3);
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', currentOrg.organization.id);
 
         if (error) throw error;
-        setMessages(data || []);
+        setMessageCount(count || 0);
       } catch (error) {
-        console.error('Error loading messages:', error);
-      } finally {
-        setLoadingMessages(false);
+        console.error('Error loading message count:', error);
       }
     };
 
-    loadMessages();
+    loadMessageCount();
   }, [currentOrg?.organization?.id]);
+
+  // Separate meetings into upcoming and past
+  const now = new Date();
+  const upcomingMeetings = meetings.filter(m => new Date(m.meeting_date) >= now);
+  const pastMeetings = meetings.filter(m => new Date(m.meeting_date) < now);
 
   // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: { staggerChildren: 0.1, delayChildren: 0.1 }
+      transition: { staggerChildren: 0.05, delayChildren: 0.1 }
     }
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 10 },
     visible: { 
       opacity: 1, 
       y: 0,
-      transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }
+      transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }
     }
-  };
-
-  const formatMeetingDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffDays = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Tomorrow';
-    if (diffDays === -1) return 'Yesterday';
-    if (diffDays > 0 && diffDays < 7) return `In ${diffDays} days`;
-    if (diffDays < 0 && diffDays > -7) return `${Math.abs(diffDays)} days ago`;
-    
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   return (
@@ -276,392 +382,338 @@ export default function MySapiraPage() {
         }
       >
         <motion.div 
-          className="-mx-5 -mt-4"
+          className="space-y-6"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
         >
-          {/* Hero Section - CV Style */}
+          {/* Header - Compact CV Style */}
           <motion.div 
-            className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden"
+            className="flex items-center gap-5"
             variants={itemVariants}
           >
-            {/* Background pattern */}
-            <div className="absolute inset-0 opacity-10">
-              <div className="absolute inset-0" style={{
-                backgroundImage: `radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-                backgroundSize: '32px 32px'
-              }} />
-            </div>
-            
-            <div className="relative px-8 py-10">
-              <div className="flex items-start gap-8">
-                {/* Avatar - Large and prominent */}
-                <motion.div 
-                  className="relative flex-shrink-0"
-                  whileHover={{ scale: 1.02 }}
-                  transition={{ type: "spring", stiffness: 300 }}
-                >
-                  <div className="h-32 w-32 rounded-2xl bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-sm border border-white/10 flex items-center justify-center overflow-hidden shadow-2xl">
-                    {contactAvatarUrl ? (
-                      <img src={contactAvatarUrl} alt={contactName} className="h-32 w-32 object-cover" />
-                    ) : (
-                      <span className="text-white text-4xl font-bold tracking-tight">
-                        {contactInitials}
-                      </span>
-                    )}
-                  </div>
-                  {/* Online indicator */}
-                  <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-emerald-500 rounded-full border-4 border-slate-900 flex items-center justify-center">
-                    <div className="h-2 w-2 bg-white rounded-full animate-pulse" />
-                  </div>
-                </motion.div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0 pt-2">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h1 className="text-3xl font-bold tracking-tight mb-1">
-                        {contactName}
-                      </h1>
-                      <p className="text-lg text-slate-300 font-medium mb-3">
-                        {contactRole}
-                      </p>
-                      <div className="flex items-center gap-4 text-sm text-slate-400">
-                        <span className="flex items-center gap-1.5">
-                          <MapPin className="h-4 w-4" />
-                          {contactLocation}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <Mail className="h-4 w-4" />
-                          {contactEmail}
-                        </span>
-                        {contactPhone && (
-                          <span className="flex items-center gap-1.5">
-                            <Phone className="h-4 w-4" />
-                            {contactPhone}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Action buttons */}
-                    <div className="flex items-center gap-2">
-                      {contactCalendlyUrl && (
-                        <Button 
-                          onClick={() => setIsCalendlyOpen(true)}
-                          className="bg-white text-slate-900 hover:bg-slate-100 font-medium h-10 px-5"
-                        >
-                          <Calendar className="h-4 w-4 mr-2" />
-                          Book a call
-                        </Button>
-                      )}
-                      <Button 
-                        variant="outline"
-                        onClick={() => router.push('/fde/chat')}
-                        className="border-white/20 text-white hover:bg-white/10 font-medium h-10 px-5"
-                      >
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        Chat
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {/* Bio */}
-                  <p className="text-slate-300 mt-4 max-w-2xl leading-relaxed">
-                    {contactBio}
-                  </p>
-                  
-                  {/* Skills tags */}
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {contactSkills.map((skill, idx) => (
-                      <span 
-                        key={idx}
-                        className="px-3 py-1 rounded-full text-xs font-medium bg-white/10 text-white/80 border border-white/10"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Stats Row */}
-          <motion.div 
-            className="px-8 py-6 bg-slate-50 border-b border-slate-200"
-            variants={itemVariants}
-          >
-            <div className="grid grid-cols-4 gap-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-slate-900">{openIssuesCount}</div>
-                <div className="text-sm text-slate-500 mt-1">Open Issues</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-slate-900">{resolvedIssuesCount}</div>
-                <div className="text-sm text-slate-500 mt-1">Resolved</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-slate-900">{meetings.length}</div>
-                <div className="text-sm text-slate-500 mt-1">Meetings</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-slate-900">{messages.length}</div>
-                <div className="text-sm text-slate-500 mt-1">Messages</div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Main Content Grid */}
-          <div className="px-8 py-8">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              
-              {/* Meetings Section */}
-              <motion.div variants={itemVariants}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-violet-100 flex items-center justify-center">
-                      <Calendar className="h-4 w-4 text-violet-600" />
-                    </div>
-                    <h2 className="text-lg font-semibold text-slate-900">Meetings</h2>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => router.push('/meetings')}
-                    className="text-slate-600 hover:text-slate-900 gap-1"
-                  >
-                    View all
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                <div className="space-y-3">
-                  {loadingMeetings ? (
-                    <div className="text-center py-8 text-slate-500">Loading meetings...</div>
-                  ) : meetings.length === 0 ? (
-                    <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl">
-                      <Calendar className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                      <p className="text-sm text-slate-500">No meetings scheduled</p>
-                      <Button 
-                        variant="link" 
-                        size="sm" 
-                        className="mt-2"
-                        onClick={() => router.push('/meetings')}
-                      >
-                        Schedule one
-                      </Button>
-                    </div>
+            {/* Avatar with online indicator */}
+            <div className="relative flex-shrink-0">
+              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden shadow-sm">
+                  {contactAvatarUrl ? (
+                    <img src={contactAvatarUrl} alt={contactName} className="h-16 w-16 object-cover" />
                   ) : (
-                    meetings.map((meeting) => (
-                      <motion.div
-                        key={meeting.id}
-                        className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer"
-                        whileHover={{ y: -2 }}
-                        onClick={() => router.push(`/meetings/${meeting.id}`)}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-medium text-slate-900 truncate">{meeting.title}</h3>
-                            <div className="flex items-center gap-3 mt-1.5 text-sm text-slate-500">
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3.5 w-3.5" />
-                                {formatMeetingDate(meeting.meeting_date)}
-                              </span>
-                              {meeting.attendees?.length > 0 && (
-                                <span className="flex items-center gap-1">
-                                  <Users className="h-3.5 w-3.5" />
-                                  {meeting.attendees.length} attendees
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs ${
-                              meeting.with_fde 
-                                ? 'bg-violet-50 text-violet-700 border-violet-200' 
-                                : 'bg-slate-50 text-slate-600 border-slate-200'
-                            }`}
-                          >
-                            {meeting.meeting_type || 'Meeting'}
-                          </Badge>
-                        </div>
-                        {meeting.notes && (
-                          <p className="mt-2 text-sm text-slate-500 line-clamp-2">{meeting.notes}</p>
-                        )}
-                      </motion.div>
-                    ))
+                  <span className="text-gray-600 text-xl font-semibold">
+                      {contactInitials}
+                    </span>
                   )}
                 </div>
-              </motion.div>
-
-              {/* Chat Preview Section */}
-              <motion.div variants={itemVariants}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                      <MessageSquare className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <h2 className="text-lg font-semibold text-slate-900">Recent Messages</h2>
+              {/* Online indicator */}
+              <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center">
+                <div className="h-1.5 w-1.5 bg-white rounded-full" />
+              </div>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => router.push('/fde/chat')}
-                    className="text-slate-600 hover:text-slate-900 gap-1"
-                  >
-                    Open chat
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
+                  
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <h1 className="text-xl font-semibold text-gray-900 truncate">
+                  {contactName}
+                </h1>
+                <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-medium">
+                  Available
+                </Badge>
+              </div>
+              <p className="text-sm text-gray-500 mb-1.5">
+                      {contactRole}
+                    </p>
+              <div className="flex items-center gap-3 text-xs text-gray-400">
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3" />
+                  {contactLocation}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Mail className="h-3 w-3" />
+                  {contactEmail}
+                </span>
+                  </div>
                 </div>
-                
-                <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
-                  {loadingMessages ? (
-                    <div className="text-center py-8 text-slate-500">Loading messages...</div>
-                  ) : messages.length === 0 ? (
-                    <div className="text-center py-8">
-                      <MessageSquare className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                      <p className="text-sm text-slate-500">No messages yet</p>
-                      <Button 
-                        variant="link" 
-                        size="sm" 
-                        className="mt-2"
-                        onClick={() => router.push('/fde/chat')}
-                      >
-                        Start a conversation
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="divide-y divide-slate-100">
-                        {messages.map((message) => (
-                          <div key={message.id} className="p-4 hover:bg-slate-50 transition-colors">
-                            <div className="flex items-start gap-3">
-                              <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                message.sender_type === 'fde' 
-                                  ? 'bg-violet-100 text-violet-700' 
-                                  : 'bg-slate-100 text-slate-700'
-                              }`}>
-                                <span className="text-xs font-semibold">
-                                  {message.sender_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                </span>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium text-slate-900">{message.sender_name}</span>
-                                  <span className="text-xs text-slate-400">
-                                    {new Date(message.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                </div>
-                                <p className="text-sm text-slate-600 mt-0.5 line-clamp-2">{message.content}</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+
+            {/* Quick actions */}
+            <div className="flex items-center gap-2">
+              {contactCalendlyUrl && (
+                    <Button 
+                  onClick={() => setIsCalendlyOpen(true)}
+                      size="sm" 
+                  className="bg-gray-900 hover:bg-gray-800 text-white text-xs h-8 px-3"
+                    >
+                      <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                  Book call
+                    </Button>
+                  )}
+                  <Button 
+                variant="outline"
+                    size="sm" 
+                onClick={() => router.push('/fde/chat')}
+                className="border-gray-200 text-gray-700 hover:bg-gray-50 text-xs h-8 px-3"
+                  >
+                <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+                Chat
+                  </Button>
+            </div>
+          </motion.div>
+
+          {/* Bento Grid */}
+          <motion.div 
+            className="grid grid-cols-3 gap-4"
+            variants={containerVariants}
+          >
+            {/* Stats Card - spans 1 col */}
+            <motion.div 
+              className="border border-gray-200 rounded-xl bg-white p-4 space-y-4"
+              variants={itemVariants}
+            >
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <TrendingUp className="h-3.5 w-3.5 text-blue-600" />
+                </div>
+                <h2 className="text-sm font-medium text-gray-900">Stats</h2>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="text-center p-2 rounded-lg bg-gray-50">
+                  <div className="text-2xl font-bold text-gray-900">{openIssuesCount}</div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide">Open</div>
+            </div>
+                <div className="text-center p-2 rounded-lg bg-gray-50">
+                  <div className="text-2xl font-bold text-gray-900">{resolvedIssuesCount}</div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide">Resolved</div>
+          </div>
+                <div className="text-center p-2 rounded-lg bg-gray-50">
+                  <div className="text-2xl font-bold text-gray-900">{meetings.length}</div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide">Meetings</div>
                       </div>
-                      <div className="p-3 bg-slate-50 border-t border-slate-100">
-                        <Button 
-                          className="w-full bg-slate-900 hover:bg-slate-800 text-white"
-                          onClick={() => router.push('/fde/chat')}
-                        >
-                          <Send className="h-4 w-4 mr-2" />
-                          Send a message
-                        </Button>
+                <div className="text-center p-2 rounded-lg bg-gray-50">
+                  <div className="text-2xl font-bold text-gray-900">{messageCount}</div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide">Messages</div>
+                      </div>
+                    </div>
+            </motion.div>
+
+            {/* Meetings Card - spans 2 cols */}
+            <motion.div 
+              className="col-span-2 border border-gray-200 rounded-xl bg-white p-4 space-y-3"
+              variants={itemVariants}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-6 rounded-lg bg-violet-50 flex items-center justify-center">
+                    <Calendar className="h-3.5 w-3.5 text-violet-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wide">Calendar</p>
+                    <h2 className="text-sm font-medium text-gray-900">Meetings</h2>
+                  </div>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => router.push('/meetings')}
+                  className="text-xs gap-1 border border-gray-200 bg-white hover:bg-gray-50 h-7 px-2"
+                >
+                  View all
+                  <ArrowRight className="h-3 w-3" />
+                </Button>
+                  </div>
+
+              {loadingMeetings ? (
+                <div className="text-center py-6 text-gray-500 text-sm">Loading meetings...</div>
+              ) : meetings.length === 0 ? (
+                <div className="text-center py-6 border border-dashed border-gray-200 rounded-lg">
+                  <Calendar className="h-6 w-6 text-gray-300 mx-auto mb-1.5" />
+                  <p className="text-xs text-gray-500">No meetings scheduled</p>
+                      </div>
+              ) : (
+                <div className="space-y-3">
+                  {upcomingMeetings.length > 0 && (
+                    <MeetingList meetings={upcomingMeetings} />
+                  )}
+                  
+                  {pastMeetings.length > 0 && (
+                    <>
+                      <div className="pt-2 border-t border-gray-100">
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Past meetings</p>
+                        <MeetingList meetings={pastMeetings.slice(0, 2)} isPast={true} />
                       </div>
                     </>
                   )}
-                </div>
-              </motion.div>
-
-              {/* Recent Activity / Issues */}
-              <motion.div className="lg:col-span-2" variants={itemVariants}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center">
-                      <Zap className="h-4 w-4 text-amber-600" />
                     </div>
-                    <h2 className="text-lg font-semibold text-slate-900">Recent Activity</h2>
+              )}
+            </motion.div>
+
+            {/* Chat Card - Simple CTA */}
+            <motion.div 
+              className="border border-gray-200 rounded-xl bg-white p-4 flex flex-col"
+              variants={itemVariants}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-6 w-6 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
+                </div>
+                <h2 className="text-sm font-medium text-gray-900">Chat</h2>
+              </div>
+              
+              <p className="text-xs text-gray-500 mb-4 flex-1">
+                Connect directly with your FDE via Slack-integrated messaging.
+              </p>
+              
+              <Button 
+                className="w-full bg-gray-900 hover:bg-gray-800 text-white text-xs h-8"
+                onClick={() => router.push('/fde/chat')}
+              >
+                Open chat
+                <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+              </Button>
+            </motion.div>
+
+            {/* Contact Card */}
+            <motion.div 
+              className="border border-gray-200 rounded-xl bg-white p-4 space-y-3"
+              variants={itemVariants}
+            >
+                    <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-lg bg-emerald-50 flex items-center justify-center">
+                  <Phone className="h-3.5 w-3.5 text-emerald-600" />
+                    </div>
+                <h2 className="text-sm font-medium text-gray-900">Contact</h2>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => router.push('/initiatives')}
-                    className="text-slate-600 hover:text-slate-900 gap-1"
-                  >
-                    View all
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                <div className="border border-slate-200 rounded-xl bg-white overflow-hidden">
-                  {loadingIssues ? (
-                    <div className="text-center py-8 text-slate-500">Loading activity...</div>
-                  ) : recentIssues.length === 0 ? (
-                    <div className="text-center py-8">
-                      <CheckCircle2 className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                      <p className="text-sm text-slate-500">No recent activity</p>
-                    </div>
-                  ) : (
-                    <table className="w-full">
-                      <thead className="bg-slate-50 border-b border-slate-200">
-                        <tr>
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Issue</th>
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Title</th>
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Updated</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {recentIssues.map((issue) => {
-                          const getStatusBadge = (state: string) => {
-                            const statusMap: Record<string, { label: string; colors: string }> = {
-                              'done': { label: 'Done', colors: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-                              'in_progress': { label: 'In Progress', colors: 'bg-blue-50 text-blue-700 border-blue-200' },
-                              'todo': { label: 'To Do', colors: 'bg-slate-100 text-slate-700 border-slate-200' },
-                              'blocked': { label: 'Blocked', colors: 'bg-red-50 text-red-700 border-red-200' },
-                              'waiting_info': { label: 'Waiting', colors: 'bg-amber-50 text-amber-700 border-amber-200' },
-                              'triage': { label: 'Triage', colors: 'bg-slate-50 text-slate-600 border-slate-200' },
-                            };
-                            return statusMap[state] || { label: state, colors: 'bg-slate-100 text-slate-700 border-slate-200' };
-                          };
 
-                          const status = getStatusBadge(issue.state || 'todo');
-                          const date = new Date(issue.updated_at || issue.created_at || Date.now());
-                          
-                          return (
-                            <tr 
-                              key={issue.id}
-                              className="hover:bg-slate-50 transition-colors cursor-pointer"
-                              onClick={() => router.push(`/initiatives/${issue.id}`)}
-                            >
-                              <td className="py-3 px-4">
-                                <span className="text-sm font-mono text-slate-500">{issue.key}</span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className="text-sm font-medium text-slate-900">{issue.title}</span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${status.colors}`}>
-                                  {status.label}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className="text-sm text-slate-500">
-                                  {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
+              <div className="space-y-2">
+                <a 
+                  href={`mailto:${contactEmail}`}
+                  className="flex items-center gap-2 text-xs text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <Mail className="h-3.5 w-3.5 text-gray-400" />
+                  {contactEmail}
+                </a>
+                {contactPhone && (
+                  <a 
+                    href={`tel:${contactPhone}`}
+                    className="flex items-center gap-2 text-xs text-gray-600 hover:text-gray-900 transition-colors"
+                  >
+                    <Phone className="h-3.5 w-3.5 text-gray-400" />
+                    {contactPhone}
+                  </a>
+                )}
+                  </div>
+
+              {contactCalendlyUrl && (
+                      <Button
+                  variant="outline"
+                        size="sm"
+                  onClick={() => setIsCalendlyOpen(true)}
+                  className="w-full text-xs h-8 border-gray-200"
+                      >
+                  <ExternalLink className="h-3 w-3 mr-1.5" />
+                  Schedule meeting
+                      </Button>
+              )}
+            </motion.div>
+
+            {/* Skills Card */}
+            <motion.div 
+              className="border border-gray-200 rounded-xl bg-white p-4 space-y-3"
+              variants={itemVariants}
+            >
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-lg bg-amber-50 flex items-center justify-center">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-600" />
                 </div>
-              </motion.div>
-            </div>
+                <h2 className="text-sm font-medium text-gray-900">Expertise</h2>
+              </div>
+              
+              <div className="flex flex-wrap gap-1.5">
+                {contactSkills.map((skill, idx) => (
+                  <Badge 
+                    key={idx}
+                    variant="outline"
+                    className="text-[10px] px-2 py-0.5 bg-gray-50 text-gray-600 border-gray-200"
+                  >
+                    {skill}
+                  </Badge>
+                ))}
           </div>
+
+              {contactBio && (
+                <p className="text-xs text-gray-500 line-clamp-2">
+                  {contactBio}
+                </p>
+              )}
+            </motion.div>
+
+            {/* Recent Activity Card - spans full width */}
+            <motion.div 
+              className="col-span-3 border border-gray-200 rounded-xl bg-white p-4 space-y-3"
+              variants={itemVariants}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-6 rounded-lg bg-amber-50 flex items-center justify-center">
+                    <Zap className="h-3.5 w-3.5 text-amber-600" />
+                  </div>
+                  <h2 className="text-sm font-medium text-gray-900">Recent Activity</h2>
+                </div>
+              <Button 
+                  variant="ghost" 
+                size="sm" 
+                onClick={() => router.push('/initiatives')}
+                  className="text-xs gap-1 border border-gray-200 bg-white hover:bg-gray-50 h-7 px-2"
+              >
+                View all
+                  <ArrowRight className="h-3 w-3" />
+              </Button>
+              </div>
+
+                {loadingIssues ? (
+                <div className="text-center py-6 text-gray-500 text-sm">Loading activity...</div>
+                ) : recentIssues.length === 0 ? (
+                <div className="text-center py-6 border border-dashed border-gray-200 rounded-lg">
+                  <CheckCircle2 className="h-6 w-6 text-gray-300 mx-auto mb-1.5" />
+                  <p className="text-xs text-gray-500">No recent activity</p>
+                  </div>
+                ) : (
+                <div className="space-y-2">
+                  {recentIssues.map((issue) => {
+                    const getStatusBadge = (state: string) => {
+                      const statusMap: Record<string, { label: string; colors: string }> = {
+                        'done': { label: 'Done', colors: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                        'in_progress': { label: 'In Progress', colors: 'bg-blue-50 text-blue-700 border-blue-200' },
+                        'todo': { label: 'To Do', colors: 'bg-gray-100 text-gray-700 border-gray-200' },
+                        'blocked': { label: 'Blocked', colors: 'bg-red-50 text-red-700 border-red-200' },
+                        'waiting_info': { label: 'Waiting', colors: 'bg-amber-50 text-amber-700 border-amber-200' },
+                        'triage': { label: 'Triage', colors: 'bg-gray-50 text-gray-600 border-gray-200' },
+                      };
+                      return statusMap[state] || { label: state, colors: 'bg-gray-100 text-gray-700 border-gray-200' };
+                    };
+
+                    const status = getStatusBadge(issue.state || 'todo');
+                    
+                    return (
+                      <div
+                        key={issue.id}
+                        className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer group"
+                        onClick={() => router.push(`/initiatives/${issue.id}`)}
+                      >
+                        <span className="text-xs font-mono text-gray-400 shrink-0 w-16">{issue.key}</span>
+                        <span className="text-sm text-gray-900 flex-1 truncate group-hover:text-gray-700">{issue.title}</span>
+                        <Badge 
+                          variant="outline" 
+                          className={`text-[10px] px-2 py-0.5 shrink-0 ${status.colors}`}
+                        >
+                            {status.label}
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
 
           {/* Calendly Modal */}
           {rootElement && contactCalendlyUrl && (
