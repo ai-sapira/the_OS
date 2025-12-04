@@ -6,17 +6,13 @@ import {
   Calendar,
   MessageSquare,
   CheckCircle2,
-  Clock,
   Mail,
   ArrowRight,
   FileText,
   Users,
-  Zap,
   Phone,
   MapPin,
   ChevronDown,
-  Sparkles,
-  TrendingUp,
   ExternalLink,
 } from "lucide-react";
 import { 
@@ -49,6 +45,40 @@ interface Meeting {
   with_fde: boolean;
 }
 
+// Types for messages/conversations
+interface Message {
+  id: string;
+  content: string;
+  sender_type: 'user' | 'fde' | 'system';
+  sender_name: string;
+  created_at: string;
+  slack_thread_ts?: string;
+}
+
+// Helper function for relative dates
+const getRelativeDate = (dateStr: string) => {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+const formatDate = (dateStr: string) => {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+};
+
 // MeetingList component - similar to Home page style
 function MeetingList({ meetings, isPast = false }: { meetings: Meeting[], isPast?: boolean }) {
   const [expandedMeetings, setExpandedMeetings] = useState<Set<string>>(new Set())
@@ -63,12 +93,7 @@ function MeetingList({ meetings, isPast = false }: { meetings: Meeting[], isPast
     setExpandedMeetings(newExpanded)
   }
 
-  const formatMeetingDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
-  };
-
-  const getRelativeDate = (dateStr: string) => {
+  const getMeetingRelativeDate = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
     const diffDays = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -107,7 +132,7 @@ function MeetingList({ meetings, isPast = false }: { meetings: Meeting[], isPast
                       : "bg-gray-50 border-gray-200 text-gray-600"
                 }`}
               >
-                {formatMeetingDate(meeting.meeting_date)}
+                {formatDate(meeting.meeting_date)}
               </Badge>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
@@ -121,7 +146,7 @@ function MeetingList({ meetings, isPast = false }: { meetings: Meeting[], isPast
                   )}
                 </div>
                 <div className={`flex items-center gap-2 text-xs mt-0.5 ${isPast ? 'text-gray-400' : 'text-gray-500'}`}>
-                  <span>{getRelativeDate(meeting.meeting_date)}</span>
+                  <span>{getMeetingRelativeDate(meeting.meeting_date)}</span>
                   <span className="text-gray-300">·</span>
                   <span>{meeting.duration_minutes} min</span>
                 </div>
@@ -183,6 +208,95 @@ function MeetingList({ meetings, isPast = false }: { meetings: Meeting[], isPast
   )
 }
 
+// ConversationList component - similar style to MeetingList
+function ConversationList({ messages, onOpenChat }: { messages: Message[], onOpenChat: () => void }) {
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set())
+
+  const toggleMessage = (messageId: string) => {
+    const newExpanded = new Set(expandedMessages)
+    if (newExpanded.has(messageId)) {
+      newExpanded.delete(messageId)
+    } else {
+      newExpanded.add(messageId)
+    }
+    setExpandedMessages(newExpanded)
+  }
+
+  return (
+    <div className="space-y-2">
+      {messages.map((message) => {
+        const isExpanded = expandedMessages.has(message.id)
+        const isFDE = message.sender_type === 'fde'
+
+        return (
+          <div key={message.id}>
+            <div 
+              className="flex items-center gap-3 p-2 hover:bg-gray-50/80 rounded-lg transition-colors group cursor-pointer"
+              onClick={() => toggleMessage(message.id)}
+            >
+              <Badge 
+                variant="outline" 
+                className={`text-[10px] font-medium shrink-0 ${
+                  isFDE
+                    ? "bg-purple-50 border-purple-200 text-purple-700"
+                    : "bg-gray-50 border-gray-200 text-gray-600"
+                }`}
+              >
+                {formatDate(message.created_at)}
+              </Badge>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-medium truncate text-gray-900">
+                    {message.sender_name}
+                  </h3>
+                  {isFDE && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-purple-50 border-purple-200 text-purple-600">
+                      FDE
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-xs mt-0.5 text-gray-500">
+                  <span>{getRelativeDate(message.created_at)}</span>
+                  <span className="text-gray-300">·</span>
+                  <span className="truncate max-w-[200px]">{message.content}</span>
+                </div>
+              </div>
+              <ChevronDown 
+                className={`h-3.5 w-3.5 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+              />
+            </div>
+            
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="mt-2 ml-11 space-y-2 pb-2"
+                >
+                  <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded p-2">
+                    {message.content}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => { e.stopPropagation(); onOpenChat(); }}
+                    className="text-xs h-7 px-2 text-gray-600 hover:text-gray-900"
+                  >
+                    Continue conversation
+                    <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function MySapiraPage() {
   const router = useRouter();
   
@@ -198,8 +312,9 @@ export default function MySapiraPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loadingMeetings, setLoadingMeetings] = useState(true);
   
-  // State for message count
-  const [messageCount, setMessageCount] = useState(0);
+  // State for messages
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(true);
 
   // Set root element after mount
   useEffect(() => {
@@ -324,25 +439,32 @@ export default function MySapiraPage() {
     loadMeetings();
   }, [currentOrg?.organization?.id]);
 
-  // Load message count from Supabase
+  // Load messages from Supabase
   useEffect(() => {
-    const loadMessageCount = async () => {
-      if (!currentOrg?.organization?.id) return;
+    const loadMessages = async () => {
+      if (!currentOrg?.organization?.id) {
+        setLoadingMessages(false);
+        return;
+      }
 
       try {
-        const { count, error } = await supabase
+        const { data, error } = await supabase
           .from('fde_messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('organization_id', currentOrg.organization.id);
+          .select('*')
+          .eq('organization_id', currentOrg.organization.id)
+          .order('created_at', { ascending: false })
+          .limit(5);
 
         if (error) throw error;
-        setMessageCount(count || 0);
+        setMessages(data || []);
       } catch (error) {
-        console.error('Error loading message count:', error);
+        console.error('Error loading messages:', error);
+      } finally {
+        setLoadingMessages(false);
       }
     };
 
-    loadMessageCount();
+    loadMessages();
   }, [currentOrg?.organization?.id]);
 
   // Separate meetings into upcoming and past
@@ -387,74 +509,109 @@ export default function MySapiraPage() {
           initial="hidden"
           animate="visible"
         >
-          {/* Header - Compact CV Style */}
+          {/* Header - Profile Card Style */}
           <motion.div 
-            className="flex items-center gap-5"
+            className="border border-gray-200 rounded-xl bg-white p-6"
             variants={itemVariants}
           >
-            {/* Avatar with online indicator */}
-            <div className="relative flex-shrink-0">
-              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden shadow-sm">
+            <div className="flex items-start gap-6">
+              {/* Avatar with online indicator */}
+              <div className="relative flex-shrink-0">
+                <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden shadow-sm">
                   {contactAvatarUrl ? (
-                    <img src={contactAvatarUrl} alt={contactName} className="h-16 w-16 object-cover" />
+                    <img src={contactAvatarUrl} alt={contactName} className="h-20 w-20 object-cover" />
                   ) : (
-                  <span className="text-gray-600 text-xl font-semibold">
+                    <span className="text-gray-600 text-2xl font-semibold">
                       {contactInitials}
                     </span>
                   )}
                 </div>
-              {/* Online indicator */}
-              <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center">
-                <div className="h-1.5 w-1.5 bg-white rounded-full" />
-              </div>
-                  </div>
-                  
-            {/* Info */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <h1 className="text-xl font-semibold text-gray-900 truncate">
-                  {contactName}
-                </h1>
-                <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-medium">
-                  Available
-                </Badge>
-              </div>
-              <p className="text-sm text-gray-500 mb-1.5">
-                      {contactRole}
-                    </p>
-              <div className="flex items-center gap-3 text-xs text-gray-400">
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  {contactLocation}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Mail className="h-3 w-3" />
-                  {contactEmail}
-                </span>
-                  </div>
+                {/* Online indicator */}
+                <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-full border-[3px] border-white flex items-center justify-center">
+                  <div className="h-2 w-2 bg-white rounded-full" />
                 </div>
+              </div>
 
-            {/* Quick actions */}
-            <div className="flex items-center gap-2">
-              {contactCalendlyUrl && (
-                    <Button 
-                  onClick={() => setIsCalendlyOpen(true)}
-                      size="sm" 
-                  className="bg-gray-900 hover:bg-gray-800 text-white text-xs h-8 px-3"
-                    >
-                      <Calendar className="h-3.5 w-3.5 mr-1.5" />
-                  Book call
-                    </Button>
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h1 className="text-xl font-semibold text-gray-900 truncate">
+                    {contactName}
+                  </h1>
+                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-medium">
+                    Available
+                  </Badge>
+                </div>
+                <p className="text-sm text-gray-600 mb-3">
+                  {contactRole}
+                </p>
+                <div className="flex items-center gap-4 text-xs text-gray-500">
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {contactLocation}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5" />
+                    {contactEmail}
+                  </span>
+                  {contactPhone && (
+                    <span className="flex items-center gap-1.5">
+                      <Phone className="h-3.5 w-3.5" />
+                      {contactPhone}
+                    </span>
                   )}
+                </div>
+                
+                {/* Bio */}
+                <p className="text-sm text-gray-500 mt-3 max-w-xl">
+                  {contactBio}
+                </p>
+                
+                {/* Skills tags */}
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {contactSkills.map((skill, idx) => (
+                    <Badge 
+                      key={idx}
+                      variant="outline"
+                      className="text-[10px] px-2 py-0.5 bg-gray-50 text-gray-600 border-gray-200"
+                    >
+                      {skill}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick actions */}
+              <div className="flex flex-col gap-2">
+                {contactCalendlyUrl && (
                   <Button 
-                variant="outline"
-                    size="sm" 
-                onClick={() => router.push('/fde/chat')}
-                className="border-gray-200 text-gray-700 hover:bg-gray-50 text-xs h-8 px-3"
+                    onClick={() => setIsCalendlyOpen(true)}
+                    size="sm"
+                    className="bg-gray-900 hover:bg-gray-800 text-white text-xs h-9 px-4"
                   >
-                <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-                Chat
+                    <Calendar className="h-3.5 w-3.5 mr-2" />
+                    Book a call
                   </Button>
+                )}
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push('/fde/chat')}
+                  className="border-gray-200 text-gray-700 hover:bg-gray-50 text-xs h-9 px-4"
+                >
+                  <MessageSquare className="h-3.5 w-3.5 mr-2" />
+                  Open chat
+                </Button>
+                <Button 
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => window.location.href = `mailto:${contactEmail}`}
+                  className="text-gray-500 hover:text-gray-700 text-xs h-9 px-4"
+                >
+                  <Mail className="h-3.5 w-3.5 mr-2" />
+                  Send email
+                </Button>
+              </div>
             </div>
           </motion.div>
 
@@ -463,36 +620,31 @@ export default function MySapiraPage() {
             className="grid grid-cols-3 gap-4"
             variants={containerVariants}
           >
-            {/* Stats Card - spans 1 col */}
+            {/* Stats Card */}
             <motion.div 
               className="border border-gray-200 rounded-xl bg-white p-4 space-y-4"
               variants={itemVariants}
             >
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-lg bg-blue-50 flex items-center justify-center">
-                  <TrendingUp className="h-3.5 w-3.5 text-blue-600" />
-                </div>
-                <h2 className="text-sm font-medium text-gray-900">Stats</h2>
-              </div>
+              <h2 className="text-sm font-medium text-gray-900">Stats</h2>
               
               <div className="grid grid-cols-2 gap-3">
                 <div className="text-center p-2 rounded-lg bg-gray-50">
                   <div className="text-2xl font-bold text-gray-900">{openIssuesCount}</div>
                   <div className="text-[10px] text-gray-500 uppercase tracking-wide">Open</div>
-            </div>
+                </div>
                 <div className="text-center p-2 rounded-lg bg-gray-50">
                   <div className="text-2xl font-bold text-gray-900">{resolvedIssuesCount}</div>
                   <div className="text-[10px] text-gray-500 uppercase tracking-wide">Resolved</div>
-          </div>
+                </div>
                 <div className="text-center p-2 rounded-lg bg-gray-50">
                   <div className="text-2xl font-bold text-gray-900">{meetings.length}</div>
                   <div className="text-[10px] text-gray-500 uppercase tracking-wide">Meetings</div>
-                      </div>
+                </div>
                 <div className="text-center p-2 rounded-lg bg-gray-50">
-                  <div className="text-2xl font-bold text-gray-900">{messageCount}</div>
+                  <div className="text-2xl font-bold text-gray-900">{messages.length}</div>
                   <div className="text-[10px] text-gray-500 uppercase tracking-wide">Messages</div>
-                      </div>
-                    </div>
+                </div>
+              </div>
             </motion.div>
 
             {/* Meetings Card - spans 2 cols */}
@@ -501,14 +653,9 @@ export default function MySapiraPage() {
               variants={itemVariants}
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-6 w-6 rounded-lg bg-violet-50 flex items-center justify-center">
-                    <Calendar className="h-3.5 w-3.5 text-violet-600" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-wide">Calendar</p>
-                    <h2 className="text-sm font-medium text-gray-900">Meetings</h2>
-                  </div>
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Calendar</p>
+                  <h2 className="text-sm font-medium text-gray-900">Meetings</h2>
                 </div>
                 <Button 
                   variant="ghost" 
@@ -519,7 +666,7 @@ export default function MySapiraPage() {
                   View all
                   <ArrowRight className="h-3 w-3" />
                 </Button>
-                  </div>
+              </div>
 
               {loadingMeetings ? (
                 <div className="text-center py-6 text-gray-500 text-sm">Loading meetings...</div>
@@ -527,7 +674,7 @@ export default function MySapiraPage() {
                 <div className="text-center py-6 border border-dashed border-gray-200 rounded-lg">
                   <Calendar className="h-6 w-6 text-gray-300 mx-auto mb-1.5" />
                   <p className="text-xs text-gray-500">No meetings scheduled</p>
-                      </div>
+                </div>
               ) : (
                 <div className="space-y-3">
                   {upcomingMeetings.length > 0 && (
@@ -542,33 +689,52 @@ export default function MySapiraPage() {
                       </div>
                     </>
                   )}
-                    </div>
+                </div>
               )}
             </motion.div>
 
-            {/* Chat Card - Simple CTA */}
+            {/* Conversations Card - spans 2 cols */}
             <motion.div 
-              className="border border-gray-200 rounded-xl bg-white p-4 flex flex-col"
+              className="col-span-2 border border-gray-200 rounded-xl bg-white p-4 space-y-3"
               variants={itemVariants}
             >
-              <div className="flex items-center gap-2 mb-3">
-                <div className="h-6 w-6 rounded-lg bg-blue-50 flex items-center justify-center">
-                  <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Messages</p>
+                  <h2 className="text-sm font-medium text-gray-900">Recent Conversations</h2>
                 </div>
-                <h2 className="text-sm font-medium text-gray-900">Chat</h2>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => router.push('/fde/chat')}
+                  className="text-xs gap-1 border border-gray-200 bg-white hover:bg-gray-50 h-7 px-2"
+                >
+                  Open chat
+                  <ArrowRight className="h-3 w-3" />
+                </Button>
               </div>
-              
-              <p className="text-xs text-gray-500 mb-4 flex-1">
-                Connect directly with your FDE via Slack-integrated messaging.
-              </p>
-              
-              <Button 
-                className="w-full bg-gray-900 hover:bg-gray-800 text-white text-xs h-8"
-                onClick={() => router.push('/fde/chat')}
-              >
-                Open chat
-                <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
-              </Button>
+
+              {loadingMessages ? (
+                <div className="text-center py-6 text-gray-500 text-sm">Loading messages...</div>
+              ) : messages.length === 0 ? (
+                <div className="text-center py-6 border border-dashed border-gray-200 rounded-lg">
+                  <MessageSquare className="h-6 w-6 text-gray-300 mx-auto mb-1.5" />
+                  <p className="text-xs text-gray-500 mb-2">No conversations yet</p>
+                  <Button 
+                    variant="link" 
+                    size="sm" 
+                    className="text-xs"
+                    onClick={() => router.push('/fde/chat')}
+                  >
+                    Start a conversation
+                  </Button>
+                </div>
+              ) : (
+                <ConversationList 
+                  messages={messages} 
+                  onOpenChat={() => router.push('/fde/chat')} 
+                />
+              )}
             </motion.div>
 
             {/* Contact Card */}
@@ -576,12 +742,7 @@ export default function MySapiraPage() {
               className="border border-gray-200 rounded-xl bg-white p-4 space-y-3"
               variants={itemVariants}
             >
-                    <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-lg bg-emerald-50 flex items-center justify-center">
-                  <Phone className="h-3.5 w-3.5 text-emerald-600" />
-                    </div>
-                <h2 className="text-sm font-medium text-gray-900">Contact</h2>
-                  </div>
+              <h2 className="text-sm font-medium text-gray-900">Contact</h2>
 
               <div className="space-y-2">
                 <a 
@@ -600,49 +761,18 @@ export default function MySapiraPage() {
                     {contactPhone}
                   </a>
                 )}
-                  </div>
+              </div>
 
               {contactCalendlyUrl && (
-                      <Button
+                <Button
                   variant="outline"
-                        size="sm"
+                  size="sm"
                   onClick={() => setIsCalendlyOpen(true)}
                   className="w-full text-xs h-8 border-gray-200"
-                      >
+                >
                   <ExternalLink className="h-3 w-3 mr-1.5" />
                   Schedule meeting
-                      </Button>
-              )}
-            </motion.div>
-
-            {/* Skills Card */}
-            <motion.div 
-              className="border border-gray-200 rounded-xl bg-white p-4 space-y-3"
-              variants={itemVariants}
-            >
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-lg bg-amber-50 flex items-center justify-center">
-                  <Sparkles className="h-3.5 w-3.5 text-amber-600" />
-                </div>
-                <h2 className="text-sm font-medium text-gray-900">Expertise</h2>
-              </div>
-              
-              <div className="flex flex-wrap gap-1.5">
-                {contactSkills.map((skill, idx) => (
-                  <Badge 
-                    key={idx}
-                    variant="outline"
-                    className="text-[10px] px-2 py-0.5 bg-gray-50 text-gray-600 border-gray-200"
-                  >
-                    {skill}
-                  </Badge>
-                ))}
-          </div>
-
-              {contactBio && (
-                <p className="text-xs text-gray-500 line-clamp-2">
-                  {contactBio}
-                </p>
+                </Button>
               )}
             </motion.div>
 
@@ -652,31 +782,26 @@ export default function MySapiraPage() {
               variants={itemVariants}
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-6 w-6 rounded-lg bg-amber-50 flex items-center justify-center">
-                    <Zap className="h-3.5 w-3.5 text-amber-600" />
-                  </div>
-                  <h2 className="text-sm font-medium text-gray-900">Recent Activity</h2>
-                </div>
-              <Button 
+                <h2 className="text-sm font-medium text-gray-900">Recent Activity</h2>
+                <Button 
                   variant="ghost" 
-                size="sm" 
-                onClick={() => router.push('/initiatives')}
+                  size="sm"
+                  onClick={() => router.push('/initiatives')}
                   className="text-xs gap-1 border border-gray-200 bg-white hover:bg-gray-50 h-7 px-2"
-              >
-                View all
+                >
+                  View all
                   <ArrowRight className="h-3 w-3" />
-              </Button>
+                </Button>
               </div>
 
-                {loadingIssues ? (
+              {loadingIssues ? (
                 <div className="text-center py-6 text-gray-500 text-sm">Loading activity...</div>
-                ) : recentIssues.length === 0 ? (
+              ) : recentIssues.length === 0 ? (
                 <div className="text-center py-6 border border-dashed border-gray-200 rounded-lg">
                   <CheckCircle2 className="h-6 w-6 text-gray-300 mx-auto mb-1.5" />
                   <p className="text-xs text-gray-500">No recent activity</p>
-                  </div>
-                ) : (
+                </div>
+              ) : (
                 <div className="space-y-2">
                   {recentIssues.map((issue) => {
                     const getStatusBadge = (state: string) => {
@@ -705,7 +830,7 @@ export default function MySapiraPage() {
                           variant="outline" 
                           className={`text-[10px] px-2 py-0.5 shrink-0 ${status.colors}`}
                         >
-                            {status.label}
+                          {status.label}
                         </Badge>
                       </div>
                     );

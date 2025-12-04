@@ -4,14 +4,13 @@ import * as React from "react";
 import { 
   MessageSquare, 
   Plus, 
-  Circle, 
-  Clock, 
-  CheckCircle2, 
-  Archive,
   Search,
   Trash2,
   MoreHorizontal,
-  X
+  X,
+  Clock,
+  CheckCircle2,
+  Archive
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -21,7 +20,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -66,34 +64,6 @@ interface ConversationListProps {
   fdeAvatarUrl?: string | null;
 }
 
-// Status config
-const statusConfig = {
-  active: { 
-    color: 'bg-emerald-500', 
-    label: 'Activa',
-    textColor: 'text-emerald-600',
-    bgColor: 'bg-emerald-50'
-  },
-  pending: { 
-    color: 'bg-amber-500', 
-    label: 'Pendiente',
-    textColor: 'text-amber-600',
-    bgColor: 'bg-amber-50'
-  },
-  resolved: { 
-    color: 'bg-slate-400', 
-    label: 'Resuelta',
-    textColor: 'text-slate-500',
-    bgColor: 'bg-slate-50'
-  },
-  archived: { 
-    color: 'bg-slate-300', 
-    label: 'Archivada',
-    textColor: 'text-slate-400',
-    bgColor: 'bg-slate-50'
-  },
-};
-
 function formatRelativeTime(dateStr: string | null): string {
   if (!dateStr) return '';
   
@@ -128,7 +98,6 @@ function ConversationItem({
   fdeAvatarUrl?: string | null;
 }) {
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
-  const status = statusConfig[conversation.status];
   const hasUnread = conversation.unread_count > 0;
 
   const initials = (fdeName || 'ST')
@@ -151,82 +120,87 @@ function ConversationItem({
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -4 }}
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, height: 0, marginBottom: 0 }}
         onClick={onClick}
         className={cn(
-          "group relative px-3 py-3 cursor-pointer transition-all duration-150",
-          "border-b border-[var(--stroke)]",
-          "hover:bg-[var(--surface-2)]",
-          selected && "bg-[var(--surface-2)]",
-          hasUnread && !selected && "bg-blue-50/30"
+          "group relative px-4 py-3.5 cursor-pointer transition-all duration-200 mx-2 rounded-xl",
+          "hover:bg-white/60",
+          selected && "bg-white shadow-sm ring-1 ring-black/5"
         )}
       >
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-3.5">
           {/* Avatar */}
           <div className="relative flex-shrink-0">
-            <Avatar className="h-10 w-10 border border-[var(--stroke)]">
+            <Avatar className="h-10 w-10 border border-gray-100 shadow-sm">
               {fdeAvatarUrl && <AvatarImage src={fdeAvatarUrl} />}
-              <AvatarFallback className="bg-[var(--surface-3)] text-[var(--text-2)] text-xs font-medium">
+              <AvatarFallback className="bg-gradient-to-br from-gray-50 to-gray-100 text-gray-500 text-xs font-medium">
                 {initials}
               </AvatarFallback>
             </Avatar>
-            <div 
-              className={cn(
-                "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white",
-                status.color
-              )}
-            />
+            {hasUnread && (
+              <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-blue-500 border-2 border-white shadow-sm" />
+            )}
           </div>
 
           {/* Content */}
-          <div className="flex-1 min-w-0 pr-6">
-            <div className="flex items-center justify-between gap-2 mb-0.5">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2 mb-1">
               <span className={cn(
-                "text-[13px] truncate",
-                hasUnread ? "font-semibold text-[var(--text-1)]" : "font-medium text-[var(--text-1)]"
+                "text-[14px] truncate leading-tight",
+                hasUnread || selected ? "font-semibold text-gray-900" : "font-medium text-gray-700"
               )}>
                 {conversation.title || 'Nueva conversación'}
               </span>
-              <span className="text-[11px] text-[var(--text-3)] flex-shrink-0 tabular-nums">
+              <span className="text-[11px] text-gray-400 flex-shrink-0 tabular-nums">
                 {formatRelativeTime(conversation.last_message_at || conversation.created_at)}
               </span>
             </div>
 
             <p className={cn(
-              "text-[12px] truncate mb-1.5",
-              hasUnread ? "text-[var(--text-2)]" : "text-[var(--text-3)]"
+              "text-[13px] truncate leading-normal",
+              hasUnread ? "text-gray-700 font-medium" : "text-gray-500"
             )}>
               {conversation.last_message || 'Sin mensajes'}
             </p>
-
-            <div className="flex items-center gap-2">
-              <span className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded-full",
-                status.bgColor,
-                status.textColor
-              )}>
-                {status.label}
-              </span>
-              {hasUnread && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-600 text-white font-medium">
-                  {conversation.unread_count}
+            
+            {/* Status badges */}
+            <div className="flex gap-2 mt-2">
+              {conversation.status === 'pending' && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-100/50">
+                  <Clock className="w-3 h-3 mr-1" />
+                  Pendiente
+                </span>
+              )}
+              {conversation.status === 'resolved' && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-600 border border-gray-100/50">
+                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                  Resuelta
+                </span>
+              )}
+              {conversation.status === 'archived' && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-500 border border-gray-100/50">
+                  <Archive className="w-3 h-3 mr-1" />
+                  Archivada
                 </span>
               )}
             </div>
           </div>
 
-          {/* Actions menu */}
-          <div className="absolute right-2 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Actions menu - visible on hover or selected */}
+          <div className={cn(
+            "absolute right-2 top-3 transition-opacity duration-200",
+            selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          )}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                  <MoreHorizontal className="h-4 w-4 text-[var(--text-3)]" />
+                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-gray-100 rounded-full">
+                  <MoreHorizontal className="h-4 w-4 text-gray-400" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuItem onClick={handleDelete} className="text-red-600">
+                <DropdownMenuItem onClick={handleDelete} className="text-red-600 focus:text-red-600 focus:bg-red-50">
                   <Trash2 className="h-3.5 w-3.5 mr-2" />
                   Eliminar
                 </DropdownMenuItem>
@@ -273,7 +247,7 @@ export function ConversationList({
   // Filter conversations
   const filteredConversations = React.useMemo(() => {
     return conversations.filter(conv => {
-      // Exclude temp conversations
+      // Exclude temp conversations from filter if needed, or keep them
       if (conv.id.startsWith('temp-')) return true;
       
       // Search filter
@@ -315,22 +289,21 @@ export function ConversationList({
   }, [conversations]);
 
   return (
-    <div className="flex flex-col h-full bg-[var(--surface-sheet)] border-r border-[var(--stroke)]">
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-[var(--stroke)]">
+      <div className="px-5 py-4 border-b border-[var(--stroke)] flex-shrink-0 bg-white/50 backdrop-blur-xl sticky top-0 z-10">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <h2 className="text-[15px] font-semibold text-[var(--text-1)]">Mensajes</h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-[18px] font-bold text-gray-900 tracking-tight">Conversaciones</h2>
             {totalUnread > 0 && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-600 text-white font-medium">
+              <span className="flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-blue-600 text-white text-[11px] font-bold shadow-sm shadow-blue-200">
                 {totalUnread}
               </span>
             )}
           </div>
           <Button 
-            size="sm" 
             onClick={onNewConversation}
-            className="h-8 px-3 text-[12px] bg-[var(--text-1)] hover:bg-[var(--text-1)]/90"
+            className="h-8 px-3 text-[12px] font-medium bg-gray-900 hover:bg-black text-white rounded-lg shadow-sm transition-all hover:shadow-md"
           >
             <Plus className="h-3.5 w-3.5 mr-1.5" />
             Nueva
@@ -338,50 +311,44 @@ export function ConversationList({
         </div>
 
         {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--text-3)]" />
+        <div className="relative group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-gray-600 transition-colors" />
           <Input
-            placeholder="Buscar..."
+            placeholder="Buscar mensajes..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-8 text-[13px] bg-[var(--surface-2)] border-[var(--stroke)] placeholder:text-[var(--text-3)]"
+            className="pl-9 h-9 text-[13px] bg-gray-50/50 border-gray-200 focus:bg-white focus:border-gray-300 transition-all rounded-lg"
           />
           {searchQuery && (
             <Button
               variant="ghost"
-              size="sm"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0 text-gray-400 hover:text-gray-600"
               onClick={() => setSearchQuery('')}
             >
-              <X className="h-3 w-3" />
+              <X className="h-3.5 w-3.5" />
             </Button>
           )}
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-1.5 mt-3">
+        <div className="flex items-center gap-1 mt-3 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
           {[
             { key: null, label: 'Todas' },
-            { key: 'active', label: 'Activas', color: 'emerald' },
-            { key: 'pending', label: 'Pendientes', color: 'amber' },
-          ].map(({ key, label, color }) => (
+            { key: 'active', label: 'Activas' },
+            { key: 'pending', label: 'Pendientes' },
+            { key: 'resolved', label: 'Resueltas' },
+          ].map(({ key, label }) => (
             <button
               key={key ?? 'all'}
-              onClick={() => setStatusFilter(key)}
+              onClick={() => setStatusFilter(key as any)}
               className={cn(
-                "text-[11px] px-2 py-1 rounded-md transition-colors",
+                "flex-shrink-0 text-[12px] px-3 py-1.5 rounded-full transition-all font-medium border",
                 statusFilter === key 
-                  ? "bg-[var(--text-1)] text-white" 
-                  : "text-[var(--text-2)] hover:bg-[var(--surface-2)]"
+                  ? "bg-gray-900 text-white border-gray-900 shadow-sm" 
+                  : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
               )}
             >
-              {color && (
-                <span className={cn(
-                  "inline-block w-1.5 h-1.5 rounded-full mr-1.5",
-                  color === 'emerald' && "bg-emerald-500",
-                  color === 'amber' && "bg-amber-500"
-                )} />
-              )}
               {label}
             </button>
           ))}
@@ -389,23 +356,23 @@ export function ConversationList({
       </div>
 
       {/* Conversation list */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-gray-200">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <span className="text-[13px] text-[var(--text-3)]">Cargando...</span>
+            <span className="text-[13px] text-gray-400">Cargando conversaciones...</span>
           </div>
         ) : sortedConversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-            <div className="h-12 w-12 rounded-full bg-[var(--surface-2)] flex items-center justify-center mb-3">
-              <MessageSquare className="h-5 w-5 text-[var(--text-3)]" />
+          <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+            <div className="h-16 w-16 rounded-2xl bg-gray-50 flex items-center justify-center mb-4 border border-gray-100">
+              <MessageSquare className="h-7 w-7 text-gray-300" />
             </div>
-            <p className="text-[13px] text-[var(--text-2)] font-medium mb-1">
-              {searchQuery ? 'Sin resultados' : 'Sin conversaciones'}
+            <p className="text-[14px] text-gray-900 font-semibold mb-1">
+              {searchQuery ? 'Sin resultados' : 'Bandeja vacía'}
             </p>
-            <p className="text-[12px] text-[var(--text-3)]">
+            <p className="text-[13px] text-gray-500 leading-relaxed max-w-[200px]">
               {searchQuery 
-                ? 'Intenta con otros términos' 
-                : 'Inicia una conversación con tu FDE'
+                ? 'Prueba con otros términos de búsqueda' 
+                : 'No tienes conversaciones activas en este momento'
               }
             </p>
           </div>
