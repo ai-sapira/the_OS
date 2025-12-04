@@ -3,8 +3,13 @@ import { createServerClient } from "@supabase/ssr"
 import { createClient } from "@supabase/supabase-js"
 import { Database } from "../database/types"
 
-// Server-side Supabase client with user session (for RLS)
-// Uses the new Next.js 15+ compatible API with getAll/setAll
+/**
+ * Server-side Supabase client with user session (for RLS)
+ * Uses the new Next.js 15+ compatible API with getAll/setAll
+ * 
+ * IMPORTANT: Always use getUser() instead of getSession() on the server
+ * to validate the JWT and ensure the session is valid.
+ */
 export async function createServerSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -37,7 +42,28 @@ export async function createServerSupabaseClient() {
   })
 }
 
-// Server-side Supabase client with service role (bypasses RLS)
+/**
+ * Get the current authenticated user from the server.
+ * This validates the JWT with Supabase Auth server.
+ * 
+ * IMPORTANT: Use this instead of getSession() on the server side.
+ * getSession() only reads from cookies and doesn't validate the JWT.
+ */
+export async function getAuthenticatedUser() {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  
+  if (error) {
+    console.log('[Server] Auth error:', error.message)
+    return null
+  }
+  
+  return user
+}
+
+/**
+ * Server-side Supabase client with service role (bypasses RLS)
+ */
 export function createAdminSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -81,13 +107,11 @@ export async function isOrgAdmin(authUserId: string, organizationId: string): Pr
   return data.role === "CEO" || data.role === "SAP" || data.is_org_admin === true
 }
 
-// Get user's auth ID from session
+/**
+ * Get user's auth ID from session
+ * @deprecated Use getAuthenticatedUser() instead for proper JWT validation
+ */
 export async function getAuthUserId(): Promise<string | null> {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  return session?.user?.id || null
+  const user = await getAuthenticatedUser()
+  return user?.id || null
 }
-
-

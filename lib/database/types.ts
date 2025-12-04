@@ -968,6 +968,7 @@ export interface FDEMeeting {
 export interface FDEMessage {
   id: string
   organization_id: string
+  conversation_id: string | null
   slack_channel_id: string | null
   slack_thread_ts: string | null
   slack_message_ts: string | null
@@ -979,4 +980,26 @@ export interface FDEMessage {
   attachments: { name: string; url: string; type: string }[] | null
   is_read: boolean
   created_at: string
+}
+
+// FDE Conversations types (threads)
+export type FDEConversationStatus = 'active' | 'pending' | 'resolved' | 'archived'
+
+export interface FDEConversation {
+  id: string
+  organization_id: string
+  slack_thread_ts: string | null
+  slack_channel_id: string | null
+  title: string
+  topic: string | null
+  status: FDEConversationStatus
+  created_by: string | null
+  participant_ids: string[]
+  last_message: string | null
+  last_message_at: string | null
+  last_message_sender: string | null
+  unread_count: number
+  message_count: number
+  created_at: string
+  updated_at: string
 }

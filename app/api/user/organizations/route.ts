@@ -10,15 +10,22 @@ export async function GET() {
 
   try {
     const supabaseServer = await createServerSupabaseClient()
-    const {
-      data: { session },
-    } = await supabaseServer.auth.getSession()
+    
+    // IMPORTANT: Use getUser() instead of getSession()
+    // getUser() validates the JWT with the Supabase Auth server
+    // getSession() only reads from cookies and doesn't validate
+    const { data: { user }, error: authError } = await supabaseServer.auth.getUser()
 
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized', data: [], defaultOrganizationId: null }, { status: 401 })
+    if (authError || !user) {
+      console.log('[API /user/organizations] No authenticated user')
+      return NextResponse.json({ 
+        error: 'Unauthorized', 
+        data: [], 
+        defaultOrganizationId: null 
+      }, { status: 401 })
     }
 
-    const userId = session.user.id
+    const userId = user.id
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -32,17 +39,10 @@ export async function GET() {
       throw new Error('Missing Supabase credentials')
     }
 
-    console.log('[API /user/organizations] Config:', {
-      hasUrl: !!supabaseUrl,
-      hasServiceKey: !!supabaseServiceKey,
-      hasAnonKey: !!supabaseAnonKey,
-      keyPrefix: (supabaseServiceKey || supabaseAnonKey || '').substring(0, 20)
-    })
-
     const apiKey = supabaseServiceKey || supabaseAnonKey!
 
     if (!supabaseServiceKey) {
-      console.warn('[API /user/organizations] ⚠️ Using ANON key as fallback - configure SUPABASE_SERVICE_ROLE_KEY for full access')
+      console.warn('[API /user/organizations] Using ANON key - configure SUPABASE_SERVICE_ROLE_KEY')
     }
 
     const supabaseAdmin = createClient(supabaseUrl, apiKey, {
@@ -51,13 +51,9 @@ export async function GET() {
         persistSession: false,
       },
       global: {
-        headers: {
-          'X-Client-Info': 'sapira-app-server',
-        },
+        headers: { 'X-Client-Info': 'sapira-app-server' },
       },
     })
-
-    console.log('[API /user/organizations] Querying database...')
 
     const { data, error } = await supabaseAdmin
       .from('user_organizations')
@@ -86,17 +82,17 @@ export async function GET() {
       }, { status: 500 })
     }
 
-    // Generate signed URLs for logos if they exist
+    // Generate signed URLs for logos
     const dataWithSignedUrls = await Promise.all(
       (data || []).map(async (item: any) => {
         if (item.organizations?.logo_url) {
           try {
-            const { data: signedData, error: signedError } = await supabaseAdmin
+            const { data: signedData } = await supabaseAdmin
               .storage
               .from('org-logos')
-              .createSignedUrl(item.organizations.logo_url, 60 * 60 * 24 * 7) // 7 days
+              .createSignedUrl(item.organizations.logo_url, 60 * 60 * 24 * 7)
             
-            if (!signedError && signedData?.signedUrl) {
+            if (signedData?.signedUrl) {
               return {
                 ...item,
                 organizations: {
@@ -113,19 +109,16 @@ export async function GET() {
       })
     )
 
-    const { data: userRecord, error: userError } = await supabaseAdmin
+    // Get user's default organization
+    const { data: userRecord } = await supabaseAdmin
       .from('users')
       .select('organization_id')
       .eq('auth_user_id', userId)
       .maybeSingle()
 
-    if (userError) {
-      console.error('[API /user/organizations] Error fetching user record:', userError)
-    }
-
     const defaultOrganizationId = userRecord?.organization_id || null
 
-    console.log('[API /user/organizations] Success - found', dataWithSignedUrls?.length || 0, 'organizations')
+    console.log('[API /user/organizations] Success - found', dataWithSignedUrls?.length || 0, 'orgs')
 
     return NextResponse.json({
       data: dataWithSignedUrls || [],
@@ -133,7 +126,7 @@ export async function GET() {
     })
 
   } catch (err: any) {
-    console.error('[API /user/organizations] Unexpected error:', err)
+    console.error('[API /user/organizations] Error:', err)
     return NextResponse.json({
       error: err?.message || 'Unknown error',
       data: [],
@@ -141,4 +134,3 @@ export async function GET() {
     }, { status: 500 })
   }
 }
-

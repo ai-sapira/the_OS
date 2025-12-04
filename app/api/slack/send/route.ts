@@ -7,6 +7,52 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+/**
+ * Get or create a conversation for sending a message
+ */
+async function getOrCreateConversation(params: {
+  organizationId: string;
+  conversationId?: string;
+  slackChannelId?: string;
+  userId?: string;
+  userName?: string;
+}): Promise<{ id: string; slack_thread_ts: string | null; slack_channel_id: string | null } | null> {
+  const { organizationId, conversationId, slackChannelId, userId, userName } = params;
+
+  // If conversation ID provided, fetch it
+  if (conversationId) {
+    const { data: existing, error } = await supabase
+      .from('fde_conversations')
+      .select('id, slack_thread_ts, slack_channel_id')
+      .eq('id', conversationId)
+      .eq('organization_id', organizationId)
+      .single();
+
+    if (existing) return existing;
+  }
+
+  // Create new conversation
+  const { data: newConv, error: createError } = await supabase
+    .from('fde_conversations')
+    .insert({
+      organization_id: organizationId,
+      slack_channel_id: slackChannelId,
+      title: `Conversación de ${userName || 'Usuario'}`,
+      status: 'pending', // New conversations start as pending FDE response
+      created_by: userId,
+    })
+    .select('id, slack_thread_ts, slack_channel_id')
+    .single();
+
+  if (createError) {
+    console.error('[Slack Send] Error creating conversation:', createError);
+    return null;
+  }
+
+  console.log('[Slack Send] Created new conversation:', newConv.id);
+  return newConv;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -16,7 +62,7 @@ export async function POST(request: NextRequest) {
       userId, 
       userName, 
       userEmail,
-      threadTs 
+      conversationId, // Optional: if replying to existing conversation
     } = body;
 
     if (!organizationId || !content) {
@@ -42,20 +88,80 @@ export async function POST(request: NextRequest) {
 
     const settings = org.settings as Record<string, any> || {};
     const slackChannelId = settings.slack_channel_id;
-    const slackThreadTs = settings.slack_thread_ts || threadTs;
 
-    if (!slackChannelId) {
-      // If no Slack channel configured, just save to DB without sending to Slack
-      console.log('No Slack channel configured for organization:', organizationId);
+    // Get or create conversation
+    const conversation = await getOrCreateConversation({
+      organizationId,
+      conversationId,
+      slackChannelId,
+      userId,
+      userName,
+    });
+
+    if (!conversation) {
+      return NextResponse.json(
+        { error: 'Failed to get or create conversation' },
+        { status: 500 }
+      );
     }
 
-    // Save message to database
+    // Use existing thread_ts if available, otherwise this will start a new thread
+    const threadTs = conversation.slack_thread_ts;
+
+    let slackResult = null;
+    let newThreadTs = threadTs;
+
+    // Send to Slack if channel is configured
+    if (slackChannelId) {
+      try {
+        slackResult = await sendUserMessageToSlack({
+          channelId: slackChannelId,
+          threadTs: threadTs || undefined, // Send as thread reply if we have a thread
+          userName: userName || 'User',
+          userEmail: userEmail || '',
+          message: content,
+          organizationId,
+          organizationName: org.name,
+        });
+
+        if (slackResult?.ts) {
+          // If this was a new conversation (no thread_ts), the message ts becomes the thread_ts
+          if (!threadTs) {
+            newThreadTs = slackResult.ts;
+            
+            // Update conversation with the new thread_ts
+            await supabase
+              .from('fde_conversations')
+              .update({ 
+                slack_thread_ts: newThreadTs,
+                slack_channel_id: slackChannelId,
+              })
+              .eq('id', conversation.id);
+          }
+        }
+
+        console.log('[Slack Send] Message sent to Slack:', {
+          channel: slackChannelId,
+          threadTs: newThreadTs,
+          messageTs: slackResult?.ts,
+        });
+      } catch (slackError) {
+        console.error('[Slack Send] Error sending to Slack:', slackError);
+        // Continue to save message even if Slack fails
+      }
+    } else {
+      console.log('[Slack Send] No Slack channel configured, saving message locally only');
+    }
+
+    // Save message to database with conversation reference
     const { data: message, error: msgError } = await supabase
       .from('fde_messages')
       .insert({
         organization_id: organizationId,
+        conversation_id: conversation.id,
         slack_channel_id: slackChannelId,
-        slack_thread_ts: slackThreadTs,
+        slack_thread_ts: newThreadTs,
+        slack_message_ts: slackResult?.ts || null,
         sender_type: 'user',
         sender_user_id: userId,
         sender_name: userName || 'User',
@@ -65,66 +171,33 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (msgError) {
-      console.error('Error saving message:', msgError);
+      console.error('[Slack Send] Error saving message:', msgError);
       return NextResponse.json(
         { error: 'Failed to save message' },
         { status: 500 }
       );
     }
 
-    // Send to Slack if channel is configured
-    let slackResult = null;
-    if (slackChannelId) {
-      try {
-        slackResult = await sendUserMessageToSlack({
-          channelId: slackChannelId,
-          threadTs: slackThreadTs,
-          userName: userName || 'User',
-          userEmail: userEmail || '',
-          message: content,
-          organizationId,
-          organizationName: org.name,
-        });
-
-        // Update message with Slack timestamp
-        if (slackResult?.ts) {
-          await supabase
-            .from('fde_messages')
-            .update({ slack_message_ts: slackResult.ts })
-            .eq('id', message.id);
-
-          // If this is the first message in a new thread, save the thread timestamp
-          if (!slackThreadTs && slackResult.ts) {
-            await supabase
-              .from('organizations')
-              .update({
-                settings: {
-                  ...settings,
-                  slack_thread_ts: slackResult.ts,
-                },
-              })
-              .eq('id', organizationId);
-          }
-        }
-      } catch (slackError) {
-        console.error('Error sending to Slack:', slackError);
-        // Don't fail the request, message is saved in DB
-      }
-    }
+    // Note: Conversation metadata is updated automatically by database trigger
 
     return NextResponse.json({
-      success: true,
-      message: {
-        ...message,
-        slack_sent: !!slackResult?.ok,
+      ok: true,
+      message,
+      conversation: {
+        id: conversation.id,
+        slack_thread_ts: newThreadTs,
       },
+      slack: slackResult ? {
+        ts: slackResult.ts,
+        channel: slackResult.channel,
+      } : null,
     });
+
   } catch (error) {
-    console.error('Error in /api/slack/send:', error);
+    console.error('[Slack Send] Error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     );
   }
 }
-

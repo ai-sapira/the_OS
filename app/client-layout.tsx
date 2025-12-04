@@ -18,15 +18,17 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
 
-  // Check if current path is a public route
-  const isPublicRoute = pathname === '/' || 
+  // Define public routes that don't require authentication
+  const isPublicRoute = 
+    pathname === '/' || 
     pathname?.match(/^\/[^\/]+$/) || // Organization landing pages like /gonvarri
     pathname?.match(/^\/[^\/]+\/signup$/) || // Signup pages
     pathname?.startsWith('/login') ||
-    pathname?.startsWith('/select-org')
+    pathname?.startsWith('/select-org') ||
+    pathname?.startsWith('/auth/')
 
   useEffect(() => {
-    // Skip all checks for public routes
+    // Skip checks for public routes
     if (isPublicRoute) {
       return
     }
@@ -36,28 +38,27 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // If user is not authenticated, redirect to login
+    // No user - let middleware handle redirect
+    // We don't redirect here to avoid race conditions with middleware
     if (!user) {
-      router.push('/login')
+      console.log('[AuthGuard] No user, middleware should redirect')
       return
     }
 
-    // If user is authenticated
-    if (user) {
-      // If user has multiple orgs but none selected, redirect to selector
-      if (userOrgs.length > 1 && !currentOrg) {
-        router.push('/select-org')
-        return
-      }
-      // If user has no orgs at all, show message (handled in select-org page)
-      if (userOrgs.length === 0) {
-        router.push('/select-org')
-        return
-      }
+    // User authenticated but needs to select org
+    if (user && userOrgs.length > 1 && !currentOrg) {
+      router.push('/select-org')
+      return
+    }
+    
+    // User has no orgs - redirect to select-org to show message
+    if (user && userOrgs.length === 0 && !loading) {
+      router.push('/select-org')
+      return
     }
   }, [user, currentOrg, userOrgs, loading, pathname, router, isPublicRoute])
 
-  // Don't show loading spinner on public routes
+  // Show loading state only for protected routes while auth is loading
   if (loading && !isPublicRoute) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">

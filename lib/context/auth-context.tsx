@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
 import { Role } from '@/hooks/use-roles'
@@ -27,7 +27,7 @@ interface AuthContextType {
   currentOrg: UserOrganization | null
   userOrgs: UserOrganization[]
   loading: boolean
-  isSAPUser: boolean // True if current user has SAP role in current org
+  isSAPUser: boolean
   selectOrganization: (orgId: string) => void
   signOut: () => Promise<void>
 }
@@ -40,125 +40,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userOrgs, setUserOrgs] = useState<UserOrganization[]>([])
   const [loading, setLoading] = useState(true)
   
-  // Use refs to prevent race conditions
+  // Refs to prevent race conditions
   const loadingRef = useRef(false)
   const lastLoadedUserIdRef = useRef<string | null>(null)
-  const isSigningOutRef = useRef(false) // Track intentional sign out
-  const hasInitializedRef = useRef(false) // Track if we've done initial load
-  const recentSignInRef = useRef(false) // Track recent sign in to ignore spurious SIGNED_OUT
+  const isSigningOutRef = useRef(false)
+  const mountedRef = useRef(true)
 
-  // Load user and their organizations
-  useEffect(() => {
-    let mounted = true
-    
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return
-      
-      console.log('[AuthProvider] Initial session:', session?.user?.id ? 'User found' : 'No user')
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        loadUserOrganizations(session.user.id)
-      } else {
-        setLoading(false)
-      }
-      hasInitializedRef.current = true
-    })
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return
-        
-        console.log('[AuthProvider] Auth state changed:', event, 'User:', session?.user?.id || 'none')
-        
-        // Handle INITIAL_SESSION - this is the first event after page load
-        if (event === 'INITIAL_SESSION') {
-          // Skip if we already handled it in getSession above
-          if (hasInitializedRef.current) {
-            console.log('[AuthProvider] Skipping INITIAL_SESSION, already initialized')
-            return
-          }
-          setUser(session?.user ?? null)
-          if (session?.user) {
-            await loadUserOrganizations(session.user.id)
-          } else {
-            setLoading(false)
-          }
-          hasInitializedRef.current = true
-          return
-        }
-        
-        // Handle SIGNED_IN
-        if (event === 'SIGNED_IN') {
-          isSigningOutRef.current = false // Reset sign out flag
-          recentSignInRef.current = true // Mark that we just signed in
-          
-          // Clear the recent sign in flag after 5 seconds
-          setTimeout(() => {
-            recentSignInRef.current = false
-          }, 5000)
-          
-          setUser(session?.user ?? null)
-          if (session?.user) {
-            await loadUserOrganizations(session.user.id)
-          }
-          return
-        }
-        
-        // Handle TOKEN_REFRESHED - just update the user, don't reload orgs
-        if (event === 'TOKEN_REFRESHED') {
-          console.log('[AuthProvider] Token refreshed, updating user')
-          setUser(session?.user ?? null)
-          return
-        }
-        
-        // Handle SIGNED_OUT - only if it's intentional
-        if (event === 'SIGNED_OUT') {
-          // If we recently signed in, this is likely a spurious event - ignore it
-          if (recentSignInRef.current) {
-            console.log('[AuthProvider] Ignoring SIGNED_OUT - recent sign in detected')
-            return
-          }
-          
-          // If we're currently loading data, ignore this event
-          if (loadingRef.current) {
-            console.log('[AuthProvider] Ignoring SIGNED_OUT - currently loading data')
-            return
-          }
-          
-          // If this is not an intentional sign out, ignore it
-          if (!isSigningOutRef.current) {
-            console.log('[AuthProvider] Ignoring SIGNED_OUT - not an intentional sign out')
-            return
-          }
-          
-          console.log('[AuthProvider] Processing SIGNED_OUT')
-          setUser(null)
-          setUserOrgs([])
-          setCurrentOrg(null)
-          setLoading(false)
-          localStorage.removeItem('sapira.currentOrg')
-          lastLoadedUserIdRef.current = null
-        }
-      }
-    )
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [])
-
-  const loadUserOrganizations = async (authUserId: string) => {
-    // Prevent concurrent calls and skip if already loaded for this user
+  const loadUserOrganizations = useCallback(async (authUserId: string) => {
+    // Prevent concurrent calls
     if (loadingRef.current) {
       console.log('[AuthProvider] Already loading organizations, skipping...')
       return
     }
     
+    // Skip if already loaded for this user
     if (lastLoadedUserIdRef.current === authUserId && userOrgs.length > 0) {
-      console.log('[AuthProvider] Organizations already loaded for this user, skipping...')
+      console.log('[AuthProvider] Organizations already loaded for this user')
       setLoading(false)
       return
     }
@@ -168,50 +65,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     lastLoadedUserIdRef.current = authUserId
     
     try {
-      // Use API route instead of direct Supabase query
-      console.log('[AuthProvider] Calling API route...')
       const response = await fetch('/api/user/organizations', {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
         },
         cache: 'no-store',
-        credentials: 'include', // Ensure cookies are sent
+        credentials: 'include',
       })
       
-      console.log('[AuthProvider] Response status:', response.status, response.statusText)
-      console.log('[AuthProvider] Response headers:', Object.fromEntries(response.headers.entries()))
+      if (!mountedRef.current) return
       
-      // Get the response text first to see what we're actually receiving
-      const responseText = await response.text()
-      console.log('[AuthProvider] Response text (first 200 chars):', responseText.substring(0, 200))
-      
-      // Try to parse as JSON
-      let data, error, defaultOrgId
-      try {
-        const parsed = JSON.parse(responseText)
-        data = parsed.data
-        error = parsed.error
-        defaultOrgId = parsed.defaultOrganizationId || null
-      } catch (parseError) {
-        console.error('[AuthProvider] Failed to parse response as JSON:', parseError)
-        console.error('[AuthProvider] Full response:', responseText)
-        throw new Error(`API returned non-JSON response: ${responseText.substring(0, 100)}`)
-      }
-      
-      console.log('[AuthProvider] API response:', { data, error })
-
-      if (error) {
-        console.error('[AuthProvider] API returned error:', error)
+      if (!response.ok) {
+        console.error('[AuthProvider] API error:', response.status)
         setUserOrgs([])
         setCurrentOrg(null)
         setLoading(false)
         loadingRef.current = false
         return
       }
-
-      if (!data || data.length === 0) {
-        console.warn('[AuthProvider] No organizations found for user')
+      
+      const { data, error, defaultOrganizationId } = await response.json()
+      
+      if (error || !data || data.length === 0) {
+        console.log('[AuthProvider] No organizations found')
         setUserOrgs([])
         setCurrentOrg(null)
         setLoading(false)
@@ -220,74 +97,172 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Map the data from API response
-      const orgs = (data || []).map((item: any) => ({
-        organization: item.organizations as Organization,
-        role: item.role as Role,
-        business_unit_id: item.business_unit_id,
-        // Legacy alias
-        initiative_id: item.business_unit_id,
-        sapira_role_type: item.sapira_role_type || null
-      })).filter((org: any) => org.organization) // Filter out any without organization data
+      const orgs: UserOrganization[] = data
+        .map((item: any) => ({
+          organization: item.organizations as Organization,
+          role: item.role as Role,
+          business_unit_id: item.business_unit_id,
+          initiative_id: item.business_unit_id,
+          sapira_role_type: item.sapira_role_type || null
+        }))
+        .filter((org: UserOrganization) => org.organization)
 
-      console.log('[AuthProvider] Mapped organizations:', orgs)
+      console.log('[AuthProvider] Loaded', orgs.length, 'organizations')
       setUserOrgs(orgs)
 
-      // Check if we're on the select-org page - if so, don't auto-select
-      const isOnSelectOrgPage = typeof window !== 'undefined' && window.location.pathname.startsWith('/select-org')
-
-      // Check if there is a pending slug to select (set during login/signup)
-      const pendingSlug = typeof window !== 'undefined' ? localStorage.getItem('sapira.pendingOrgSlug') : null
+      // Auto-select organization logic
+      const isOnSelectOrgPage = typeof window !== 'undefined' && 
+        window.location.pathname.startsWith('/select-org')
+      
+      // Check for pending org from login
+      const pendingSlug = typeof window !== 'undefined' 
+        ? localStorage.getItem('sapira.pendingOrgSlug') 
+        : null
+      
       if (pendingSlug) {
         const pendingOrg = orgs.find(
-          (o: any) => o.organization?.slug?.toLowerCase() === pendingSlug.toLowerCase()
+          (o: UserOrganization) => o.organization?.slug?.toLowerCase() === pendingSlug.toLowerCase()
         )
         if (pendingOrg) {
-          console.log('[AuthProvider] Selecting pending org from slug:', pendingSlug)
+          console.log('[AuthProvider] Selecting pending org:', pendingSlug)
           setCurrentOrg(pendingOrg)
           localStorage.setItem('sapira.currentOrg', pendingOrg.organization.id)
         }
         localStorage.removeItem('sapira.pendingOrgSlug')
       }
-
-      // Don't auto-select if user is on select-org page (they need to choose)
-      if (!pendingSlug && !isOnSelectOrgPage && orgs.length === 1) {
-        console.log('[AuthProvider] Auto-selecting single org:', orgs[0].organization.name)
+      // Single org - auto-select
+      else if (!isOnSelectOrgPage && orgs.length === 1) {
+        console.log('[AuthProvider] Auto-selecting single org')
         setCurrentOrg(orgs[0])
         localStorage.setItem('sapira.currentOrg', orgs[0].organization.id)
       }
-      else if (!pendingSlug && !isOnSelectOrgPage && defaultOrgId) {
-        const defaultOrg = orgs.find((o: any) => o.organization?.id === defaultOrgId)
+      // Default org from user profile
+      else if (!isOnSelectOrgPage && defaultOrganizationId) {
+        const defaultOrg = orgs.find((o: UserOrganization) => o.organization?.id === defaultOrganizationId)
         if (defaultOrg) {
-          console.log('[AuthProvider] Selecting default org from user profile:', defaultOrg.organization.name)
+          console.log('[AuthProvider] Selecting default org from profile')
           setCurrentOrg(defaultOrg)
           localStorage.setItem('sapira.currentOrg', defaultOrg.organization.id)
         }
       }
-      else if (!pendingSlug && !isOnSelectOrgPage && orgs.length > 1) {
+      // Multiple orgs - try to restore saved selection
+      else if (!isOnSelectOrgPage && orgs.length > 1) {
         const savedOrgId = localStorage.getItem('sapira.currentOrg')
-        const savedOrg = orgs.find((o: any) => o.organization?.id === savedOrgId)
-
+        const savedOrg = orgs.find((o: UserOrganization) => o.organization?.id === savedOrgId)
         if (savedOrg) {
-          console.log('[AuthProvider] Restored saved org:', savedOrg.organization.name)
+          console.log('[AuthProvider] Restored saved org')
           setCurrentOrg(savedOrg)
-        } else {
-          console.log('[AuthProvider] Multiple orgs, waiting for user selection')
         }
-      }
-      else if (isOnSelectOrgPage) {
-        console.log('[AuthProvider] On select-org page, waiting for user to choose organization')
       }
 
     } catch (err) {
-      console.error('[AuthProvider] Unexpected error loading organizations:', err)
+      console.error('[AuthProvider] Error loading organizations:', err)
       setUserOrgs([])
       setCurrentOrg(null)
     } finally {
-      console.log('[AuthProvider] Setting loading to false')
-      setLoading(false)
+      if (mountedRef.current) {
+        setLoading(false)
+      }
       loadingRef.current = false
     }
-  }
+  }, [userOrgs.length])
+
+  // Initialize auth state
+  useEffect(() => {
+    mountedRef.current = true
+    
+    const initializeAuth = async () => {
+      try {
+        // Use getUser() to validate the JWT with Supabase server
+        // This is more reliable than getSession() which only reads from storage
+        const { data: { user: authUser }, error } = await supabase.auth.getUser()
+        
+        if (!mountedRef.current) return
+        
+        if (error) {
+          // Session missing or invalid - this is expected for unauthenticated users
+          if (error.message !== 'Auth session missing!') {
+            console.log('[AuthProvider] Auth error:', error.message)
+          }
+          setUser(null)
+          setLoading(false)
+          return
+        }
+        
+        console.log('[AuthProvider] Initial user:', authUser?.id ? 'Found' : 'None')
+        setUser(authUser)
+        
+        if (authUser) {
+          await loadUserOrganizations(authUser.id)
+        } else {
+          setLoading(false)
+        }
+      } catch (err) {
+        console.error('[AuthProvider] Init error:', err)
+        setUser(null)
+        setLoading(false)
+      }
+    }
+
+    initializeAuth()
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mountedRef.current) return
+        
+        console.log('[AuthProvider] Auth event:', event, 'User:', session?.user?.id || 'none')
+        
+        // Handle sign in
+        if (event === 'SIGNED_IN' && session?.user) {
+          isSigningOutRef.current = false
+          setUser(session.user)
+          await loadUserOrganizations(session.user.id)
+          return
+        }
+        
+        // Handle token refresh - just update user, don't reload orgs
+        if (event === 'TOKEN_REFRESHED' && session?.user) {
+          console.log('[AuthProvider] Token refreshed')
+          setUser(session.user)
+          return
+        }
+        
+        // Handle sign out - only if intentional
+        if (event === 'SIGNED_OUT') {
+          if (isSigningOutRef.current) {
+            console.log('[AuthProvider] Processing sign out')
+            setUser(null)
+            setUserOrgs([])
+            setCurrentOrg(null)
+            setLoading(false)
+            localStorage.removeItem('sapira.currentOrg')
+            localStorage.removeItem('sapira.pendingOrgSlug')
+            lastLoadedUserIdRef.current = null
+          } else {
+            // Spurious SIGNED_OUT event - verify with getUser()
+            const { data: { user: currentUser } } = await supabase.auth.getUser()
+            if (!currentUser) {
+              console.log('[AuthProvider] Session actually ended')
+              setUser(null)
+              setUserOrgs([])
+              setCurrentOrg(null)
+              setLoading(false)
+              localStorage.removeItem('sapira.currentOrg')
+              lastLoadedUserIdRef.current = null
+            } else {
+              console.log('[AuthProvider] Ignoring spurious SIGNED_OUT, user still valid')
+            }
+          }
+        }
+      }
+    )
+
+    return () => {
+      mountedRef.current = false
+      subscription.unsubscribe()
+    }
+  }, [loadUserOrganizations])
 
   const selectOrganization = async (orgId: string) => {
     const org = userOrgs.find(o => o.organization.id === orgId)
@@ -298,30 +273,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('sapira.pendingOrgSlug', org.organization.slug)
       }
       try {
-        // Include credentials to send auth cookies
-        const response = await fetch('/api/auth/select-org', {
+        await fetch('/api/auth/select-org', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ organization_id: orgId }),
-          credentials: 'include', // Ensure cookies are sent
+          credentials: 'include',
         })
-        
-        if (!response.ok) {
-          console.warn('[AuthProvider] select-org API returned:', response.status)
-          // Don't throw - the local state is already updated
-        }
       } catch (error) {
-        console.error('[AuthProvider] Failed to persist selected org:', error)
-        // Don't throw - the local state is already updated
+        console.error('[AuthProvider] Failed to persist org selection:', error)
       }
     }
   }
 
   const signOut = async () => {
     try {
-      // Mark that we're intentionally signing out
       isSigningOutRef.current = true
       
       // Clear local state first
@@ -339,25 +304,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Call API to clear server-side cookies
       await fetch('/api/auth/logout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
       })
       
-      // Sign out from Supabase client
+      // Sign out from Supabase
       await supabase.auth.signOut()
     } catch (error) {
-      console.error('[AuthProvider] Error during signOut:', error)
-      // Still try to sign out from client even if API fails
+      console.error('[AuthProvider] Sign out error:', error)
+      // Still try to sign out from client
       await supabase.auth.signOut()
     }
   }
 
-  // Check if current user has SAP role in current organization
-  // isSAPUser should be true only if:
-  // 1. User has SAP role in current org AND
-  // 2. User email ends with @sapira.ai (actual Sapira team member)
-  const isSAPUser = currentOrg?.role === 'SAP' && user?.email?.toLowerCase().endsWith('@sapira.ai') === true
+  // Check if user is Sapira team member
+  const isSAPUser = currentOrg?.role === 'SAP' && 
+    user?.email?.toLowerCase().endsWith('@sapira.ai') === true
 
   return (
     <AuthContext.Provider
@@ -383,4 +344,3 @@ export function useAuth() {
   }
   return context
 }
-
