@@ -145,6 +145,11 @@ export async function middleware(req: NextRequest) {
     }
   )
 
+  // Check if there are Supabase auth cookies present (indicates user might be authenticated)
+  const hasAuthCookies = req.cookies.getAll().some(cookie => 
+    cookie.name.includes('sb-') && cookie.name.includes('auth-token')
+  )
+
   // Only check session for private routes
   const {
     data: { session },
@@ -157,11 +162,14 @@ export async function middleware(req: NextRequest) {
   }
 
   // Redirect unauthenticated users to landing
-  if (!session) {
+  // But be more tolerant if auth cookies exist (session might be refreshing)
+  if (!session && !hasAuthCookies) {
     const redirectUrl = new URL('/', req.url)
     return NextResponse.redirect(redirectUrl)
   }
 
+  // If no session but auth cookies exist, allow the request
+  // The client will handle the auth state properly
   return res
 }
 
