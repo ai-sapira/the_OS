@@ -12,12 +12,19 @@ export async function POST(request: NextRequest) {
     const rawBody = await request.text();
     const body = JSON.parse(rawBody);
 
+    // Handle URL verification challenge FIRST (before signature check)
+    // This is required for Slack to verify the endpoint
+    if (body.type === 'url_verification') {
+      console.log('Slack URL verification challenge received');
+      return NextResponse.json({ challenge: body.challenge });
+    }
+
     // Get Slack signature headers
     const signature = request.headers.get('x-slack-signature') || '';
     const timestamp = request.headers.get('x-slack-request-timestamp') || '';
 
-    // Verify signature (skip in development if needed)
-    if (process.env.NODE_ENV === 'production') {
+    // Verify signature for all other requests (skip challenge verification)
+    if (process.env.SLACK_SIGNING_SECRET) {
       const isValid = verifySlackSignature({
         signature,
         timestamp,
@@ -31,11 +38,6 @@ export async function POST(request: NextRequest) {
           { status: 401 }
         );
       }
-    }
-
-    // Handle URL verification challenge
-    if (body.type === 'url_verification') {
-      return NextResponse.json({ challenge: body.challenge });
     }
 
     // Handle events
