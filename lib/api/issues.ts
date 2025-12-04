@@ -509,12 +509,13 @@ export class InitiativesAPI {
         .eq('organization_id', organizationId)
         .order('name'),
       // Fetch sapira role types separately to avoid complex join issues
+      // Note: user_organizations uses auth_user_id (not user_id)
       supabase
         .from('user_organizations')
-        .select('sapira_role_type, user_id')
+        .select('sapira_role_type, auth_user_id')
         .eq('organization_id', organizationId)
         .eq('active', true)
-        .not('user_id', 'is', null)
+        .not('auth_user_id', 'is', null)
     ])
 
     if (orgError) throw orgError
@@ -534,23 +535,28 @@ export class InitiativesAPI {
 
     const sapiraRoleType = new Map<string, string | null>()
     if (sapiraAssignments.length > 0) {
-      // Get user IDs from sapira assignments and fetch their emails
-      const sapiraUserIds = sapiraAssignments.map((row: any) => row.user_id).filter(Boolean)
+      // Get auth_user_ids from sapira assignments and fetch their emails
+      // Note: auth_user_id in user_organizations maps to auth_user_id in users table
+      const sapiraUserIds = sapiraAssignments.map((row: any) => row.auth_user_id).filter(Boolean)
       
       if (sapiraUserIds.length > 0) {
         // Fetch users to check if they're Sapira users
         const { data: sapiraUsersData } = await supabase
           .from('users')
-          .select('id, email')
-          .in('id', sapiraUserIds)
+          .select('id, email, auth_user_id')
+          .in('auth_user_id', sapiraUserIds)
           .ilike('email', '%@sapira.ai')
         
-        const sapiraUserIdsSet = new Set((sapiraUsersData || []).map((u: any) => u.id))
+        const sapiraUserIdsSet = new Set((sapiraUsersData || []).map((u: any) => u.auth_user_id))
         
         sapiraAssignments.forEach((row: any) => {
-          const userId = row.user_id
-          if (userId && sapiraUserIdsSet.has(userId)) {
-            sapiraRoleType.set(userId, row.sapira_role_type || null)
+          const authUserId = row.auth_user_id
+          if (authUserId && sapiraUserIdsSet.has(authUserId)) {
+            // Map auth_user_id to user.id for consistent lookup later
+            const userData = sapiraUsersData?.find((u: any) => u.auth_user_id === authUserId)
+            if (userData) {
+              sapiraRoleType.set(userData.id, row.sapira_role_type || null)
+            }
           }
         })
       }

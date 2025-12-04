@@ -183,7 +183,7 @@ export function NewProjectModal({ open, onOpenChange, onCreateProject, defaultIn
           description: description.trim() || null,
           status: selectedStatus,
           owner_user_id: selectedOwnerId,
-          initiative_id: selectedInitiativeId,
+          business_unit_id: selectedInitiativeId, // This is actually business_unit_id, not initiative_id
           progress: null,
           planned_start_at: null,
           planned_end_at: null,

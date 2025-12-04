@@ -43,6 +43,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Use refs to prevent race conditions
   const loadingRef = useRef(false)
   const lastLoadedUserIdRef = useRef<string | null>(null)
+  const isSigningOutRef = useRef(false) // Track intentional sign out
+  const hasInitializedRef = useRef(false) // Track if we've done initial load
+  const recentSignInRef = useRef(false) // Track recent sign in to ignore spurious SIGNED_OUT
 
   // Load user and their organizations
   useEffect(() => {
@@ -52,12 +55,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return
       
+      console.log('[AuthProvider] Initial session:', session?.user?.id ? 'User found' : 'No user')
       setUser(session?.user ?? null)
       if (session?.user) {
         loadUserOrganizations(session.user.id)
       } else {
         setLoading(false)
       }
+      hasInitializedRef.current = true
     })
 
     // Listen for auth changes
@@ -65,15 +70,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (event, session) => {
         if (!mounted) return
         
-        console.log('[AuthProvider] Auth state changed:', event)
+        console.log('[AuthProvider] Auth state changed:', event, 'User:', session?.user?.id || 'none')
         
-        // Only process SIGNED_IN events to avoid duplicates
+        // Handle INITIAL_SESSION - this is the first event after page load
+        if (event === 'INITIAL_SESSION') {
+          // Skip if we already handled it in getSession above
+          if (hasInitializedRef.current) {
+            console.log('[AuthProvider] Skipping INITIAL_SESSION, already initialized')
+            return
+          }
+          setUser(session?.user ?? null)
+          if (session?.user) {
+            await loadUserOrganizations(session.user.id)
+          } else {
+            setLoading(false)
+          }
+          hasInitializedRef.current = true
+          return
+        }
+        
+        // Handle SIGNED_IN
         if (event === 'SIGNED_IN') {
+          isSigningOutRef.current = false // Reset sign out flag
+          recentSignInRef.current = true // Mark that we just signed in
+          
+          // Clear the recent sign in flag after 5 seconds
+          setTimeout(() => {
+            recentSignInRef.current = false
+          }, 5000)
+          
           setUser(session?.user ?? null)
           if (session?.user) {
             await loadUserOrganizations(session.user.id)
           }
-        } else if (event === 'SIGNED_OUT') {
+          return
+        }
+        
+        // Handle TOKEN_REFRESHED - just update the user, don't reload orgs
+        if (event === 'TOKEN_REFRESHED') {
+          console.log('[AuthProvider] Token refreshed, updating user')
+          setUser(session?.user ?? null)
+          return
+        }
+        
+        // Handle SIGNED_OUT - only if it's intentional
+        if (event === 'SIGNED_OUT') {
+          // If we recently signed in, this is likely a spurious event - ignore it
+          if (recentSignInRef.current) {
+            console.log('[AuthProvider] Ignoring SIGNED_OUT - recent sign in detected')
+            return
+          }
+          
+          // If we're currently loading data, ignore this event
+          if (loadingRef.current) {
+            console.log('[AuthProvider] Ignoring SIGNED_OUT - currently loading data')
+            return
+          }
+          
+          // If this is not an intentional sign out, ignore it
+          if (!isSigningOutRef.current) {
+            console.log('[AuthProvider] Ignoring SIGNED_OUT - not an intentional sign out')
+            return
+          }
+          
+          console.log('[AuthProvider] Processing SIGNED_OUT')
           setUser(null)
           setUserOrgs([])
           setCurrentOrg(null)
@@ -116,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           'Accept': 'application/json',
         },
         cache: 'no-store',
+        credentials: 'include', // Ensure cookies are sent
       })
       
       console.log('[AuthProvider] Response status:', response.status, response.statusText)
@@ -237,21 +298,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('sapira.pendingOrgSlug', org.organization.slug)
       }
       try {
-        await fetch('/api/auth/select-org', {
+        // Include credentials to send auth cookies
+        const response = await fetch('/api/auth/select-org', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ organization_id: orgId }),
+          credentials: 'include', // Ensure cookies are sent
         })
+        
+        if (!response.ok) {
+          console.warn('[AuthProvider] select-org API returned:', response.status)
+          // Don't throw - the local state is already updated
+        }
       } catch (error) {
         console.error('[AuthProvider] Failed to persist selected org:', error)
+        // Don't throw - the local state is already updated
       }
     }
   }
 
   const signOut = async () => {
     try {
+      // Mark that we're intentionally signing out
+      isSigningOutRef.current = true
+      
       // Clear local state first
       setCurrentOrg(null)
       setUserOrgs([])
