@@ -28,7 +28,7 @@ interface OnboardingWorkspaceProps {
   onSkip: () => void
 }
 
-type SubStep = "explanation" | "projects"
+type SubStep = "explanation" | "project-intro" | "projects"
 
 // Platform Preview Component - Shows how it looks in real app
 function PlatformPreview({ 
@@ -447,10 +447,175 @@ export function OnboardingWorkspace({ onNext, onSkip }: OnboardingWorkspaceProps
 
                 <div className="text-center pt-3">
                   <Button
+                    onClick={() => setSubStep("project-intro")}
+                    className="bg-gray-900 hover:bg-gray-800 text-white px-6 gap-2 h-9"
+                  >
+                    Continue
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Project & Initiative Introduction Step */}
+            {subStep === "project-intro" && (
+              <motion.div
+                key="project-intro"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="space-y-4"
+              >
+                {/* Header */}
+                <div className="text-center mb-2">
+                  <Badge variant="outline" className="text-xs mb-2">Next step</Badge>
+                  <h2 className="text-lg font-semibold text-gray-900">Projects & Initiatives</h2>
+                  <p className="text-sm text-gray-500 mt-1">Understanding how work flows in Sapira</p>
+                </div>
+
+                {/* Two Column Explanation */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Projects Explanation */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                        <FolderKanban className="w-5 h-5 text-gray-700" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">Projects</h3>
+                        <p className="text-xs text-gray-500">Strategic containers</p>
+                      </div>
+                    </div>
+                    
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      A <strong>Project</strong> is a strategic effort within a Business Unit. 
+                      It groups related work toward a specific goal, like "Invoice Automation" 
+                      or "Customer Support Bot".
+                    </p>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Target className="w-3 h-3 text-gray-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Clear goals</p>
+                          <p className="text-xs text-gray-500">Define what success looks like</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Clock className="w-3 h-3 text-gray-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Timeline & ROI</p>
+                          <p className="text-xs text-gray-500">Track progress and value generated</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Users className="w-3 h-3 text-gray-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Team ownership</p>
+                          <p className="text-xs text-gray-500">Assign responsible members</p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Initiatives Explanation */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                        <Target className="w-5 h-5 text-gray-700" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">Initiatives</h3>
+                        <p className="text-xs text-gray-500">Individual work items</p>
+                      </div>
+                    </div>
+                    
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      <strong>Initiatives</strong> are the specific tasks or opportunities that arrive 
+                      through Triage. When approved, they get assigned to a Project and tracked 
+                      until completion.
+                    </p>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <TrendingUp className="w-3 h-3 text-gray-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">From Triage</p>
+                          <p className="text-xs text-gray-500">Ideas and opportunities flow in</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <CheckCircle2 className="w-3 h-3 text-gray-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Status tracking</p>
+                          <p className="text-xs text-gray-500">To do → In progress → Done</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <FolderKanban className="w-3 h-3 text-gray-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Linked to Projects</p>
+                          <p className="text-xs text-gray-500">Always part of a bigger effort</p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+
+                {/* Flow Diagram */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="bg-gray-50 rounded-xl border border-gray-100 p-4"
+                >
+                  <p className="text-xs font-medium text-gray-500 mb-3 text-center">How it all connects</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200">
+                      <Briefcase className="w-4 h-4 text-gray-600" />
+                      <span className="text-sm font-medium text-gray-700">Business Unit</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-gray-300" />
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200">
+                      <FolderKanban className="w-4 h-4 text-gray-600" />
+                      <span className="text-sm font-medium text-gray-700">Projects</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-gray-300" />
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200">
+                      <Target className="w-4 h-4 text-gray-600" />
+                      <span className="text-sm font-medium text-gray-700">Initiatives</span>
+                    </div>
+                  </div>
+                </motion.div>
+
+                <div className="text-center pt-2">
+                  <Button
                     onClick={() => setSubStep("projects")}
                     className="bg-gray-900 hover:bg-gray-800 text-white px-6 gap-2 h-9"
                   >
-                    Create Projects
+                    Create your first Project
                     <ArrowRight className="w-4 h-4" />
                   </Button>
                 </div>
@@ -592,8 +757,13 @@ export function OnboardingWorkspace({ onNext, onSkip }: OnboardingWorkspaceProps
       >
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div>
-            {subStep === "projects" && (
+            {subStep === "project-intro" && (
               <Button variant="ghost" onClick={() => setSubStep("explanation")} className="text-gray-500 h-9">
+                Back
+              </Button>
+            )}
+            {subStep === "projects" && (
+              <Button variant="ghost" onClick={() => setSubStep("project-intro")} className="text-gray-500 h-9">
                 Back
               </Button>
             )}

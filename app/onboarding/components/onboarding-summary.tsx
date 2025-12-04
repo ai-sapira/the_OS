@@ -1,14 +1,23 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import dynamic from "next/dynamic"
+
+// Dynamic import to avoid SSR issues with document
+const Tree = dynamic(
+  () => import("react-organizational-chart").then(mod => mod.Tree),
+  { ssr: false }
+)
+const TreeNode = dynamic(
+  () => import("react-organizational-chart").then(mod => mod.TreeNode),
+  { ssr: false }
+)
 import {
   Building2,
   Users,
   Briefcase,
-  UserCircle,
   FolderOpen,
-  Crown,
   Sparkles,
   ArrowRight,
   Check,
@@ -18,19 +27,14 @@ import {
   Star,
   Rocket,
   Plus,
-  Trash2,
   User,
   X,
-  GripVertical,
-  ChevronDown,
   Target,
-  MoreHorizontal,
-  UserPlus,
-  Settings
+  UserPlus
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { useOnboarding, InvitedPerson, BusinessUnit, Project } from "../context/onboarding-context"
+import { useOnboarding, InvitedPerson } from "../context/onboarding-context"
 
 interface OnboardingSummaryProps {
   onComplete: () => void
@@ -53,7 +57,6 @@ function LaunchTransition({
       className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden"
       style={{ background: "linear-gradient(135deg, #111 0%, #1a1a1a 100%)" }}
     >
-      {/* Animated particles */}
       {Array.from({ length: 20 }).map((_, i) => (
         <motion.div
           key={i}
@@ -70,19 +73,16 @@ function LaunchTransition({
         />
       ))}
       
-      {/* Main content - Logos side by side */}
       <motion.div
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         className="relative z-10 flex items-center gap-6"
       >
-        {/* Organization Logo */}
         <motion.div
           initial={{ x: 50, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.4, ease: "easeOut" }}
-          className="relative"
         >
           <div className="w-20 h-20 rounded-2xl bg-white flex items-center justify-center shadow-2xl overflow-hidden">
             {orgLogo ? (
@@ -95,7 +95,6 @@ function LaunchTransition({
           </div>
         </motion.div>
         
-        {/* Connection line */}
         <motion.div
           initial={{ width: 0, opacity: 0 }}
           animate={{ width: 40, opacity: 1 }}
@@ -103,12 +102,10 @@ function LaunchTransition({
           className="h-0.5 bg-gradient-to-r from-white/20 via-white/50 to-white/20"
         />
         
-        {/* Sapira Logo */}
         <motion.div
           initial={{ x: -50, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.4, duration: 0.4, ease: "easeOut" }}
-          className="relative"
         >
           <div className="w-20 h-20 rounded-2xl bg-gray-900 border border-white/20 flex items-center justify-center shadow-2xl">
             <motion.div
@@ -122,7 +119,6 @@ function LaunchTransition({
         </motion.div>
       </motion.div>
       
-      {/* Text below */}
       <motion.div
         className="absolute bottom-1/3 text-center"
         initial={{ opacity: 0, y: 20 }}
@@ -139,17 +135,8 @@ function LaunchTransition({
           <span className="text-white/50 mx-3">×</span>
           <span className="font-semibold">Sapira</span>
         </motion.p>
-        <motion.p
-          className="text-white/50 text-sm mt-2"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.1 }}
-        >
-          Let's build something amazing
-        </motion.p>
       </motion.div>
       
-      {/* Fade out trigger */}
       <motion.div
         initial={{ opacity: 1 }}
         animate={{ opacity: 0 }}
@@ -161,29 +148,30 @@ function LaunchTransition({
   )
 }
 
-// Quick Add Modal - Clean design
+// Quick Add Modal
 function QuickAddModal({
   isOpen,
   onClose,
   type,
-  buId,
-  onAddManager
+  buId
 }: {
   isOpen: boolean
   onClose: () => void
   type: "person" | "bu" | "project" | "executive" | "manager"
   buId?: string
-  onAddManager?: (personId: string) => void
 }) {
-  const { state, addInvitedPerson, addBusinessUnit, addProject, assignManagerToBU } = useOnboarding()
+  const { state, addInvitedPerson, addBusinessUnit, addProject, addManagerToBU } = useOnboarding()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
-  const [selectedManager, setSelectedManager] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const availableManagers = state.invitedPeople.filter(p => 
-    p.role === "head_of_bu" || p.role === "executive"
-  )
+  useEffect(() => {
+    if (isOpen) {
+      setName("")
+      setEmail("")
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+  }, [isOpen])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -191,8 +179,7 @@ function QuickAddModal({
     if (type === "executive" && email) {
       addInvitedPerson({ email, name, role: "executive" })
     } else if (type === "manager" && email && buId) {
-      // Add as head_of_bu and assign to the BU
-      addInvitedPerson({ email, name, role: "head_of_bu", businessUnitId: buId })
+      addManagerToBU(buId, { email, name, role: "head_of_bu", businessUnitId: buId })
     } else if (type === "person" && email) {
       addInvitedPerson({ email, name, role: "employee", businessUnitId: buId })
     } else if (type === "bu" && name) {
@@ -203,7 +190,6 @@ function QuickAddModal({
     
     setName("")
     setEmail("")
-    setSelectedManager("")
     onClose()
   }
 
@@ -214,8 +200,10 @@ function QuickAddModal({
     bu: "Add Business Unit",
     project: "Add Project",
     executive: "Add Executive",
-    manager: "Add Manager"
+    manager: "Assign Manager"
   }
+
+  const buName = buId ? state.businessUnits.find(b => b.id === buId)?.name : ""
 
   return (
     <motion.div
@@ -233,7 +221,12 @@ function QuickAddModal({
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-semibold text-gray-900 text-lg">{titles[type]}</h3>
+          <div>
+            <h3 className="font-semibold text-gray-900 text-lg">{titles[type]}</h3>
+            {buName && type === "manager" && (
+              <p className="text-sm text-gray-500 mt-0.5">for {buName}</p>
+            )}
+          </div>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
             <X className="w-4 h-4 text-gray-500" />
           </button>
@@ -251,7 +244,6 @@ function QuickAddModal({
                   onChange={e => setName(e.target.value)}
                   placeholder="John Doe"
                   className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300"
-                  autoFocus
                 />
               </div>
               <div>
@@ -277,7 +269,6 @@ function QuickAddModal({
                 placeholder={type === "bu" ? "e.g. Finance, HR, Sales" : "e.g. Q4 Automation"}
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-300"
                 required
-                autoFocus
               />
             </div>
           )}
@@ -292,513 +283,451 @@ function QuickAddModal({
   )
 }
 
-// Assignment Dropdown for unassigned employees
-function AssignmentDropdown({
-  person,
-  onClose
-}: {
-  person: InvitedPerson
-  onClose: () => void
-}) {
-  const { state, updateInvitedPerson } = useOnboarding()
-  
+// Styled Node Components for the org chart - Professional design
+function OrgNode({ name, subtitle }: { name: string; subtitle: string }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -5 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -5 }}
-      className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[160px] z-50"
-    >
-      <div className="px-3 py-1.5 text-[10px] font-medium text-gray-400 uppercase tracking-wider">
-        Assign to BU
+    <div className="inline-block">
+      <div className="bg-gray-900 text-white rounded-2xl px-8 py-5 shadow-2xl shadow-gray-900/20">
+        <div className="flex items-center gap-5">
+          <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center ring-1 ring-white/20">
+            <Building2 className="w-7 h-7" />
+          </div>
+          <div className="text-left">
+            <p className="font-semibold text-xl tracking-tight">{name}</p>
+            <p className="text-sm text-gray-400 mt-0.5">{subtitle}</p>
+          </div>
+        </div>
       </div>
-      {state.businessUnits.map(bu => (
-        <button
-          key={bu.id}
-          onClick={() => {
-            updateInvitedPerson(person.id, { businessUnitId: bu.id })
-            onClose()
-          }}
-          className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-        >
-          <Briefcase className="w-3.5 h-3.5 text-gray-400" />
-          {bu.name}
-        </button>
-      ))}
-      {state.businessUnits.length === 0 && (
-        <div className="px-3 py-2 text-sm text-gray-400">No BUs available</div>
-      )}
-    </motion.div>
+    </div>
   )
 }
 
-// Organization Node Card - Clean monochrome design
-function OrgNodeCard({
-  type,
-  data,
-  onDelete,
-  onAddChild,
-  onAssignManager,
-  childCount,
-  isDropTarget,
-  manager
-}: {
-  type: "org" | "executive" | "bu" | "employee"
-  data: { id?: string; name: string; email?: string }
-  onDelete?: () => void
-  onAddChild?: () => void
-  onAssignManager?: () => void
-  childCount?: number
-  isDropTarget?: boolean
-  manager?: InvitedPerson | null
+// Executive Level - Professional horizontal card
+function ExecutivesLevel({ 
+  executives, 
+  onAdd,
+  onDelete 
+}: { 
+  executives: InvitedPerson[]
+  onAdd: () => void
+  onDelete: (id: string) => void 
 }) {
-  const [showActions, setShowActions] = useState(false)
-  
-  const getStyles = () => {
-    switch (type) {
-      case "org":
-        return { bg: "bg-gray-900", text: "text-white", border: "border-gray-800" }
-      case "executive":
-        return { bg: "bg-gray-800", text: "text-white", border: "border-gray-700" }
-      case "bu":
-        return { bg: "bg-white", text: "text-gray-900", border: "border-gray-300" }
-      case "employee":
-        return { bg: "bg-gray-50", text: "text-gray-700", border: "border-gray-200" }
-    }
-  }
-  
-  const styles = getStyles()
-  const initials = data.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-  
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="relative group"
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
-    >
-      <div
-        className={`
-          relative rounded-xl border-2 ${styles.border} ${styles.bg} ${styles.text}
-          shadow-sm hover:shadow-md transition-all duration-200
-          ${isDropTarget ? 'ring-2 ring-gray-400 ring-offset-2' : ''}
-          ${type === "org" ? 'px-6 py-4' : type === "bu" ? 'px-5 py-4' : 'px-4 py-3'}
-        `}
-        style={{ minWidth: type === "org" ? 200 : type === "bu" ? 180 : 150 }}
-      >
-        <div className="flex items-center gap-3">
-          {/* Avatar/Icon */}
-          <div className={`
-            flex items-center justify-center rounded-lg flex-shrink-0
-            ${type === "org" ? 'w-12 h-12 bg-white/10' : 
-              type === "executive" ? 'w-10 h-10 bg-white/10' :
-              type === "bu" ? 'w-10 h-10 bg-gray-100' : 'w-8 h-8 bg-gray-200'}
-          `}>
-            {type === "org" ? (
-              <Building2 className="w-6 h-6" />
-            ) : type === "bu" ? (
-              <Briefcase className="w-5 h-5 text-gray-600" />
-            ) : (
-              <span className={`font-semibold ${type === "executive" ? 'text-sm' : 'text-xs'}`}>
-                {initials}
-              </span>
-            )}
-          </div>
-          
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <p className={`font-semibold truncate ${type === "org" ? 'text-base' : 'text-sm'}`}>
-              {data.name}
-            </p>
-            {data.email && (
-              <p className={`text-[11px] truncate ${type === "executive" ? 'text-gray-300' : 'text-gray-500'}`}>
-                {data.email}
-              </p>
-            )}
-            {type === "bu" && manager && (
-              <p className="text-[11px] text-gray-500 truncate flex items-center gap-1 mt-0.5">
-                <User className="w-3 h-3" />
-                {manager.name || manager.email}
-              </p>
-            )}
-            {type === "bu" && !manager && onAssignManager && (
-              <button 
-                onClick={onAssignManager}
-                className="text-[11px] text-gray-400 hover:text-gray-600 flex items-center gap-1 mt-0.5"
-              >
-                <UserPlus className="w-3 h-3" />
-                Add manager
-              </button>
-            )}
-          </div>
-          
-          {/* Count badge */}
-          {childCount !== undefined && childCount > 0 && (
-            <div className={`
-              px-2 py-0.5 rounded-full text-[11px] font-semibold
-              ${type === "org" ? 'bg-white/20' : 'bg-gray-200 text-gray-600'}
-            `}>
-              {childCount}
+    <div className="inline-block">
+      <div className="bg-white rounded-2xl px-5 py-4 shadow-lg shadow-gray-200/50 border border-gray-100">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5 pr-4 border-r border-gray-200">
+            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
+              <Users className="w-4 h-4 text-gray-600" />
             </div>
-          )}
+            <span className="text-sm font-medium text-gray-700">Leadership</span>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {executives.map(exec => (
+              <div key={exec.id} className="relative group">
+                <div className="flex items-center gap-3 bg-gray-50 hover:bg-gray-100 rounded-xl px-4 py-2.5 transition-colors cursor-default">
+                  <div className="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center ring-2 ring-gray-200">
+                    <span className="text-sm font-semibold text-white">
+                      {(exec.name || exec.email)[0].toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-gray-900">
+                      {exec.name || exec.email.split('@')[0]}
+                    </p>
+                    <p className="text-xs text-gray-500">Executive</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onDelete(exec.id)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 hover:border-red-200"
+                >
+                  <X className="w-3 h-3 text-gray-400 hover:text-red-500" />
+                </button>
+              </div>
+            ))}
+            
+            <button
+              onClick={onAdd}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all text-gray-500 hover:text-gray-700"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span className="text-sm font-medium">Add Executive</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BUNode({ 
+  bu,
+  manager,
+  memberCount,
+  projects,
+  onDelete,
+  onAddManager,
+  onAddProject,
+  onRemoveProject
+}: { 
+  bu: { id: string; name: string }
+  manager: InvitedPerson | null
+  memberCount: number
+  projects: { id: string; name: string }[]
+  onDelete: () => void
+  onAddManager: () => void
+  onAddProject: () => void
+  onRemoveProject: (id: string) => void
+}) {
+  return (
+    <div className="inline-block relative group">
+      <div className="bg-white rounded-2xl p-5 shadow-lg shadow-gray-200/50 border border-gray-100 min-w-[220px] hover:shadow-xl transition-shadow">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="w-11 h-11 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+            <Briefcase className="w-5 h-5 text-gray-600" />
+          </div>
+          <div className="text-left flex-1 min-w-0">
+            <p className="font-semibold text-gray-900 text-base truncate">{bu.name}</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {memberCount} member{memberCount !== 1 ? 's' : ''}
+            </p>
+          </div>
         </div>
         
-        {/* Action buttons */}
-        <AnimatePresence>
-          {showActions && (onDelete || onAddChild) && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="absolute -top-2 -right-2 flex gap-1"
-            >
-              {onAddChild && (
-                <button
-                  onClick={onAddChild}
-                  className="w-6 h-6 rounded-full bg-gray-900 text-white flex items-center justify-center shadow-lg hover:bg-gray-800 transition-colors"
+        {/* Manager */}
+        {manager ? (
+          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl mb-3">
+            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+              <span className="text-xs font-semibold text-white">
+                {(manager.name || manager.email)[0].toUpperCase()}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-sm font-medium text-gray-800 truncate">
+                {manager.name || manager.email}
+              </p>
+              <p className="text-xs text-gray-500">Manager</p>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={onAddManager}
+            className="w-full flex items-center justify-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-xl text-gray-500 hover:text-gray-700 transition-colors mb-3"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span className="text-sm font-medium">Assign Manager</span>
+          </button>
+        )}
+        
+        {/* Projects */}
+        {projects.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {projects.map(p => (
+              <span 
+                key={p.id}
+                className="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg group/badge"
+              >
+                <Target className="w-3 h-3 text-gray-500" />
+                {p.name}
+                <button 
+                  onClick={() => onRemoveProject(p.id)}
+                  className="ml-0.5 opacity-0 group-hover/badge:opacity-100 transition-opacity"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <X className="w-3 h-3 text-gray-400 hover:text-red-500" />
                 </button>
-              )}
-              {onDelete && (
-                <button
-                  onClick={onDelete}
-                  className="w-6 h-6 rounded-full bg-white border border-gray-200 text-gray-500 flex items-center justify-center shadow-lg hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-colors"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </span>
+            ))}
+          </div>
+        )}
+        
+        <button
+          onClick={onAddProject}
+          className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1.5 transition-colors"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Add Project
+        </button>
       </div>
-    </motion.div>
+      
+      <button
+        onClick={onDelete}
+        className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 hover:border-red-200"
+      >
+        <X className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+      </button>
+    </div>
   )
 }
 
-// Main Interactive Org Chart - Full Canvas
-function FullOrgChart() {
+function AddBUNode({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 hover:border-gray-400 bg-white/50 hover:bg-white transition-all text-gray-500 hover:text-gray-700 min-w-[220px] h-[140px] px-6"
+    >
+      <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mb-3">
+        <Briefcase className="w-6 h-6 text-gray-500" />
+      </div>
+      <span className="text-sm font-medium">Add Business Unit</span>
+    </button>
+  )
+}
+
+function EmployeeNode({ 
+  person, 
+  onDelete 
+}: { 
+  person: InvitedPerson
+  onDelete: () => void 
+}) {
+  return (
+    <div className="inline-block relative group">
+      <div className="bg-white rounded-xl p-3 shadow-md shadow-gray-100 border border-gray-100 hover:shadow-lg transition-shadow min-w-[160px]">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+            <span className="text-sm font-semibold text-gray-700">
+              {(person.name || person.email)[0].toUpperCase()}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0 text-left">
+            <p className="text-sm font-medium text-gray-800 truncate">
+              {person.name || person.email.split('@')[0]}
+            </p>
+            <p className="text-xs text-gray-500 truncate">{person.email}</p>
+          </div>
+        </div>
+      </div>
+      <button
+        onClick={onDelete}
+        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 hover:border-red-200"
+      >
+        <X className="w-3 h-3 text-gray-400 hover:text-red-500" />
+      </button>
+    </div>
+  )
+}
+
+function AddMemberNode({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 hover:border-gray-400 bg-white/50 hover:bg-white transition-all text-gray-500 hover:text-gray-700 min-w-[160px] h-[60px] px-4"
+    >
+      <UserPlus className="w-4 h-4" />
+      <span className="text-sm font-medium">Add Member</span>
+    </button>
+  )
+}
+
+// Organization Chart using react-organizational-chart
+function OrgChart() {
   const { 
     state, 
     getPersonById, 
     getProjectsByBU, 
     removeBusinessUnit, 
     removeInvitedPerson, 
-    removeProject,
-    updateInvitedPerson,
-    assignManagerToBU
+    removeProject 
   } = useOnboarding()
   
   const [addModal, setAddModal] = useState<{ 
     type: "person" | "bu" | "project" | "executive" | "manager"
     buId?: string 
   } | null>(null)
-  const [assigningPerson, setAssigningPerson] = useState<string | null>(null)
+  
+  const [zoom, setZoom] = useState(100)
   
   const executives = state.invitedPeople.filter(p => p.role === "executive")
-  const unassigned = state.invitedPeople.filter(p => p.role === "employee" && !p.businessUnitId)
+  const totalEmployees = state.invitedPeople.filter(p => p.role === "employee").length
+  
+  // Auto-calculate zoom based on content
+  useEffect(() => {
+    const buCount = state.businessUnits.length
+    const execCount = executives.length
+    const empCount = totalEmployees
+    
+    // Reduce zoom if there are many elements
+    if (buCount >= 4 || empCount >= 8) {
+      setZoom(65)
+    } else if (buCount >= 3 || empCount >= 5) {
+      setZoom(75)
+    } else if (buCount >= 2 || execCount >= 3) {
+      setZoom(85)
+    } else {
+      setZoom(100)
+    }
+  }, [state.businessUnits.length, executives.length, totalEmployees])
+  
+  const handleZoomIn = () => setZoom(prev => Math.min(prev + 10, 150))
+  const handleZoomOut = () => setZoom(prev => Math.max(prev - 10, 40))
+  const handleZoomReset = () => setZoom(100)
   
   return (
     <>
-      <div className="flex-1 overflow-auto bg-gray-50/50">
-        <div className="min-h-full p-8">
-          <div className="flex flex-col items-center min-w-max">
-            
-            {/* Level 1: Organization */}
-            <OrgNodeCard
-              type="org"
-              data={{ name: state.organization.name || "Your Organization" }}
-              childCount={state.businessUnits.length + executives.length}
-            />
-            
-            {/* Connector to Level 2 */}
-            {(executives.length > 0 || state.businessUnits.length > 0) && (
-              <div className="w-px h-8 bg-gray-300" />
-            )}
-            
-            {/* Level 2: Executives */}
-            {executives.length > 0 && (
-              <>
-                <div className="relative pb-8">
-                  {/* Horizontal line */}
-                  {executives.length > 1 && (
-                    <div 
-                      className="absolute top-0 h-px bg-gray-300"
-                      style={{ 
-                        left: '50%',
-                        width: `${(executives.length - 1) * 180}px`,
-                        transform: 'translateX(-50%)'
-                      }}
-                    />
-                  )}
-                  
-                  <div className="flex items-start gap-6">
-                    {executives.map((exec, i) => (
-                      <div key={exec.id} className="flex flex-col items-center">
-                        <div className="w-px h-6 bg-gray-300" />
-                        <OrgNodeCard
-                          type="executive"
-                          data={{ id: exec.id, name: exec.name || exec.email, email: exec.email }}
-                          onDelete={() => removeInvitedPerson(exec.id)}
-                        />
-                      </div>
-                    ))}
-                    
-                    {/* Add Executive button */}
-                    <div className="flex flex-col items-center">
-                      <div className="w-px h-6 bg-gray-200 opacity-0" />
-                      <button
-                        onClick={() => setAddModal({ type: "executive" })}
-                        className="w-[150px] h-[60px] rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:bg-gray-100 hover:border-gray-400 hover:text-gray-500 transition-all"
-                      >
-                        <Crown className="w-5 h-5 mb-1" />
-                        <span className="text-xs font-medium">Add Executive</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Connector to BUs */}
-                {state.businessUnits.length > 0 && (
-                  <div className="w-px h-6 bg-gray-300" />
-                )}
-              </>
-            )}
-            
-            {/* No executives - show add button inline */}
-            {executives.length === 0 && state.businessUnits.length > 0 && (
-              <>
-                <div className="flex items-center gap-4 py-4">
-                  <button
-                    onClick={() => setAddModal({ type: "executive" })}
-                    className="px-4 py-2 rounded-lg border-2 border-dashed border-gray-300 flex items-center gap-2 text-gray-400 hover:bg-gray-100 hover:border-gray-400 hover:text-gray-500 transition-all text-sm"
-                  >
-                    <Crown className="w-4 h-4" />
-                    Add Executive
-                  </button>
-                </div>
-                <div className="w-px h-4 bg-gray-300" />
-              </>
-            )}
-            
-            {/* Level 3: Business Units */}
-            {state.businessUnits.length > 0 && (
-              <div className="relative">
-                {/* Horizontal line */}
-                {state.businessUnits.length > 1 && (
-                  <div 
-                    className="absolute top-0 h-px bg-gray-300"
-                    style={{ 
-                      left: '50%',
-                      width: `${(state.businessUnits.length) * 220}px`,
-                      transform: 'translateX(-50%)'
-                    }}
+      <div className="flex-1 overflow-auto bg-gray-100 relative">
+        {/* Zoom controls */}
+        <div className="absolute bottom-6 right-6 z-10 flex items-center gap-2 bg-white rounded-xl shadow-lg border border-gray-200 p-1.5">
+          <button
+            onClick={handleZoomOut}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-gray-600"
+          >
+            <span className="text-lg font-medium">−</span>
+          </button>
+          <button
+            onClick={handleZoomReset}
+            className="px-3 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-sm font-medium text-gray-600 min-w-[50px]"
+          >
+            {zoom}%
+          </button>
+          <button
+            onClick={handleZoomIn}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors text-gray-600"
+          >
+            <span className="text-lg font-medium">+</span>
+          </button>
+        </div>
+        
+        <div className="min-h-full p-10 flex justify-center items-start">
+          <style jsx global>{`
+            .org-tree ul {
+              padding-top: 32px;
+            }
+            .org-tree ul::before {
+              content: '';
+              position: absolute;
+              top: 0;
+              left: 50%;
+              border-left: 2px solid #9ca3af;
+              height: 32px;
+            }
+            .org-tree li {
+              position: relative;
+              padding: 32px 16px 0 16px;
+            }
+            .org-tree li::before,
+            .org-tree li::after {
+              content: '';
+              position: absolute;
+              top: 0;
+              width: 50%;
+              height: 32px;
+              border-top: 2px solid #9ca3af;
+            }
+            .org-tree li::before {
+              left: 0;
+              border-right: 2px solid #9ca3af;
+            }
+            .org-tree li::after {
+              right: 0;
+            }
+            .org-tree li:only-child {
+              padding-top: 0;
+            }
+            .org-tree li:only-child::before,
+            .org-tree li:only-child::after {
+              display: none;
+            }
+            .org-tree li:first-child::before {
+              border-left: none;
+              border-top-left-radius: 0;
+            }
+            .org-tree li:last-child::after {
+              border-right: none;
+              border-top-right-radius: 0;
+            }
+            .org-tree li:last-child::before {
+              border-right: 2px solid #9ca3af;
+              border-top-right-radius: 12px;
+            }
+            .org-tree li:first-child::after {
+              border-top-left-radius: 12px;
+            }
+          `}</style>
+          
+          <div 
+            className="org-tree transition-transform duration-300 ease-out origin-top"
+            style={{ transform: `scale(${zoom / 100})` }}
+          >
+            <Tree
+              lineWidth="2px"
+              lineColor="#9ca3af"
+              lineBorderRadius="12px"
+              label={
+                <OrgNode 
+                  name={state.organization.name || "Your Organization"} 
+                  subtitle={`${state.businessUnits.length} BUs · ${state.invitedPeople.length} people`}
+                />
+              }
+            >
+              {/* Executives Level - contains all execs and has BUs as children */}
+              <TreeNode
+                label={
+                  <ExecutivesLevel 
+                    executives={executives}
+                    onAdd={() => setAddModal({ type: "executive" })}
+                    onDelete={(id) => removeInvitedPerson(id)}
                   />
-                )}
-                
-                <div className="flex items-start gap-8">
-                  {state.businessUnits.map((bu) => {
-                    const manager = bu.managerId ? getPersonById(bu.managerId) : null
-                    const buEmployees = state.invitedPeople.filter(
-                      p => p.role === "employee" && p.businessUnitId === bu.id
-                    )
-                    const projects = getProjectsByBU(bu.id)
-                    
-                    return (
-                      <div key={bu.id} className="flex flex-col items-center">
-                        <div className="w-px h-6 bg-gray-300" />
-                        
-                        <OrgNodeCard
-                          type="bu"
-                          data={{ id: bu.id, name: bu.name }}
-                          onDelete={() => removeBusinessUnit(bu.id)}
-                          onAddChild={() => setAddModal({ type: "person", buId: bu.id })}
-                          onAssignManager={() => setAddModal({ type: "manager", buId: bu.id })}
-                          childCount={buEmployees.length}
-                          manager={manager}
-                        />
-                        
-                        {/* Projects */}
-                        {projects.length > 0 && (
-                          <div className="flex gap-1 mt-2 flex-wrap justify-center max-w-[200px]">
-                            {projects.map(p => (
-                              <Badge 
-                                key={p.id} 
-                                variant="outline" 
-                                className="text-[10px] px-2 py-0.5 bg-white text-gray-600 border-gray-200 cursor-pointer hover:bg-gray-50 group"
-                              >
-                                <Target className="w-2.5 h-2.5 mr-1 text-gray-400" />
-                                {p.name}
-                                <button 
-                                  onClick={() => removeProject(p.id)}
-                                  className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                  <X className="w-2.5 h-2.5 text-gray-400 hover:text-gray-600" />
-                                </button>
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                        <button
-                          onClick={() => setAddModal({ type: "project", buId: bu.id })}
-                          className="mt-1 text-[10px] px-2 py-0.5 text-gray-400 hover:text-gray-600 flex items-center gap-1"
-                        >
-                          <Plus className="w-3 h-3" />
-                          Project
-                        </button>
-                        
-                        {/* Employees */}
-                        {buEmployees.length > 0 && (
-                          <>
-                            <div className="w-px h-5 bg-gray-200 mt-2" />
-                            
-                            <div className="relative">
-                              {buEmployees.length > 1 && (
-                                <div 
-                                  className="absolute top-0 h-px bg-gray-200"
-                                  style={{ 
-                                    left: '50%',
-                                    width: `${(buEmployees.length - 1) * 160}px`,
-                                    transform: 'translateX(-50%)'
-                                  }}
-                                />
-                              )}
-                              
-                              <div className="flex items-start gap-3">
-                                {buEmployees.map(emp => (
-                                  <div key={emp.id} className="flex flex-col items-center">
-                                    <div className="w-px h-4 bg-gray-200" />
-                                    <OrgNodeCard
-                                      type="employee"
-                                      data={{ id: emp.id, name: emp.name || emp.email, email: emp.email }}
-                                      onDelete={() => removeInvitedPerson(emp.id)}
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </>
-                        )}
-                        
-                        {/* Add employee button */}
-                        <button
-                          onClick={() => setAddModal({ type: "person", buId: bu.id })}
-                          className="mt-3 w-[150px] h-[44px] rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center gap-2 text-gray-400 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-500 transition-all text-xs"
-                        >
-                          <UserPlus className="w-4 h-4" />
-                          Add member
-                        </button>
-                      </div>
-                    )
-                  })}
+                }
+              >
+                {/* Business Units as children of executives level */}
+                {state.businessUnits.map(bu => {
+                  const manager = bu.managerId ? getPersonById(bu.managerId) : null
+                  const buEmployees = state.invitedPeople.filter(
+                    p => p.role === "employee" && p.businessUnitId === bu.id
+                  )
+                  const projects = getProjectsByBU(bu.id)
                   
-                  {/* Add BU button */}
-                  <div className="flex flex-col items-center">
-                    <div className="w-px h-6 bg-gray-200 opacity-0" />
-                    <button
-                      onClick={() => setAddModal({ type: "bu" })}
-                      className="w-[180px] h-[80px] rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:bg-gray-100 hover:border-gray-400 hover:text-gray-500 transition-all"
+                  return (
+                    <TreeNode
+                      key={bu.id}
+                      label={
+                        <BUNode 
+                          bu={bu}
+                          manager={manager || null}
+                          memberCount={buEmployees.length}
+                          projects={projects}
+                          onDelete={() => removeBusinessUnit(bu.id)}
+                          onAddManager={() => setAddModal({ type: "manager", buId: bu.id })}
+                          onAddProject={() => setAddModal({ type: "project", buId: bu.id })}
+                          onRemoveProject={(id) => removeProject(id)}
+                        />
+                      }
                     >
-                      <Briefcase className="w-6 h-6 mb-1" />
-                      <span className="text-sm font-medium">Add Business Unit</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Empty state - no BUs yet */}
-            {state.businessUnits.length === 0 && executives.length === 0 && (
-              <div className="mt-8 flex flex-col items-center gap-4">
-                <p className="text-sm text-gray-500">Start building your organization structure</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setAddModal({ type: "executive" })}
-                    className="px-4 py-3 rounded-xl border-2 border-dashed border-gray-300 flex items-center gap-2 text-gray-500 hover:bg-gray-100 hover:border-gray-400 transition-all"
-                  >
-                    <Crown className="w-5 h-5" />
-                    <span className="font-medium">Add Executive</span>
-                  </button>
-                  <button
-                    onClick={() => setAddModal({ type: "bu" })}
-                    className="px-4 py-3 rounded-xl border-2 border-dashed border-gray-300 flex items-center gap-2 text-gray-500 hover:bg-gray-100 hover:border-gray-400 transition-all"
-                  >
-                    <Briefcase className="w-5 h-5" />
-                    <span className="font-medium">Add Business Unit</span>
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            {/* Unassigned employees */}
-            {unassigned.length > 0 && (
-              <div className="mt-12 w-full max-w-3xl">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-px flex-1 bg-gray-200" />
-                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wider px-2">
-                    Unassigned ({unassigned.length})
-                  </span>
-                  <div className="h-px flex-1 bg-gray-200" />
-                </div>
-                
-                <div className="flex flex-wrap justify-center gap-3">
-                  {unassigned.map(person => (
-                    <div key={person.id} className="relative">
-                      <div
-                        className={`
-                          flex items-center gap-3 px-4 py-3 bg-white rounded-xl border-2 border-gray-200 
-                          hover:border-gray-300 hover:shadow-md transition-all cursor-pointer group
-                          ${assigningPerson === person.id ? 'ring-2 ring-gray-400' : ''}
-                        `}
-                        onClick={() => setAssigningPerson(assigningPerson === person.id ? null : person.id)}
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                          <span className="text-xs font-semibold text-gray-600">
-                            {(person.name || person.email)[0].toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {person.name || person.email}
-                          </p>
-                          {person.name && (
-                            <p className="text-[11px] text-gray-500 truncate">{person.email}</p>
-                          )}
-                        </div>
-                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${assigningPerson === person.id ? 'rotate-180' : ''}`} />
-                        
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            removeInvitedPerson(person.id)
-                          }}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded"
-                        >
-                          <X className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
-                        </button>
-                      </div>
+                      {/* Employees under this BU */}
+                      {buEmployees.map(emp => (
+                        <TreeNode
+                          key={emp.id}
+                          label={
+                            <EmployeeNode 
+                              person={emp}
+                              onDelete={() => removeInvitedPerson(emp.id)}
+                            />
+                          }
+                        />
+                      ))}
                       
-                      {/* Assignment dropdown */}
-                      <AnimatePresence>
-                        {assigningPerson === person.id && (
-                          <AssignmentDropdown 
-                            person={person} 
-                            onClose={() => setAssigningPerson(null)} 
-                          />
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                      {/* Add Member Button */}
+                      <TreeNode
+                        label={
+                          <AddMemberNode onClick={() => setAddModal({ type: "person", buId: bu.id })} />
+                        }
+                      />
+                    </TreeNode>
+                  )
+                })}
+                
+                {/* Add BU Button */}
+                <TreeNode
+                  label={<AddBUNode onClick={() => setAddModal({ type: "bu" })} />}
+                />
+              </TreeNode>
+            </Tree>
           </div>
         </div>
       </div>
       
-      {/* Add Modal */}
       <AnimatePresence>
         {addModal && (
           <QuickAddModal
@@ -829,10 +758,10 @@ function FinalSummaryScreen({
   const integrationLead = state.integrationResponsibleId ? getPersonById(state.integrationResponsibleId) : null
   
   const stats = [
-    { label: "Team Members", value: state.invitedPeople.length, icon: Users, detail: `${executives.length} executives, ${managers.length} managers, ${employees.length} employees` },
-    { label: "Business Units", value: state.businessUnits.length, icon: Briefcase, detail: state.businessUnits.map(b => b.name).join(", ") || "None added" },
-    { label: "Projects", value: state.projects.length, icon: Target, detail: state.projects.map(p => p.name).join(", ") || "None added" },
-    { label: "Integration Lead", value: integrationLead ? "✓" : "—", icon: Database, detail: integrationLead ? (integrationLead.name || integrationLead.email) : "Not assigned" },
+    { label: "Team Members", value: state.invitedPeople.length, icon: Users, detail: `${executives.length} exec, ${managers.length} mgrs, ${employees.length} emp` },
+    { label: "Business Units", value: state.businessUnits.length, icon: Briefcase, detail: state.businessUnits.map(b => b.name).join(", ") || "None" },
+    { label: "Projects", value: state.projects.length, icon: Target, detail: state.projects.map(p => p.name).join(", ") || "None" },
+    { label: "Integration Lead", value: integrationLead ? "✓" : "—", icon: Database, detail: integrationLead ? (integrationLead.name || integrationLead.email) : "Not set" },
   ]
   
   const setupItems = [
@@ -854,7 +783,6 @@ function FinalSummaryScreen({
       exit={{ opacity: 0, x: -50 }}
       className="h-full w-full flex flex-col bg-gradient-to-br from-gray-50 via-white to-gray-50"
     >
-      {/* Header */}
       <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100">
         <button 
           onClick={onBack}
@@ -864,17 +792,13 @@ function FinalSummaryScreen({
           Back to org chart
         </button>
         
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="text-xs px-3 py-1.5 bg-white border-gray-200">
-            Setup {Math.round(progressPercent)}% complete
-          </Badge>
-        </div>
+        <Badge variant="outline" className="text-xs px-3 py-1.5 bg-white border-gray-200">
+          Setup {Math.round(progressPercent)}% complete
+        </Badge>
       </div>
       
-      {/* Main Content */}
       <div className="flex-1 overflow-auto py-12 px-8">
         <div className="max-w-4xl mx-auto">
-          {/* Title */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -896,34 +820,26 @@ function FinalSummaryScreen({
             </p>
           </motion.div>
           
-          {/* Stats Grid */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="grid grid-cols-4 gap-4 mb-8"
-          >
+          <div className="grid grid-cols-4 gap-4 mb-8">
             {stats.map((stat, i) => (
               <motion.div
                 key={stat.label}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 + i * 0.05 }}
-                className="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm hover:shadow-md transition-shadow"
+                className="bg-white rounded-xl border border-gray-200 p-5 text-center shadow-sm"
               >
                 <div className="w-11 h-11 rounded-xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
                   <stat.icon className="w-5 h-5 text-gray-600" />
                 </div>
                 <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
                 <p className="text-xs text-gray-500 mt-1">{stat.label}</p>
-                <p className="text-[10px] text-gray-400 mt-2 line-clamp-1">{stat.detail}</p>
+                <p className="text-[10px] text-gray-400 mt-2 truncate">{stat.detail}</p>
               </motion.div>
             ))}
-          </motion.div>
+          </div>
           
-          {/* Two columns: Setup Status + Sapira Partner */}
           <div className="grid grid-cols-2 gap-6 mb-8">
-            {/* Setup Status */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -952,15 +868,11 @@ function FinalSummaryScreen({
                     <span className={`text-sm ${item.done ? "text-gray-700" : "text-gray-400"}`}>
                       {item.label}
                     </span>
-                    {item.done && (
-                      <Check className="w-4 h-4 text-green-500 ml-auto" />
-                    )}
                   </motion.div>
                 ))}
               </div>
             </motion.div>
             
-            {/* Sapira Partner */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -972,74 +884,22 @@ function FinalSummaryScreen({
                 <h3 className="font-semibold">Your Sapira Partner</h3>
               </div>
               <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
-                  <Star className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-lg font-bold">
+                  A
                 </div>
                 <div>
-                  <p className="font-medium">Forward Deploy Engineer</p>
-                  <p className="text-sm text-gray-400">Ready to help you succeed</p>
+                  <p className="font-medium">Adolfo</p>
+                  <p className="text-sm text-gray-400">adolfo@sapira.ai</p>
                 </div>
               </div>
               <p className="text-sm text-gray-400 leading-relaxed">
-                Your dedicated FDE will guide you through the platform, help you identify automation opportunities, and ensure you get the most out of Sapira.
+                Your dedicated Forward Deploy Engineer will guide you through the platform and help you identify automation opportunities.
               </p>
             </motion.div>
           </div>
-          
-          {/* Organization Preview */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">Organization Overview</h3>
-              <button 
-                onClick={onBack}
-                className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
-              >
-                Edit structure
-                <ArrowRight className="w-3 h-3" />
-              </button>
-            </div>
-            
-            <div className="flex items-start gap-6">
-              {/* Org info */}
-              <div className="flex items-center gap-3">
-                <div className="w-14 h-14 rounded-xl bg-gray-900 flex items-center justify-center">
-                  <Building2 className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900 text-lg">{state.organization.name || "Your Organization"}</p>
-                  <p className="text-sm text-gray-500">{state.businessUnits.length} business units</p>
-                </div>
-              </div>
-              
-              {/* BU list */}
-              <div className="flex-1 flex flex-wrap gap-2">
-                {state.businessUnits.map(bu => {
-                  const buEmployees = state.invitedPeople.filter(p => p.businessUnitId === bu.id)
-                  return (
-                    <div 
-                      key={bu.id}
-                      className="px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 flex items-center gap-2"
-                    >
-                      <Briefcase className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm font-medium text-gray-700">{bu.name}</span>
-                      <Badge variant="outline" className="text-[10px] h-5 px-1.5 bg-white">
-                        {buEmployees.length}
-                      </Badge>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </motion.div>
         </div>
       </div>
       
-      {/* Footer CTA */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -1104,44 +964,45 @@ export function OnboardingSummary({ onComplete }: OnboardingSummaryProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0, x: -50 }}
-              className="h-full flex flex-col"
+              className="h-full flex flex-col bg-gray-100"
             >
-              {/* Minimal Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-white" />
+              <div className="flex items-center justify-between px-8 py-5 bg-white border-b border-gray-200">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gray-900 flex items-center justify-center shadow-lg shadow-gray-900/10">
+                    <Building2 className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h1 className="text-lg font-semibold text-gray-900">
+                    <h1 className="text-xl font-semibold text-gray-900 tracking-tight">
                       {state.organization.name || "Your Organization"}
                     </h1>
-                    <p className="text-xs text-gray-500">Organization Structure</p>
+                    <p className="text-sm text-gray-500">Organization Structure</p>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-3">
-                  {/* Stats badges */}
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs px-3 py-1 bg-gray-50 border-gray-200">
-                      <Users className="w-3.5 h-3.5 mr-1.5 text-gray-500" />
-                      {state.invitedPeople.length} people
-                    </Badge>
-                    <Badge variant="outline" className="text-xs px-3 py-1 bg-gray-50 border-gray-200">
-                      <Briefcase className="w-3.5 h-3.5 mr-1.5 text-gray-500" />
-                      {state.businessUnits.length} BUs
-                    </Badge>
-                    <Badge variant="outline" className="text-xs px-3 py-1 bg-gray-50 border-gray-200">
-                      <Target className="w-3.5 h-3.5 mr-1.5 text-gray-500" />
-                      {state.projects.length} projects
-                    </Badge>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl">
+                      <Users className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700">{state.invitedPeople.length}</span>
+                      <span className="text-sm text-gray-500">people</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl">
+                      <Briefcase className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700">{state.businessUnits.length}</span>
+                      <span className="text-sm text-gray-500">BUs</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-xl">
+                      <Target className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700">{state.projects.length}</span>
+                      <span className="text-sm text-gray-500">projects</span>
+                    </div>
                   </div>
                   
-                  <div className="w-px h-8 bg-gray-200" />
+                  <div className="w-px h-10 bg-gray-200" />
                   
                   <Button
                     onClick={() => setShowSummary(true)}
-                    className="bg-gray-900 hover:bg-gray-800 text-white px-6 gap-2 h-10"
+                    className="bg-gray-900 hover:bg-gray-800 text-white px-8 gap-2 h-11 text-sm font-medium shadow-lg shadow-gray-900/10"
                   >
                     Continue
                     <ArrowRight className="w-4 h-4" />
@@ -1149,8 +1010,7 @@ export function OnboardingSummary({ onComplete }: OnboardingSummaryProps) {
                 </div>
               </div>
 
-              {/* Full Org Chart Canvas */}
-              <FullOrgChart />
+              <OrgChart />
             </motion.div>
           )}
         </AnimatePresence>

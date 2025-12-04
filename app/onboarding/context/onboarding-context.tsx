@@ -67,6 +67,7 @@ interface OnboardingContextType {
   addBusinessUnit: (name: string) => void
   removeBusinessUnit: (id: string) => void
   assignManagerToBU: (buId: string, personId: string) => void
+  addManagerToBU: (buId: string, person: Omit<InvitedPerson, "id">) => void
   
   // People actions
   addInvitedPerson: (person: Omit<InvitedPerson, "id">) => void
@@ -175,6 +176,32 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     }))
   }
 
+  // Add person and assign as manager in one atomic operation
+  const addManagerToBU = (buId: string, person: Omit<InvitedPerson, "id">) => {
+    const personId = generateId()
+    const newPerson: InvitedPerson = {
+      id: personId,
+      ...person,
+      role: "head_of_bu",
+      businessUnitId: buId,
+    }
+    
+    setState(prev => ({
+      ...prev,
+      invitedPeople: [...prev.invitedPeople, newPerson],
+      businessUnits: prev.businessUnits.map(bu =>
+        bu.id === buId
+          ? { 
+              ...bu, 
+              managerId: personId, 
+              managerEmail: newPerson.email,
+              managerName: newPerson.name 
+            }
+          : bu
+      )
+    }))
+  }
+
   // People actions
   const addInvitedPerson = (person: Omit<InvitedPerson, "id">) => {
     const newPerson: InvitedPerson = {
@@ -266,6 +293,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         addBusinessUnit,
         removeBusinessUnit,
         assignManagerToBU,
+        addManagerToBU,
         addInvitedPerson,
         removeInvitedPerson,
         updateInvitedPerson,
