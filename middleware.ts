@@ -2,14 +2,12 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const RESERVED_SLUGS = new Set([
-  'login', 
-  'api', 
-  '_next', 
-  'favicon.ico',
-  'fde',      // FDE chat pages
-  'meetings', // Meetings pages
-  'my-sapira', // My Sapira page
+// These are app routes that should NOT be treated as organization slugs
+// Only add routes here that exist as top-level folders in /app
+const APP_ROUTES = new Set([
+  'fde',
+  'meetings',
+  'my-sapira',
   'home',
   'initiatives',
   'projects',
@@ -32,11 +30,15 @@ const RESERVED_SLUGS = new Set([
   'layout-test',
 ])
 
+// Reserved slugs that have special handling
+const RESERVED_SLUGS = new Set(['login', 'api', '_next', 'favicon.ico'])
+
 function extractSlug(pathname: string): string | null {
   const match = pathname.match(/^\/([^\/]+)(?:\/.*)?$/)
   if (!match) return null
   const slug = match[1].toLowerCase()
-  if (RESERVED_SLUGS.has(slug)) return null
+  // If it's a reserved slug or an app route, it's not an org slug
+  if (RESERVED_SLUGS.has(slug) || APP_ROUTES.has(slug)) return null
   return slug
 }
 
@@ -62,7 +64,6 @@ export async function middleware(req: NextRequest) {
   const isOrgSignup = !!slug && pathname.startsWith(`/${slug}/signup`)
   const isRoot = pathname === '/' || pathname === ''
   const isLogin = pathname.startsWith('/login')
-  const isSelectOrg = pathname.startsWith('/select-org')
   const isAuthPage = isRoot || isLogin
   const isPublic = isAuthPage || isOrgLanding || isOrgSignup
 
@@ -145,11 +146,6 @@ export async function middleware(req: NextRequest) {
     }
   )
 
-  // Check if there are Supabase auth cookies present (indicates user might be authenticated)
-  const hasAuthCookies = req.cookies.getAll().some(cookie => 
-    cookie.name.includes('sb-') && cookie.name.includes('auth-token')
-  )
-
   // Only check session for private routes
   const {
     data: { session },
@@ -162,14 +158,11 @@ export async function middleware(req: NextRequest) {
   }
 
   // Redirect unauthenticated users to landing
-  // But be more tolerant if auth cookies exist (session might be refreshing)
-  if (!session && !hasAuthCookies) {
+  if (!session) {
     const redirectUrl = new URL('/', req.url)
     return NextResponse.redirect(redirectUrl)
   }
 
-  // If no session but auth cookies exist, allow the request
-  // The client will handle the auth state properly
   return res
 }
 
@@ -186,4 +179,3 @@ export const config = {
     '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$).*)',
   ],
 }
-
