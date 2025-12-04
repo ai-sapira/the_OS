@@ -485,7 +485,7 @@ export default function FDEChatPage() {
 
   return (
     <ResizableAppShell>
-      <div className="flex h-screen w-full bg-[var(--surface-1)]">
+      <div className="flex h-screen w-full bg-white">
         {/* Sidebar - Conversation List */}
         <AnimatePresence initial={false}>
           {!sidebarCollapsed && (
@@ -494,7 +494,7 @@ export default function FDEChatPage() {
               animate={{ width: 320, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
-              className="flex-shrink-0 border-r border-[var(--stroke)] bg-[var(--surface-sheet)] relative z-20"
+              className="flex-shrink-0 border-r border-gray-200 bg-white relative z-20"
             >
               <ConversationList
                 conversations={conversations}
@@ -513,72 +513,54 @@ export default function FDEChatPage() {
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col min-w-0 relative bg-white h-full">
           {/* Chat Header */}
-          <header className="h-16 border-b border-[var(--stroke)] flex items-center justify-between px-6 flex-shrink-0 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-            <div className="flex items-center gap-4">
+          <header className="h-[44px] border-b border-gray-200 flex items-center justify-between px-5 flex-shrink-0 bg-white sticky top-0 z-10">
+            <div className="flex items-center gap-3">
               <Button 
                 variant="ghost" 
                 size="sm"
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="h-8 w-8 p-0 text-[var(--text-2)] hover:text-[var(--text-1)] hover:bg-[var(--surface-2)]"
+                className="h-8 w-8 p-0 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
               >
-                {sidebarCollapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+                {sidebarCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
               </Button>
 
               {selectedConversation ? (
                 <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Avatar className="h-9 w-9 border border-[var(--stroke)]">
-                      {fdeAvatarUrl && <AvatarImage src={fdeAvatarUrl} alt={fdeName} />}
-                      <AvatarFallback className="bg-[var(--surface-3)] text-[var(--text-2)] text-xs font-semibold">
-                        {fdeInitials}
-                      </AvatarFallback>
-                    </Avatar>
-                    {currentStatus && (
-                      <div className={cn(
-                        "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white",
-                        currentStatus.color
-                      )} />
-                    )}
-                  </div>
-                  <div>
-                    <h1 className="text-[14px] font-semibold text-[var(--text-1)] leading-tight">
-                      {selectedConversation.title || 'Nueva conversación'}
-                    </h1>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[12px] text-[var(--text-3)]">{fdeName}</span>
-                      {currentStatus && (
-                        <>
-                          <span className="text-[var(--text-3)]">•</span>
-                          <span className={cn("text-[11px] font-medium", currentStatus.text)}>
-                            {currentStatus.label}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
+                  <h1 className="text-[14px] font-medium text-gray-900">
+                    {selectedConversation.title || 'Nueva conversación'}
+                  </h1>
+                  {currentStatus && (
+                    <span className={cn(
+                      "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium",
+                      currentStatus.bg,
+                      currentStatus.text
+                    )}>
+                      {currentStatus.label}
+                    </span>
+                  )}
                 </div>
               ) : (
-                <h1 className="text-[16px] font-semibold text-[var(--text-1)]">Mensajes</h1>
+                <h1 className="text-[14px] font-medium text-gray-900">Mensajes</h1>
               )}
             </div>
 
             {selectedConversation && !selectedConversation.id.startsWith('temp-') && (
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-[var(--text-2)] hover:bg-[var(--surface-2)]">
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-500 hover:bg-gray-100 rounded-md">
                   <Phone className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-[var(--text-2)] hover:bg-[var(--surface-2)]">
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-500 hover:bg-gray-100 rounded-md">
                   <Video className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-[var(--text-2)] hover:bg-[var(--surface-2)]">
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-500 hover:bg-gray-100 rounded-md">
                   <Info className="h-4 w-4" />
                 </Button>
                 
-                <div className="w-px h-5 bg-[var(--stroke)] mx-1" />
+                <div className="w-px h-4 bg-gray-200 mx-1" />
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-9 w-9 p-0 text-[var(--text-2)] hover:bg-[var(--surface-2)]">
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-500 hover:bg-gray-100 rounded-md">
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -606,36 +588,35 @@ export default function FDEChatPage() {
           <div className="flex-1 overflow-y-auto px-4 sm:px-8 lg:px-12 py-6 relative">
             {!selectedConversation ? (
               <div className="flex flex-col items-center justify-center h-full text-center pb-20">
-                <div className="h-20 w-20 rounded-3xl bg-[var(--surface-2)] flex items-center justify-center mb-6 shadow-sm border border-[var(--stroke)]">
-                  <MessageSquare className="h-8 w-8 text-[var(--text-3)]" />
+                <div className="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center mb-4 border border-gray-100">
+                  <MessageSquare className="h-7 w-7 text-gray-300" />
                 </div>
-                <h3 className="text-xl font-semibold text-[var(--text-1)] mb-2">
+                <h3 className="text-[15px] font-medium text-gray-900 mb-1">
                   Selecciona una conversación
                 </h3>
-                <p className="text-[14px] text-[var(--text-2)] max-w-md mb-8 leading-relaxed">
-                  Elige una conversación de la lista para continuar chateando o inicia un nuevo tema de consulta.
+                <p className="text-[13px] text-gray-500 max-w-sm mb-6">
+                  Elige una conversación de la lista para continuar chateando.
                 </p>
                 <Button 
                   onClick={handleNewConversation} 
-                  size="lg"
-                  className="h-11 px-6 bg-[var(--text-1)] hover:bg-[var(--text-1)]/90 rounded-full shadow-lg shadow-gray-200"
+                  className="h-9 px-4 bg-gray-900 hover:bg-gray-800 text-white text-[13px]"
                 >
                   Nueva conversación
                 </Button>
               </div>
             ) : messagesLoading ? (
               <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-6 w-6 animate-spin text-[var(--text-3)]" />
+                <Loader2 className="h-6 w-6 animate-spin text-gray-300" />
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center pb-20">
-                <div className="h-16 w-16 rounded-full bg-[var(--surface-2)] flex items-center justify-center mb-4">
-                  <Send className="h-6 w-6 text-[var(--text-3)]" />
+                <div className="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center mb-4">
+                  <Send className="h-7 w-7 text-gray-300" />
                 </div>
-                <h3 className="text-[16px] font-medium text-[var(--text-1)] mb-1">
+                <h3 className="text-[15px] font-medium text-gray-900 mb-1">
                   Comienza a escribir
                 </h3>
-                <p className="text-[13px] text-[var(--text-3)] max-w-sm">
+                <p className="text-[13px] text-gray-500 max-w-sm">
                   Envía un mensaje para contactar con {fdeName}.
                 </p>
               </div>
@@ -645,7 +626,7 @@ export default function FDEChatPage() {
                   <div key={group.date} className="relative">
                     {/* Sticky Date */}
                     <div className="sticky top-0 flex justify-center z-10 pointer-events-none mb-6">
-                      <span className="text-[11px] font-medium text-[var(--text-2)] bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm border border-[var(--stroke)]">
+                      <span className="text-[11px] font-medium text-gray-500 bg-white/95 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm border border-gray-100">
                         {group.date}
                       </span>
                     </div>
@@ -667,15 +648,15 @@ export default function FDEChatPage() {
                                 isUser ? "justify-end" : "justify-start"
                               )}
                             >
-                              {/* FDE Avatar (only show for first message in sequence) */}
+                              {/* FDE Avatar */}
                               {!isUser && (
                                 <div className="w-8 flex-shrink-0 flex flex-col justify-end">
                                   {!isSequence ? (
-                                    <Avatar className="h-8 w-8 border border-[var(--stroke)] shadow-sm">
+                                    <Avatar className="h-8 w-8 rounded-full border border-gray-100">
                                       {message.sender_avatar_url || fdeAvatarUrl ? (
-                                        <AvatarImage src={message.sender_avatar_url || fdeAvatarUrl || ''} />
+                                        <AvatarImage src={message.sender_avatar_url || fdeAvatarUrl || ''} className="rounded-full" />
                                       ) : null}
-                                      <AvatarFallback className="bg-[var(--surface-2)] text-[var(--text-2)] text-[10px] font-bold">
+                                      <AvatarFallback className="bg-gray-100 text-gray-500 text-[10px] font-medium rounded-full">
                                         {message.sender_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                                       </AvatarFallback>
                                     </Avatar>
@@ -688,36 +669,36 @@ export default function FDEChatPage() {
                                 isUser ? "items-end" : "items-start"
                               )}>
                                 {!isUser && !isSequence && (
-                                  <span className="text-[11px] text-[var(--text-3)] ml-1 mb-1 font-medium">
+                                  <span className="text-[11px] text-gray-500 ml-1 mb-1 font-medium">
                                     {message.sender_name}
                                   </span>
                                 )}
                                 
                                 <div
                                   className={cn(
-                                    "px-5 py-3 text-[14px] leading-relaxed shadow-sm",
+                                    "px-4 py-2.5 text-[14px] leading-relaxed shadow-sm",
                                     isUser
-                                      ? "bg-[#111827] text-white rounded-[20px] rounded-br-md"
-                                      : "bg-white text-[var(--text-1)] rounded-[20px] rounded-bl-md border border-[var(--stroke)]"
+                                      ? "bg-gray-900 text-white rounded-[18px] rounded-br-md"
+                                      : "bg-white text-gray-900 rounded-[18px] rounded-bl-md border border-gray-100"
                                   )}
                                 >
                                   <p className="whitespace-pre-wrap break-words">{message.content}</p>
                                 </div>
                                 
                                 <span className={cn(
-                                  "text-[10px] text-[var(--text-3)] mt-1 opacity-0 group-hover:opacity-100 transition-opacity",
+                                  "text-[10px] text-gray-400 mt-1 opacity-0 group-hover:opacity-100 transition-opacity",
                                   isUser ? "mr-1" : "ml-1"
                                 )}>
                                   {formatTime(message.created_at)}
                                 </span>
                               </div>
 
-                              {/* User Avatar (optional, can be hidden for cleaner look) */}
+                              {/* User Avatar */}
                               {isUser && (
                                 <div className="w-8 flex-shrink-0 flex flex-col justify-end">
                                   {!isSequence && (
-                                    <Avatar className="h-8 w-8 border border-[var(--stroke)] bg-[var(--surface-2)]">
-                                      <AvatarFallback className="text-[var(--text-2)] text-[10px] font-bold">
+                                    <Avatar className="h-8 w-8 rounded-full border border-gray-100">
+                                      <AvatarFallback className="bg-gray-100 text-gray-500 text-[10px] font-medium rounded-full">
                                         {currentUserInitials}
                                       </AvatarFallback>
                                     </Avatar>
@@ -738,58 +719,55 @@ export default function FDEChatPage() {
 
           {/* Floating Input Area */}
           {selectedConversation && (
-            <div className="absolute bottom-0 left-0 right-0 p-4 sm:px-8 lg:px-12 pb-6 bg-gradient-to-t from-white via-white/95 to-transparent z-20">
-              <div className="max-w-3xl mx-auto relative">
-                <div className="relative group">
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-slate-200 to-slate-100 rounded-[24px] blur opacity-30 group-hover:opacity-50 transition duration-500"></div>
-                  <div className="relative flex items-end gap-2 bg-white rounded-[20px] shadow-xl border border-[var(--stroke)] p-2 pr-3">
-                    
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-10 w-10 rounded-full text-[var(--text-3)] hover:text-[var(--text-1)] hover:bg-[var(--surface-2)] flex-shrink-0"
-                    >
-                      <Paperclip className="h-5 w-5" />
-                    </Button>
+            <div className="absolute bottom-0 left-0 right-0 p-4 sm:px-8 lg:px-12 pb-6 bg-gradient-to-t from-white via-white/95 to-transparent z-20 pointer-events-none">
+              <div className="max-w-3xl mx-auto relative pointer-events-auto">
+                <div className="relative flex items-end gap-2 bg-white rounded-[20px] shadow-lg border border-gray-200 p-2 pr-2">
+                  
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-9 w-9 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-50 flex-shrink-0"
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </Button>
 
-                    <Textarea
-                      ref={textareaRef}
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Escribe un mensaje..."
-                      className="min-h-[40px] max-h-32 resize-none text-[14px] border-0 focus-visible:ring-0 bg-transparent px-2 py-2.5 leading-6"
-                      disabled={sending || selectedConversation.status === 'archived'}
-                      rows={1}
-                    />
-                    
-                    <Button 
-                      onClick={handleSend}
-                      disabled={!newMessage.trim() || sending || selectedConversation.status === 'archived'}
-                      size="icon"
-                      className={cn(
-                        "h-10 w-10 rounded-full transition-all duration-200 flex-shrink-0 shadow-sm",
-                        newMessage.trim() 
-                          ? "bg-[#111827] hover:bg-black text-white transform hover:scale-105" 
-                          : "bg-[var(--surface-2)] text-[var(--text-3)] hover:bg-[var(--surface-3)]"
-                      )}
-                    >
-                      {sending ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                      ) : (
-                        <Send className="h-5 w-5 ml-0.5" />
-                      )}
-                    </Button>
-                  </div>
+                  <Textarea
+                    ref={textareaRef}
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Escribe un mensaje..."
+                    className="min-h-[36px] max-h-32 resize-none text-[14px] border-0 focus-visible:ring-0 bg-transparent px-2 py-2 leading-relaxed placeholder:text-gray-400"
+                    disabled={sending || selectedConversation.status === 'archived'}
+                    rows={1}
+                  />
+                  
+                  <Button 
+                    onClick={handleSend}
+                    disabled={!newMessage.trim() || sending || selectedConversation.status === 'archived'}
+                    size="icon"
+                    className={cn(
+                      "h-9 w-9 rounded-full transition-all duration-200 flex-shrink-0 shadow-sm",
+                      newMessage.trim() 
+                        ? "bg-gray-900 hover:bg-black text-white" 
+                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                    )}
+                  >
+                    {sending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4 ml-0.5" />
+                    )}
+                  </Button>
                 </div>
                 
                 {selectedConversation.status === 'archived' ? (
-                  <p className="text-[11px] text-amber-600 text-center mt-3 font-medium">
+                  <p className="text-[11px] text-amber-600 text-center mt-2 font-medium">
                     Conversación archivada. Envía un mensaje para reactivarla.
                   </p>
                 ) : (
-                  <p className="text-[11px] text-[var(--text-3)] text-center mt-3">
-                    Presiona <kbd className="font-sans font-semibold">Enter</kbd> para enviar, <kbd className="font-sans font-semibold">Shift + Enter</kbd> para nueva línea
+                  <p className="text-[10px] text-gray-400 text-center mt-2 opacity-60">
+                    Presiona <kbd className="font-sans font-medium">Enter</kbd> para enviar, <kbd className="font-sans font-medium">Shift + Enter</kbd> para nueva línea
                   </p>
                 )}
               </div>

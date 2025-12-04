@@ -55,6 +55,15 @@ interface Message {
   slack_thread_ts?: string;
 }
 
+// Conversation is a group of messages in the same thread
+interface Conversation {
+  thread_ts: string;
+  lastMessage: Message;
+  messageCount: number;
+  participants: string[];
+  lastActivity: string;
+}
+
 // Helper function for relative dates
 const getRelativeDate = (dateStr: string) => {
   const date = new Date(dateStr);
@@ -208,57 +217,60 @@ function MeetingList({ meetings, isPast = false }: { meetings: Meeting[], isPast
   )
 }
 
-// ConversationList component - similar style to MeetingList
-function ConversationList({ messages, onOpenChat }: { messages: Message[], onOpenChat: () => void }) {
-  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set())
+// ConversationList component - shows grouped conversations, not individual messages
+function ConversationList({ conversations, onOpenChat }: { conversations: Conversation[], onOpenChat: () => void }) {
+  const [expandedConvos, setExpandedConvos] = useState<Set<string>>(new Set())
 
-  const toggleMessage = (messageId: string) => {
-    const newExpanded = new Set(expandedMessages)
-    if (newExpanded.has(messageId)) {
-      newExpanded.delete(messageId)
+  const toggleConvo = (threadTs: string) => {
+    const newExpanded = new Set(expandedConvos)
+    if (newExpanded.has(threadTs)) {
+      newExpanded.delete(threadTs)
     } else {
-      newExpanded.add(messageId)
+      newExpanded.add(threadTs)
     }
-    setExpandedMessages(newExpanded)
+    setExpandedConvos(newExpanded)
   }
 
   return (
     <div className="space-y-2">
-      {messages.map((message) => {
-        const isExpanded = expandedMessages.has(message.id)
-        const isFDE = message.sender_type === 'fde'
+      {conversations.map((convo) => {
+        const isExpanded = expandedConvos.has(convo.thread_ts)
+        const hasFDE = convo.participants.some(p => p.toLowerCase().includes('fde') || p.toLowerCase().includes('sapira'))
 
         return (
-          <div key={message.id}>
+          <div key={convo.thread_ts}>
             <div 
               className="flex items-center gap-3 p-2 hover:bg-gray-50/80 rounded-lg transition-colors group cursor-pointer"
-              onClick={() => toggleMessage(message.id)}
+              onClick={() => toggleConvo(convo.thread_ts)}
             >
               <Badge 
                 variant="outline" 
                 className={`text-[10px] font-medium shrink-0 ${
-                  isFDE
+                  hasFDE
                     ? "bg-purple-50 border-purple-200 text-purple-700"
                     : "bg-gray-50 border-gray-200 text-gray-600"
                 }`}
               >
-                {formatDate(message.created_at)}
+                {formatDate(convo.lastActivity)}
               </Badge>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-medium truncate text-gray-900">
-                    {message.sender_name}
+                    Conversation
                   </h3>
-                  {isFDE && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-50 border-gray-200 text-gray-500">
+                    {convo.messageCount} messages
+                  </Badge>
+                  {hasFDE && (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-purple-50 border-purple-200 text-purple-600">
                       FDE
                     </Badge>
                   )}
                 </div>
                 <div className="flex items-center gap-2 text-xs mt-0.5 text-gray-500">
-                  <span>{getRelativeDate(message.created_at)}</span>
+                  <span>{getRelativeDate(convo.lastActivity)}</span>
                   <span className="text-gray-300">·</span>
-                  <span className="truncate max-w-[200px]">{message.content}</span>
+                  <span className="truncate max-w-[200px]">{convo.lastMessage.content}</span>
                 </div>
               </div>
               <ChevronDown 
@@ -275,8 +287,25 @@ function ConversationList({ messages, onOpenChat }: { messages: Message[], onOpe
                   transition={{ duration: 0.2 }}
                   className="mt-2 ml-11 space-y-2 pb-2"
                 >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-gray-700">
+                      <Users className="h-3 w-3 text-gray-500" />
+                      Participants ({convo.participants.length})
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {convo.participants.map((participant, idx) => (
+                        <Badge 
+                          key={idx} 
+                          variant="outline" 
+                          className="text-[10px] px-1.5 py-0.5 bg-gray-50 text-gray-700 border-gray-200"
+                        >
+                          {participant}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
                   <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded p-2">
-                    {message.content}
+                    <span className="font-medium">{convo.lastMessage.sender_name}:</span> {convo.lastMessage.content}
                   </div>
                   <Button
                     variant="ghost"
@@ -312,8 +341,9 @@ export default function MySapiraPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loadingMeetings, setLoadingMeetings] = useState(true);
   
-  // State for messages
+  // State for messages and conversations
   const [messages, setMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(true);
 
   // Set root element after mount
@@ -439,7 +469,7 @@ export default function MySapiraPage() {
     loadMeetings();
   }, [currentOrg?.organization?.id]);
 
-  // Load messages from Supabase
+  // Load messages from Supabase and group into conversations
   useEffect(() => {
     const loadMessages = async () => {
       if (!currentOrg?.organization?.id) {
@@ -453,10 +483,42 @@ export default function MySapiraPage() {
           .select('*')
           .eq('organization_id', currentOrg.organization.id)
           .order('created_at', { ascending: false })
-          .limit(5);
+          .limit(50); // Load more to group into conversations
 
         if (error) throw error;
         setMessages(data || []);
+
+        // Group messages into conversations by thread
+        const threadMap = new Map<string, Message[]>();
+        (data || []).forEach((msg: Message) => {
+          const threadKey = msg.slack_thread_ts || msg.id; // Use message id if no thread
+          if (!threadMap.has(threadKey)) {
+            threadMap.set(threadKey, []);
+          }
+          threadMap.get(threadKey)!.push(msg);
+        });
+
+        // Convert to Conversation objects
+        const convos: Conversation[] = Array.from(threadMap.entries()).map(([thread_ts, msgs]) => {
+          const sortedMsgs = msgs.sort((a, b) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          const participants = [...new Set(msgs.map(m => m.sender_name))];
+          
+          return {
+            thread_ts,
+            lastMessage: sortedMsgs[0],
+            messageCount: msgs.length,
+            participants,
+            lastActivity: sortedMsgs[0].created_at,
+          };
+        });
+
+        // Sort by last activity and take top 5
+        convos.sort((a, b) => 
+          new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime()
+        );
+        setConversations(convos.slice(0, 5));
       } catch (error) {
         console.error('Error loading messages:', error);
       } finally {
@@ -530,8 +592,8 @@ export default function MySapiraPage() {
                 <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-full border-[3px] border-white flex items-center justify-center">
                   <div className="h-2 w-2 bg-white rounded-full" />
                 </div>
-              </div>
-
+                  </div>
+                  
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
@@ -543,8 +605,8 @@ export default function MySapiraPage() {
                   </Badge>
                 </div>
                 <p className="text-sm text-gray-600 mb-3">
-                  {contactRole}
-                </p>
+                      {contactRole}
+                    </p>
                 <div className="flex items-center gap-4 text-xs text-gray-500">
                   <span className="flex items-center gap-1.5">
                     <MapPin className="h-3.5 w-3.5" />
@@ -561,7 +623,7 @@ export default function MySapiraPage() {
                     </span>
                   )}
                 </div>
-                
+
                 {/* Bio */}
                 <p className="text-sm text-gray-500 mt-3 max-w-xl">
                   {contactBio}
@@ -586,7 +648,7 @@ export default function MySapiraPage() {
                 {contactCalendlyUrl && (
                   <Button 
                     onClick={() => setIsCalendlyOpen(true)}
-                    size="sm"
+                    size="sm" 
                     className="bg-gray-900 hover:bg-gray-800 text-white text-xs h-9 px-4"
                   >
                     <Calendar className="h-3.5 w-3.5 mr-2" />
@@ -635,16 +697,16 @@ export default function MySapiraPage() {
                 <div className="text-center p-2 rounded-lg bg-gray-50">
                   <div className="text-2xl font-bold text-gray-900">{resolvedIssuesCount}</div>
                   <div className="text-[10px] text-gray-500 uppercase tracking-wide">Resolved</div>
-                </div>
+                      </div>
                 <div className="text-center p-2 rounded-lg bg-gray-50">
                   <div className="text-2xl font-bold text-gray-900">{meetings.length}</div>
                   <div className="text-[10px] text-gray-500 uppercase tracking-wide">Meetings</div>
-                </div>
+                      </div>
                 <div className="text-center p-2 rounded-lg bg-gray-50">
-                  <div className="text-2xl font-bold text-gray-900">{messages.length}</div>
-                  <div className="text-[10px] text-gray-500 uppercase tracking-wide">Messages</div>
-                </div>
-              </div>
+                  <div className="text-2xl font-bold text-gray-900">{conversations.length}</div>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-wide">Convos</div>
+                    </div>
+                  </div>
             </motion.div>
 
             {/* Meetings Card - spans 2 cols */}
@@ -656,7 +718,7 @@ export default function MySapiraPage() {
                 <div>
                   <p className="text-[10px] text-gray-500 uppercase tracking-wide">Calendar</p>
                   <h2 className="text-sm font-medium text-gray-900">Meetings</h2>
-                </div>
+                      </div>
                 <Button 
                   variant="ghost" 
                   size="sm"
@@ -666,7 +728,7 @@ export default function MySapiraPage() {
                   View all
                   <ArrowRight className="h-3 w-3" />
                 </Button>
-              </div>
+                  </div>
 
               {loadingMeetings ? (
                 <div className="text-center py-6 text-gray-500 text-sm">Loading meetings...</div>
@@ -674,7 +736,7 @@ export default function MySapiraPage() {
                 <div className="text-center py-6 border border-dashed border-gray-200 rounded-lg">
                   <Calendar className="h-6 w-6 text-gray-300 mx-auto mb-1.5" />
                   <p className="text-xs text-gray-500">No meetings scheduled</p>
-                </div>
+                      </div>
               ) : (
                 <div className="space-y-3">
                   {upcomingMeetings.length > 0 && (
@@ -702,7 +764,7 @@ export default function MySapiraPage() {
                 <div>
                   <p className="text-[10px] text-gray-500 uppercase tracking-wide">Messages</p>
                   <h2 className="text-sm font-medium text-gray-900">Recent Conversations</h2>
-                </div>
+                          </div>
                 <Button 
                   variant="ghost" 
                   size="sm"
@@ -712,26 +774,26 @@ export default function MySapiraPage() {
                   Open chat
                   <ArrowRight className="h-3 w-3" />
                 </Button>
-              </div>
+                  </div>
 
               {loadingMessages ? (
-                <div className="text-center py-6 text-gray-500 text-sm">Loading messages...</div>
-              ) : messages.length === 0 ? (
+                <div className="text-center py-6 text-gray-500 text-sm">Loading conversations...</div>
+              ) : conversations.length === 0 ? (
                 <div className="text-center py-6 border border-dashed border-gray-200 rounded-lg">
                   <MessageSquare className="h-6 w-6 text-gray-300 mx-auto mb-1.5" />
                   <p className="text-xs text-gray-500 mb-2">No conversations yet</p>
-                  <Button 
+                      <Button
                     variant="link" 
-                    size="sm" 
+                        size="sm"
                     className="text-xs"
                     onClick={() => router.push('/fde/chat')}
-                  >
+                      >
                     Start a conversation
-                  </Button>
-                </div>
+                      </Button>
+                    </div>
               ) : (
                 <ConversationList 
-                  messages={messages} 
+                  conversations={conversations} 
                   onOpenChat={() => router.push('/fde/chat')} 
                 />
               )}
@@ -745,35 +807,40 @@ export default function MySapiraPage() {
               <h2 className="text-sm font-medium text-gray-900">Contact</h2>
 
               <div className="space-y-2">
-                <a 
-                  href={`mailto:${contactEmail}`}
-                  className="flex items-center gap-2 text-xs text-gray-600 hover:text-gray-900 transition-colors"
-                >
+                <div className="flex items-center gap-2 text-xs text-gray-600">
                   <Mail className="h-3.5 w-3.5 text-gray-400" />
                   {contactEmail}
-                </a>
+                </div>
                 {contactPhone && (
-                  <a 
-                    href={`tel:${contactPhone}`}
-                    className="flex items-center gap-2 text-xs text-gray-600 hover:text-gray-900 transition-colors"
-                  >
+                  <div className="flex items-center gap-2 text-xs text-gray-600">
                     <Phone className="h-3.5 w-3.5 text-gray-400" />
                     {contactPhone}
-                  </a>
+                  </div>
                 )}
-              </div>
+                </div>
 
-              {contactCalendlyUrl && (
+              <div className="space-y-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setIsCalendlyOpen(true)}
+                  onClick={() => window.location.href = `mailto:${contactEmail}`}
                   className="w-full text-xs h-8 border-gray-200"
                 >
-                  <ExternalLink className="h-3 w-3 mr-1.5" />
-                  Schedule meeting
+                  <Mail className="h-3 w-3 mr-1.5" />
+                  Send email
                 </Button>
-              )}
+                {contactCalendlyUrl && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsCalendlyOpen(true)}
+                    className="w-full text-xs h-8 border-gray-200"
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1.5" />
+                    Schedule meeting
+                  </Button>
+                )}
+              </div>
             </motion.div>
 
             {/* Recent Activity Card - spans full width */}
@@ -783,25 +850,25 @@ export default function MySapiraPage() {
             >
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-medium text-gray-900">Recent Activity</h2>
-                <Button 
+              <Button 
                   variant="ghost" 
-                  size="sm"
-                  onClick={() => router.push('/initiatives')}
+                size="sm" 
+                onClick={() => router.push('/initiatives')}
                   className="text-xs gap-1 border border-gray-200 bg-white hover:bg-gray-50 h-7 px-2"
-                >
-                  View all
+              >
+                View all
                   <ArrowRight className="h-3 w-3" />
-                </Button>
+              </Button>
               </div>
 
-              {loadingIssues ? (
+                {loadingIssues ? (
                 <div className="text-center py-6 text-gray-500 text-sm">Loading activity...</div>
-              ) : recentIssues.length === 0 ? (
+                ) : recentIssues.length === 0 ? (
                 <div className="text-center py-6 border border-dashed border-gray-200 rounded-lg">
                   <CheckCircle2 className="h-6 w-6 text-gray-300 mx-auto mb-1.5" />
                   <p className="text-xs text-gray-500">No recent activity</p>
-                </div>
-              ) : (
+                  </div>
+                ) : (
                 <div className="space-y-2">
                   {recentIssues.map((issue) => {
                     const getStatusBadge = (state: string) => {
@@ -830,7 +897,7 @@ export default function MySapiraPage() {
                           variant="outline" 
                           className={`text-[10px] px-2 py-0.5 shrink-0 ${status.colors}`}
                         >
-                          {status.label}
+                            {status.label}
                         </Badge>
                       </div>
                     );

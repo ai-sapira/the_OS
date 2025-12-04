@@ -10,7 +10,8 @@ import {
   X,
   Clock,
   CheckCircle2,
-  Archive
+  Archive,
+  Filter
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -119,37 +120,34 @@ function ConversationItem({
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, x: -10 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+      <div
         onClick={onClick}
         className={cn(
-          "group relative px-4 py-3.5 cursor-pointer transition-all duration-200 mx-2 rounded-xl",
-          "hover:bg-white/60",
-          selected && "bg-white shadow-sm ring-1 ring-black/5"
+          "group relative px-4 py-3 cursor-pointer transition-colors border-b border-gray-100",
+          "hover:bg-gray-50",
+          selected && "bg-gray-50"
         )}
       >
-        <div className="flex items-start gap-3.5">
+        <div className="flex items-start gap-3">
           {/* Avatar */}
           <div className="relative flex-shrink-0">
-            <Avatar className="h-10 w-10 border border-gray-100 shadow-sm">
-              {fdeAvatarUrl && <AvatarImage src={fdeAvatarUrl} />}
-              <AvatarFallback className="bg-gradient-to-br from-gray-50 to-gray-100 text-gray-500 text-xs font-medium">
+            <Avatar className="h-9 w-9 border border-gray-200 rounded-full">
+              {fdeAvatarUrl && <AvatarImage src={fdeAvatarUrl} className="rounded-full" />}
+              <AvatarFallback className="bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
                 {initials}
               </AvatarFallback>
             </Avatar>
             {hasUnread && (
-              <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-blue-500 border-2 border-white shadow-sm" />
+              <div className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-blue-600 border-2 border-white" />
             )}
           </div>
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex items-center justify-between gap-2 mb-0.5">
               <span className={cn(
-                "text-[14px] truncate leading-tight",
-                hasUnread || selected ? "font-semibold text-gray-900" : "font-medium text-gray-700"
+                "text-[13px] truncate",
+                hasUnread ? "font-semibold text-gray-900" : "font-medium text-gray-900"
               )}>
                 {conversation.title || 'Nueva conversación'}
               </span>
@@ -159,29 +157,29 @@ function ConversationItem({
             </div>
 
             <p className={cn(
-              "text-[13px] truncate leading-normal",
-              hasUnread ? "text-gray-700 font-medium" : "text-gray-500"
+              "text-[12px] truncate leading-normal",
+              hasUnread ? "text-gray-700" : "text-gray-500"
             )}>
               {conversation.last_message || 'Sin mensajes'}
             </p>
             
-            {/* Status badges */}
-            <div className="flex gap-2 mt-2">
+            {/* Status indicators (minimalist) */}
+            <div className="flex items-center gap-2 mt-1.5">
               {conversation.status === 'pending' && (
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-100/50">
-                  <Clock className="w-3 h-3 mr-1" />
+                <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 font-medium">
+                  <Clock className="w-3 h-3" />
                   Pendiente
                 </span>
               )}
               {conversation.status === 'resolved' && (
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-600 border border-gray-100/50">
-                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                <span className="inline-flex items-center gap-1 text-[10px] text-gray-500">
+                  <CheckCircle2 className="w-3 h-3" />
                   Resuelta
                 </span>
               )}
               {conversation.status === 'archived' && (
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-500 border border-gray-100/50">
-                  <Archive className="w-3 h-3 mr-1" />
+                <span className="inline-flex items-center gap-1 text-[10px] text-gray-400">
+                  <Archive className="w-3 h-3" />
                   Archivada
                 </span>
               )}
@@ -195,8 +193,8 @@ function ConversationItem({
           )}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-gray-100 rounded-full">
-                  <MoreHorizontal className="h-4 w-4 text-gray-400" />
+                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-gray-200 rounded-md">
+                  <MoreHorizontal className="h-4 w-4 text-gray-500" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40">
@@ -208,7 +206,7 @@ function ConversationItem({
             </DropdownMenu>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Delete confirmation dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -247,10 +245,8 @@ export function ConversationList({
   // Filter conversations
   const filteredConversations = React.useMemo(() => {
     return conversations.filter(conv => {
-      // Exclude temp conversations from filter if needed, or keep them
       if (conv.id.startsWith('temp-')) return true;
       
-      // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const matchesTitle = conv.title?.toLowerCase().includes(query);
@@ -258,7 +254,6 @@ export function ConversationList({
         if (!matchesTitle && !matchesMessage) return false;
       }
 
-      // Status filter
       if (statusFilter && conv.status !== statusFilter) return false;
 
       return true;
@@ -268,85 +263,81 @@ export function ConversationList({
   // Sort: unread first, then by last message time
   const sortedConversations = React.useMemo(() => {
     return [...filteredConversations].sort((a, b) => {
-      // Temp conversations first
       if (a.id.startsWith('temp-')) return -1;
       if (b.id.startsWith('temp-')) return 1;
       
-      // Unread first
       if (a.unread_count > 0 && b.unread_count === 0) return -1;
       if (a.unread_count === 0 && b.unread_count > 0) return 1;
 
-      // Then by last message time
       const aTime = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
       const bTime = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
       return bTime - aTime;
     });
   }, [filteredConversations]);
 
-  // Count unreads
   const totalUnread = React.useMemo(() => {
     return conversations.reduce((sum, c) => sum + c.unread_count, 0);
   }, [conversations]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-white">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-[var(--stroke)] flex-shrink-0 bg-white/50 backdrop-blur-xl sticky top-0 z-10">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-[18px] font-bold text-gray-900 tracking-tight">Conversaciones</h2>
+      <div className="px-4 py-3 border-b border-gray-200 flex-shrink-0 bg-white sticky top-0 z-10">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-[14px] font-medium text-gray-900">Conversaciones</h2>
             {totalUnread > 0 && (
-              <span className="flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-blue-600 text-white text-[11px] font-bold shadow-sm shadow-blue-200">
+              <span className="flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-blue-600 text-white text-[10px] font-bold">
                 {totalUnread}
               </span>
             )}
           </div>
           <Button 
             onClick={onNewConversation}
-            className="h-8 px-3 text-[12px] font-medium bg-gray-900 hover:bg-black text-white rounded-lg shadow-sm transition-all hover:shadow-md"
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0 hover:bg-gray-100"
           >
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            Nueva
+            <Plus className="h-4 w-4 text-gray-600" />
           </Button>
         </div>
 
         {/* Search */}
-        <div className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-gray-600 transition-colors" />
+        <div className="relative mb-3">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
           <Input
-            placeholder="Buscar mensajes..."
+            placeholder="Buscar..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-9 text-[13px] bg-gray-50/50 border-gray-200 focus:bg-white focus:border-gray-300 transition-all rounded-lg"
+            className="pl-8 h-8 text-[13px] bg-gray-50 border-gray-200 focus:bg-white transition-all rounded-md placeholder:text-gray-400"
           />
           {searchQuery && (
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0 text-gray-400 hover:text-gray-600"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
               onClick={() => setSearchQuery('')}
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-3 w-3" />
             </Button>
           )}
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-1 mt-3 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide -mx-1 px-1">
           {[
             { key: null, label: 'Todas' },
             { key: 'active', label: 'Activas' },
             { key: 'pending', label: 'Pendientes' },
-            { key: 'resolved', label: 'Resueltas' },
           ].map(({ key, label }) => (
             <button
               key={key ?? 'all'}
               onClick={() => setStatusFilter(key as any)}
               className={cn(
-                "flex-shrink-0 text-[12px] px-3 py-1.5 rounded-full transition-all font-medium border",
+                "flex-shrink-0 text-[11px] px-2.5 py-1 rounded-md transition-all font-medium border",
                 statusFilter === key 
-                  ? "bg-gray-900 text-white border-gray-900 shadow-sm" 
-                  : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                  ? "bg-gray-900 text-white border-gray-900" 
+                  : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
               )}
             >
               {label}
@@ -356,28 +347,28 @@ export function ConversationList({
       </div>
 
       {/* Conversation list */}
-      <div className="flex-1 overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-gray-200">
+      <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <span className="text-[13px] text-gray-400">Cargando conversaciones...</span>
+            <span className="text-[13px] text-gray-400">Cargando...</span>
           </div>
         ) : sortedConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-            <div className="h-16 w-16 rounded-2xl bg-gray-50 flex items-center justify-center mb-4 border border-gray-100">
-              <MessageSquare className="h-7 w-7 text-gray-300" />
+            <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center mb-3">
+              <MessageSquare className="h-5 w-5 text-gray-300" />
             </div>
-            <p className="text-[14px] text-gray-900 font-semibold mb-1">
-              {searchQuery ? 'Sin resultados' : 'Bandeja vacía'}
+            <p className="text-[13px] text-gray-900 font-medium mb-1">
+              Sin conversaciones
             </p>
-            <p className="text-[13px] text-gray-500 leading-relaxed max-w-[200px]">
+            <p className="text-[12px] text-gray-500 leading-relaxed">
               {searchQuery 
-                ? 'Prueba con otros términos de búsqueda' 
-                : 'No tienes conversaciones activas en este momento'
+                ? 'No hay resultados' 
+                : 'Inicia una nueva conversación'
               }
             </p>
           </div>
         ) : (
-          <AnimatePresence mode="popLayout">
+          <div className="divide-y divide-gray-50">
             {sortedConversations.map((conversation) => (
               <ConversationItem
                 key={conversation.id}
@@ -389,7 +380,7 @@ export function ConversationList({
                 fdeAvatarUrl={fdeAvatarUrl}
               />
             ))}
-          </AnimatePresence>
+          </div>
         )}
       </div>
     </div>

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useState, useEffect, useCallback } from "react";
-import { FileText } from "lucide-react";
+import { FileText, ArrowLeft } from "lucide-react";
 import { 
   ResizableAppShell, 
   ResizablePageSheet,
@@ -177,9 +177,16 @@ export default function MeetingsPage() {
       <ResizablePageSheet
         header={
           <PageHeader>
-            <div className="flex items-center gap-2" style={{ paddingLeft: '28px' }}>
-                <span className="text-[14px] text-gray-500">Quick Access</span>
-                <span className="text-[14px] text-gray-400">›</span>
+            <div className="flex items-center gap-3" style={{ paddingLeft: '28px' }}>
+              <button
+                onClick={() => router.back()}
+                className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
+                aria-label="Go back"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              <span className="text-[14px] text-gray-500">Quick Access</span>
+              <span className="text-[14px] text-gray-400">›</span>
               <span className="text-[14px] font-medium">Meeting Notes</span>
             </div>
           </PageHeader>
