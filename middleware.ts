@@ -2,7 +2,35 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const RESERVED_SLUGS = new Set(['login', 'api', '_next', 'favicon.ico'])
+const RESERVED_SLUGS = new Set([
+  'login', 
+  'api', 
+  '_next', 
+  'favicon.ico',
+  'fde',      // FDE chat pages
+  'meetings', // Meetings pages
+  'my-sapira', // My Sapira page
+  'home',
+  'initiatives',
+  'projects',
+  'business-units',
+  'insights',
+  'integrations',
+  'metrics',
+  'compliance',
+  'surveys',
+  'users',
+  'evals',
+  'roadmap',
+  'billing',
+  'onboarding',
+  'triage-new',
+  'user-monitoring',
+  'auth',
+  'select-org',
+  'demo',
+  'layout-test',
+])
 
 function extractSlug(pathname: string): string | null {
   const match = pathname.match(/^\/([^\/]+)(?:\/.*)?$/)
