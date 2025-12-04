@@ -1,0 +1,55 @@
+{
+  "display_information": {
+    "name": "Sapira Platform",
+    "description": "Bridge between Sapira OS and your team - receive and respond to client messages",
+    "background_color": "#1e293b",
+    "long_description": "Sapira Platform connects your Sapira OS with Slack, enabling seamless communication between your FDE team and clients. When users send messages through the Sapira platform, they appear in designated Slack channels. Your team can respond directly from Slack, and those responses are synced back to the platform automatically."
+  },
+  "features": {
+    "app_home": {
+      "home_tab_enabled": false,
+      "messages_tab_enabled": true,
+      "messages_tab_read_only_enabled": false
+    },
+    "bot_user": {
+      "display_name": "Sapira",
+      "always_online": true
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "channels:history",
+        "channels:read",
+        "chat:write",
+        "chat:write.customize",
+        "users:read",
+        "groups:history",
+        "groups:read",
+        "im:history",
+        "im:read",
+        "im:write",
+        "mpim:history",
+        "mpim:read"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "request_url": "https://YOUR_DOMAIN/api/slack/webhook",
+      "bot_events": [
+        "message.channels",
+        "message.groups",
+        "message.im",
+        "message.mpim"
+      ]
+    },
+    "interactivity": {
+      "is_enabled": false
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}
+

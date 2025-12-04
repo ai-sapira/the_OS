@@ -947,3 +947,36 @@ export type Issue = Initiative
 export type IssueState = InitiativeState
 export type IssuePriority = InitiativePriority
 export type IssueOrigin = InitiativeOrigin
+
+// FDE Meetings and Messages types
+export interface FDEMeeting {
+  id: string
+  organization_id: string
+  title: string
+  meeting_date: string | null
+  duration_minutes: number | null
+  attendees: string[] | null
+  notes: string | null
+  attachments: { name: string; url: string; type: string; size?: number }[] | null
+  meeting_type: 'weekly' | 'quarterly' | 'ad_hoc' | 'kickoff' | 'review' | null
+  with_fde: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string | null
+}
+
+export interface FDEMessage {
+  id: string
+  organization_id: string
+  slack_channel_id: string | null
+  slack_thread_ts: string | null
+  slack_message_ts: string | null
+  sender_type: 'user' | 'fde' | 'system'
+  sender_user_id: string | null
+  sender_name: string
+  sender_avatar_url: string | null
+  content: string
+  attachments: { name: string; url: string; type: string }[] | null
+  is_read: boolean
+  created_at: string
+}
