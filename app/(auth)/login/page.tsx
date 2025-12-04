@@ -131,17 +131,19 @@ export default function LoginPage() {
       // For non-Sapira users, continue with normal flow
       if (orgSlug) {
         localStorage.setItem('sapira.pendingOrgSlug', orgSlug)
-        try {
-          await fetch('/api/auth/select-org', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ slug: orgSlug }),
-          })
-        } catch (selectError) {
-          console.error('[Login] Failed to persist selected org:', selectError)
-        }
+        // Note: We don't await this - the AuthProvider will handle org selection
+        // The select-org API call here is optional (for server-side persistence)
+        // and may fail due to cookie race conditions, which is fine
+        fetch('/api/auth/select-org', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ slug: orgSlug }),
+          credentials: 'include', // Required to send auth cookies
+        }).catch(selectError => {
+          console.warn('[Login] select-org API call failed (non-blocking):', selectError)
+        })
       }
 
       // Start transition animation
