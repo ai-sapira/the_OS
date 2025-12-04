@@ -115,10 +115,11 @@ export async function POST(request: NextRequest) {
         const text = event.text;
 
         // Find organization by Slack channel
+        // Note: Use ->> for text extraction from JSONB (not -> which returns JSON)
         const { data: orgs, error: orgError } = await supabase
           .from('organizations')
           .select('id, name, settings')
-          .filter('settings->slack_channel_id', 'eq', channelId);
+          .filter('settings->>slack_channel_id', 'eq', channelId);
 
         if (orgError || !orgs || orgs.length === 0) {
           console.log('[Slack Webhook] No organization found for channel:', channelId);
