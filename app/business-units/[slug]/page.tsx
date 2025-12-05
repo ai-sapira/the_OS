@@ -290,57 +290,6 @@ function AutoSaveDescription({
   );
 }
 
-// Metrics Section Component - Simplified
-function MetricsSection({ businessUnit }: { businessUnit: BusinessUnitWithManager }) {
-  // Mock data - Different for each BU
-  // These would come from actual data in a real implementation
-  const metrics = [
-    {
-      label: "Response time",
-      value: "2.1h",
-      description: "Average first response"
-    },
-    {
-      label: "Time to first meeting",
-      value: "12.3h",
-      description: "From request to first meeting"
-    },
-    {
-      label: "Time to proposal",
-      value: "4.2d",
-      description: "From kickoff to proposal"
-    },
-    {
-      label: "Time to delivery",
-      value: "18d",
-      description: "From start to completion"
-    }
-  ];
-
-  return (
-    <div className="grid grid-cols-4 gap-3">
-      {metrics.map((metric, index) => (
-        <div 
-          key={index}
-          className="rounded-lg border border-gray-200 bg-gray-50 p-4"
-        >
-          <div className="flex items-baseline gap-2 mb-1">
-            <div className="text-2xl font-semibold text-gray-900">
-              {metric.value}
-            </div>
-          </div>
-          <div className="text-xs font-medium text-gray-600 mb-0.5">
-            {metric.label}
-          </div>
-          <div className="text-xs text-gray-500">
-            {metric.description}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // Projects List Component (similar to projects page)
 function BusinessUnitProjectsList({ 
   businessUnitId,
@@ -659,14 +608,6 @@ export default function BusinessUnitDetailPage() {
               initialValue={businessUnit.description || ""}
               businessUnitId={businessUnit.id}
             />
-            </div>
-          </div>
-
-          {/* Metrics Section */}
-          <div className="px-5">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4">Performance Metrics</h2>
-            <div className="pb-6 mb-6 border-b border-gray-200 -mx-5 px-5">
-              <MetricsSection businessUnit={businessUnit} />
             </div>
           </div>
 
