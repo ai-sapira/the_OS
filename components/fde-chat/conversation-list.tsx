@@ -281,27 +281,28 @@ export function ConversationList({
 
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200 flex-shrink-0 bg-white sticky top-0 z-10">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-[14px] font-medium text-gray-900">Conversaciones</h2>
-            {totalUnread > 0 && (
-              <span className="flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-blue-600 text-white text-[10px] font-bold">
-                {totalUnread}
-              </span>
-            )}
-          </div>
-          <Button 
-            onClick={onNewConversation}
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0 hover:bg-gray-100"
-          >
-            <Plus className="h-4 w-4 text-gray-600" />
-          </Button>
+      {/* Header - 27px aligned with sidebar */}
+      <div className="h-[44px] min-h-[27px] px-4 border-b border-gray-200 flex-shrink-0 bg-white flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="text-[14px] font-medium text-gray-900">Conversations</h2>
+          {totalUnread > 0 && (
+            <span className="flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-blue-600 text-white text-[10px] font-bold leading-none">
+              {totalUnread}
+            </span>
+          )}
         </div>
+        <Button 
+          onClick={onNewConversation}
+          variant="ghost"
+          size="sm"
+          className="h-5 w-5 p-0 hover:bg-gray-100"
+        >
+          <Plus className="h-3.5 w-3.5 text-gray-600" />
+        </Button>
+      </div>
 
+      {/* Search & Filters - with top padding for spacing */}
+      <div className="px-4 pt-4 pb-3 border-b border-gray-100 flex-shrink-0 bg-white">
         {/* Search */}
         <div className="relative mb-3">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />

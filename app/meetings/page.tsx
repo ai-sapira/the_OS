@@ -177,7 +177,7 @@ export default function MeetingsPage() {
       <ResizablePageSheet
         header={
           <PageHeader>
-            <div className="flex items-center gap-3" style={{ paddingLeft: '28px' }}>
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => router.back()}
                 className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"

@@ -34,7 +34,7 @@ async function getOrCreateConversation(
       organization_id: organizationId,
       slack_thread_ts: threadTs,
       slack_channel_id: channelId,
-      title: `Conversación ${new Date().toLocaleDateString('es-ES')}`,
+      title: 'Conversation with Sapira',
       status: 'active',
     })
     .select('id')

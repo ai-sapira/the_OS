@@ -37,7 +37,7 @@ async function getOrCreateConversation(params: {
     .insert({
       organization_id: organizationId,
       slack_channel_id: slackChannelId,
-      title: `Conversación de ${userName || 'Usuario'}`,
+      title: 'Conversation with Sapira',
       status: 'pending', // New conversations start as pending FDE response
       created_by: userId,
     })

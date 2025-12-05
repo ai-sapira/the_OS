@@ -19,7 +19,7 @@ import {
   Video,
   Info
 } from "lucide-react";
-import { ResizableAppShell } from "@/components/layout";
+import { ResizableAppShell, ResizablePageSheet, PageHeader } from "@/components/layout";
 import { motion, AnimatePresence } from "framer-motion";
 
 // UI Components
@@ -485,53 +485,54 @@ export default function FDEChatPage() {
 
   return (
     <ResizableAppShell>
-      <div className="flex h-screen w-full bg-white">
-        {/* Sidebar - Conversation List */}
-        <AnimatePresence initial={false}>
-          {!sidebarCollapsed && (
-            <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 320, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
-              className="flex-shrink-0 border-r border-gray-200 bg-white relative z-20"
-            >
-              <ConversationList
-                conversations={conversations}
-                selectedId={selectedConversation?.id || null}
-                onSelect={setSelectedConversation}
-                onNewConversation={handleNewConversation}
-                onDeleteConversation={handleDeleteConversation}
-                loading={loading}
-                fdeName={fdeName}
-                fdeAvatarUrl={fdeAvatarUrl}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <ResizablePageSheet>
+        <div className="-mx-5 -my-4 flex items-stretch bg-white h-[calc(100%+32px)]">
+          {/* Sidebar - Conversation List */}
+          <AnimatePresence initial={false}>
+            {!sidebarCollapsed && (
+              <motion.div
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 320, opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
+                className="flex-shrink-0 border-r border-gray-200 bg-white relative z-20 h-full"
+              >
+                <ConversationList
+                  conversations={conversations}
+                  selectedId={selectedConversation?.id || null}
+                  onSelect={setSelectedConversation}
+                  onNewConversation={handleNewConversation}
+                  onDeleteConversation={handleDeleteConversation}
+                  loading={loading}
+                  fdeName={fdeName}
+                  fdeAvatarUrl={fdeAvatarUrl}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col min-w-0 relative bg-white h-full">
-          {/* Chat Header */}
-          <header className="h-[44px] border-b border-gray-200 flex items-center justify-between px-5 flex-shrink-0 bg-white sticky top-0 z-10">
-            <div className="flex items-center gap-3">
+          {/* Main Chat Area */}
+          <div className="flex-1 flex flex-col min-w-0 relative bg-white h-full">
+            {/* Chat Header - 27px aligned with sidebar */}
+            <header className="h-[44px] min-h-[27px] border-b border-gray-200 flex items-center justify-between px-4 flex-shrink-0 bg-white">
+            <div className="flex items-center gap-2">
               <Button 
                 variant="ghost" 
                 size="sm"
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="h-8 w-8 p-0 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                className="h-5 w-5 p-0 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
               >
-                {sidebarCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                {sidebarCollapsed ? <PanelLeft className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
               </Button>
 
               {selectedConversation ? (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <h1 className="text-[14px] font-medium text-gray-900">
                     {selectedConversation.title || 'Nueva conversación'}
                   </h1>
                   {currentStatus && (
                     <span className={cn(
-                      "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium",
+                      "inline-flex items-center px-1 py-0 rounded text-[9px] font-medium leading-none",
                       currentStatus.bg,
                       currentStatus.text
                     )}>
@@ -545,23 +546,23 @@ export default function FDEChatPage() {
             </div>
 
             {selectedConversation && !selectedConversation.id.startsWith('temp-') && (
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-500 hover:bg-gray-100 rounded-md">
-                  <Phone className="h-4 w-4" />
+              <div className="flex items-center gap-0.5">
+                <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-gray-500 hover:bg-gray-100 rounded">
+                  <Phone className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-500 hover:bg-gray-100 rounded-md">
-                  <Video className="h-4 w-4" />
+                <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-gray-500 hover:bg-gray-100 rounded">
+                  <Video className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-500 hover:bg-gray-100 rounded-md">
-                  <Info className="h-4 w-4" />
+                <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-gray-500 hover:bg-gray-100 rounded">
+                  <Info className="h-3.5 w-3.5" />
                 </Button>
                 
-                <div className="w-px h-4 bg-gray-200 mx-1" />
+                <div className="w-px h-3 bg-gray-200 mx-1" />
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-500 hover:bg-gray-100 rounded-md">
-                      <MoreVertical className="h-4 w-4" />
+                    <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-gray-500 hover:bg-gray-100 rounded">
+                      <MoreVertical className="h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
@@ -719,14 +720,14 @@ export default function FDEChatPage() {
 
           {/* Floating Input Area */}
           {selectedConversation && (
-            <div className="absolute bottom-0 left-0 right-0 p-4 sm:px-8 lg:px-12 pb-6 bg-gradient-to-t from-white via-white/95 to-transparent z-20 pointer-events-none">
+            <div className="absolute bottom-0 left-0 right-0 p-4 sm:px-8 lg:px-12 pb-3 bg-gradient-to-t from-white via-white/95 to-transparent z-20 pointer-events-none">
               <div className="max-w-3xl mx-auto relative pointer-events-auto">
-                <div className="relative flex items-end gap-2 bg-white rounded-[20px] shadow-lg border border-gray-200 p-2 pr-2">
+                <div className="relative flex items-center gap-1.5 bg-white rounded-2xl shadow-lg border border-gray-200 px-2 py-1.5">
                   
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-9 w-9 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-50 flex-shrink-0"
+                    className="h-8 w-8 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-50 flex-shrink-0"
                   >
                     <Paperclip className="h-4 w-4" />
                   </Button>
@@ -737,7 +738,7 @@ export default function FDEChatPage() {
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Escribe un mensaje..."
-                    className="min-h-[36px] max-h-32 resize-none text-[14px] border-0 focus-visible:ring-0 bg-transparent px-2 py-2 leading-relaxed placeholder:text-gray-400"
+                    className="min-h-[32px] max-h-28 resize-none text-[13px] border-0 focus-visible:ring-0 bg-transparent px-2 py-1.5 leading-relaxed placeholder:text-gray-400"
                     disabled={sending || selectedConversation.status === 'archived'}
                     rows={1}
                   />
@@ -747,7 +748,7 @@ export default function FDEChatPage() {
                     disabled={!newMessage.trim() || sending || selectedConversation.status === 'archived'}
                     size="icon"
                     className={cn(
-                      "h-9 w-9 rounded-full transition-all duration-200 flex-shrink-0 shadow-sm",
+                      "h-8 w-8 rounded-full transition-all duration-200 flex-shrink-0 shadow-sm",
                       newMessage.trim() 
                         ? "bg-gray-900 hover:bg-black text-white" 
                         : "bg-gray-100 text-gray-400 hover:bg-gray-200"
@@ -773,8 +774,9 @@ export default function FDEChatPage() {
               </div>
             </div>
           )}
+          </div>
         </div>
-      </div>
+      </ResizablePageSheet>
     </ResizableAppShell>
   );
 }
