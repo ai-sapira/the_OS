@@ -64,7 +64,7 @@ import { useAuth } from "@/lib/context/auth-context"
 // Animation constants for consistent motion design
 const DROPDOWN_TRANSITION = {
   duration: 0.25,
-  ease: [0.16, 1, 0.3, 1]
+  ease: [0.16, 1, 0.3, 1] as const
 }
 
 // Animated Actions Dropdown Component
@@ -111,7 +111,7 @@ function ActionsDropdown({ selectedIssue, onTriageAction }: ActionsDropdownProps
     {
       id: 'decline',
       label: 'Decline',
-      description: 'Reject this issue',
+      description: 'Reject this initiative',
       icon: X,
       iconBg: 'bg-red-50',
       iconHoverBg: 'group-hover:bg-red-100',
@@ -492,7 +492,7 @@ function AISuggestions({
         <div className="flex items-center">
           <div className="h-2 w-2 rounded-full bg-gray-500 animate-pulse" />
           <h3 className="text-sm font-medium text-gray-900 ml-2">Sugerencias</h3>
-          <span className="text-xs text-gray-500 ml-auto mr-3">Basadas en el contenido del issue</span>
+          <span className="text-xs text-gray-500 ml-auto mr-3">Basadas en el contenido de la initiative</span>
           
           {/* Botón Aplicar todas */}
           <button
@@ -678,16 +678,16 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
     }
   }
 
-  const updateIssueInitiative = async (initiativeId: string) => {
+  const updateIssueBusinessUnit = async (businessUnitId: string) => {
     try {
-      const actualInitiativeId = initiativeId === 'unassigned' ? null : initiativeId
-      await IssuesAPI.updateIssue(issue.id, { initiative_id: actualInitiativeId })
-      const newInitiative = actualInitiativeId ? availableInitiatives.find(i => i.id === actualInitiativeId) : null
-      const updatedIssue = { ...localIssue, initiative: newInitiative, initiative_id: actualInitiativeId }
+      const actualBusinessUnitId = businessUnitId === 'unassigned' ? null : businessUnitId
+      await IssuesAPI.updateIssue(issue.id, { business_unit_id: actualBusinessUnitId })
+      const newBusinessUnit = actualBusinessUnitId ? availableInitiatives.find(i => i.id === actualBusinessUnitId) : null
+      const updatedIssue = { ...localIssue, businessUnit: newBusinessUnit, business_unit_id: actualBusinessUnitId }
       setLocalIssue(updatedIssue)
       onIssueUpdate?.(updatedIssue) // Notify parent
     } catch (error) {
-      console.error('Error updating initiative:', error)
+      console.error('Error updating business unit:', error)
     }
   }
 
@@ -785,16 +785,16 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
           <PropertyChip
             icon={<Target className="h-3.5 w-3.5 text-gray-500" />}
             label="Business Unit"
-            value={localIssue.initiative?.name || 'Sin BU'}
+            value={localIssue.businessUnit?.name || 'Sin BU'}
             options={[
-              ...availableInitiatives.map(initiative => ({
-                name: initiative.id,
-                label: initiative.name,
+              ...availableInitiatives.map(bu => ({
+                name: bu.id,
+                label: bu.name,
                 icon: <Target className="w-2.5 h-2.5 text-gray-600" />
               })),
               { name: 'unassigned', label: 'Sin BU', icon: <Target className="w-2.5 h-2.5 text-gray-400" /> }
             ]}
-            onSelect={updateIssueInitiative}
+            onSelect={updateIssueBusinessUnit}
             loading={loading}
           />
 
@@ -1010,7 +1010,7 @@ function IssueChipPanel({ issue, conversationActivity, metadataActivity, onTriag
                 <MessageSquare className="h-7 w-7 text-gray-400" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Selecciona un issue para revisar
+                Selecciona una initiative para revisar
               </h3>
               <p className="text-sm text-gray-500 leading-relaxed">
                 Elige un issue de la lista de triage para ver los detalles completos y tomar una decisión sobre su estado.
@@ -1105,7 +1105,7 @@ export default function TriageNewPage() {
       
       // Map modal data to API format
       const acceptData = {
-        initiative_id: data.initiative,    // Business Unit (OBLIGATORIO)
+        business_unit_id: data.initiative,    // Business Unit (OBLIGATORIO)
         project_id: data.project || null,  // Proyecto estratégico (OPCIONAL)
         assignee_id: data.assignee || null, // Allow null if not selected
         priority: data.priority || triageIssue.priority || null // Use modal priority, fallback to current issue priority
@@ -1299,17 +1299,20 @@ export default function TriageNewPage() {
                 <span className="text-sm font-medium">Triage</span>
               </div>
               
-              {/* Actions */}
-              <div className="flex items-center gap-1">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-8 w-8 p-0 hover:bg-gray-100"
-                  onClick={() => setShowShareModal(true)}
-                >
-                  <Share2 className="h-4 w-4" />
-                </Button>
-              </div>
+              {/* Actions - Share button only visible when initiative is selected */}
+              {selectedIssue && (
+                <div className="flex items-center gap-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0 hover:bg-gray-100"
+                    onClick={() => setShowShareModal(true)}
+                    title="Share this initiative"
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           </PageHeader>
         }
@@ -1416,9 +1419,9 @@ export default function TriageNewPage() {
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-gray-500">
                   <div className="text-center">
-                    <p className="text-sm mb-2">No hay issues en triage</p>
+                    <p className="text-sm mb-2">No hay initiatives en triage</p>
                     <p className="text-xs text-gray-400">
-                      Los nuevos issues aparecerán aquí automáticamente
+                      Las nuevas initiatives aparecerán aquí automáticamente
                     </p>
                   </div>
                 </div>
@@ -1500,7 +1503,8 @@ export default function TriageNewPage() {
       <ShareLinkModal
         open={showShareModal}
         onOpenChange={setShowShareModal}
-        title="Share Triage"
+        title={selectedIssue ? `Share Issue ${selectedIssue.key || ''}` : "Share"}
+        url={selectedIssue ? `${typeof window !== 'undefined' ? window.location.origin : ''}/initiatives/${selectedIssue.id}` : undefined}
       />
     </ResizableAppShell>
   )

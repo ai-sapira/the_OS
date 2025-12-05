@@ -1,14 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { useState, useEffect, useCallback } from "react";
-import { FileText, ArrowLeft } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { FileText, ArrowLeft, Calendar, ExternalLink } from "lucide-react";
 import { 
   ResizableAppShell, 
   ResizablePageSheet,
   PageHeader
 } from "@/components/layout";
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { PopupModal } from "react-calendly";
 
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
@@ -24,6 +26,31 @@ export default function MeetingsPage() {
   const [selectedNote, setSelectedNote] = useState<MeetingNote | null>(null);
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [isCalendlyOpen, setIsCalendlyOpen] = useState(false);
+  const [rootElement, setRootElement] = useState<HTMLElement | null>(null);
+
+  // Set root element after mount for Calendly modal
+  useEffect(() => {
+    setRootElement(document.body);
+  }, []);
+
+  // Get FDE calendly URL from organization settings
+  const fdeCalendlyUrl = useMemo(() => {
+    const organizationSettings = (currentOrg?.organization?.settings as Record<string, any> | undefined) ?? {};
+    const sapiraContact = organizationSettings.sapira_contact as {
+      calendly_url?: string;
+      name?: string;
+    } | undefined;
+    return sapiraContact?.calendly_url || null;
+  }, [currentOrg?.organization?.settings]);
+
+  const fdeName = useMemo(() => {
+    const organizationSettings = (currentOrg?.organization?.settings as Record<string, any> | undefined) ?? {};
+    const sapiraContact = organizationSettings.sapira_contact as {
+      name?: string;
+    } | undefined;
+    return sapiraContact?.name || 'tu FDE';
+  }, [currentOrg?.organization?.settings]);
 
   // Load notes
   useEffect(() => {
@@ -177,17 +204,36 @@ export default function MeetingsPage() {
       <ResizablePageSheet
         header={
           <PageHeader>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => router.back()}
-                className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
-                aria-label="Go back"
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => router.back()}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-700"
+                  aria-label="Go back"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                <span className="text-[14px] text-gray-500">Quick Access</span>
+                <span className="text-[14px] text-gray-400">›</span>
+                <span className="text-[14px] font-medium">Meeting Notes</span>
+              </div>
+              
+              {/* Book meeting with FDE button */}
+              <Button
+                onClick={() => {
+                  if (fdeCalendlyUrl) {
+                    setIsCalendlyOpen(true)
+                  } else {
+                    // Open Google Calendar Appointment Scheduling
+                    window.open('https://calendar.app.google/s3Ao3Dx3KmTqdWfe6', '_blank')
+                  }
+                }}
+                size="sm"
+                className="h-8 px-3 bg-slate-900 hover:bg-slate-800 text-white text-xs gap-1.5"
               >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-              <span className="text-[14px] text-gray-500">Quick Access</span>
-              <span className="text-[14px] text-gray-400">›</span>
-              <span className="text-[14px] font-medium">Meeting Notes</span>
+                <Calendar className="h-3.5 w-3.5" />
+                Book meeting with your FDE
+              </Button>
             </div>
           </PageHeader>
         }
@@ -237,6 +283,16 @@ export default function MeetingsPage() {
             </motion.div>
             )}
         </div>
+        
+        {/* Calendly Modal */}
+        {rootElement && fdeCalendlyUrl && (
+          <PopupModal
+            url={fdeCalendlyUrl}
+            onModalClose={() => setIsCalendlyOpen(false)}
+            open={isCalendlyOpen}
+            rootElement={rootElement}
+          />
+        )}
       </ResizablePageSheet>
     </ResizableAppShell>
   );

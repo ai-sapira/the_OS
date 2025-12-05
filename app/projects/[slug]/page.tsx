@@ -9,7 +9,6 @@ import {
   TrendingUp,
   Clock,
   CheckCircle2,
-  BarChart3,
   ChevronDown,
   AlertCircle,
   Target,
@@ -46,6 +45,7 @@ import { IssuesAPI, IssueWithRelations } from "@/lib/api/initiatives";
 import { ProjectStatus } from "@/lib/database/types";
 import { useAuth } from "@/lib/context/auth-context";
 import { NewIssueModal } from "@/components/new-issue-modal";
+import { FDEChatCTA } from "@/components/fde-chat-cta";
 
 // Status Chip Component - Editable
 function StatusChip({ 
@@ -418,57 +418,6 @@ function AutoSaveDescription({
   );
 }
 
-// Metrics Section Component
-function MetricsSection({ project }: { project: ProjectWithRelations }) {
-  // Mock data - Different for each project
-  // These would come from actual data in a real implementation
-  const metrics = [
-    {
-      label: "Response time",
-      value: "3.2h",
-      description: "Average first response"
-    },
-    {
-      label: "Time to first meeting",
-      value: "18.5h",
-      description: "From request to first meeting"
-    },
-    {
-      label: "Time to proposal",
-      value: "5.8d",
-      description: "From kickoff to proposal"
-    },
-    {
-      label: "Time to delivery",
-      value: "23d",
-      description: "From start to completion"
-    }
-  ];
-
-  return (
-    <div className="grid grid-cols-4 gap-3">
-      {metrics.map((metric, index) => (
-        <div 
-          key={index}
-          className="rounded-lg border border-gray-200 bg-gray-50 p-4"
-        >
-          <div className="flex items-baseline gap-2 mb-1">
-            <div className="text-2xl font-semibold text-gray-900">
-              {metric.value}
-            </div>
-          </div>
-          <div className="text-xs font-medium text-gray-600 mb-0.5">
-            {metric.label}
-          </div>
-          <div className="text-xs text-gray-500">
-            {metric.description}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // Initiatives List Component - Shows the issues (initiatives) associated with the project
 function ProjectInitiativesList({ 
   project,
@@ -666,6 +615,14 @@ export default function ProjectDetailPage() {
               <span className="text-[14px] text-gray-400">›</span>
               <span className="text-[14px] font-medium">{project.name}</span>
             </div>
+            
+            {/* FDE Chat CTA */}
+            <FDEChatCTA 
+              variant="button" 
+              size="sm" 
+              label="Open thread" 
+              context={`Project: ${project.name}`}
+            />
           </motion.div>
         }
       >
@@ -750,14 +707,6 @@ export default function ProjectDetailPage() {
                 initialValue={project.description || ""}
                 projectId={project.id}
               />
-            </div>
-          </div>
-
-          {/* Metrics Section */}
-          <div className="px-5">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4">Performance Metrics</h2>
-            <div className="pb-6 mb-6 border-b border-gray-200 -mx-5 px-5">
-              <MetricsSection project={project} />
             </div>
           </div>
 

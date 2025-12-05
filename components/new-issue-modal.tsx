@@ -75,6 +75,11 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue, defaultProjec
   const [users, setUsers] = useState<any[]>([])
   const [loadingUsers, setLoadingUsers] = useState(true)
   
+  // Success state for confirmation modal
+  const [showSuccess, setShowSuccess] = useState(false)
+  const [createdInitiativeName, setCreatedInitiativeName] = useState<string>("")
+  const [createdInitiativeId, setCreatedInitiativeId] = useState<string | null>(null)
+  
   // Inline project creation state
   const [showCreateProject, setShowCreateProject] = useState(false)
   const [newProjectName, setNewProjectName] = useState("")
@@ -124,6 +129,14 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue, defaultProjec
     setSelectedProjectId(defaultProjectId ?? null)
     setShowCreateProject(false)
     setNewProjectName("")
+    setShowSuccess(false)
+    setCreatedInitiativeName("")
+    setCreatedInitiativeId(null)
+  }
+  
+  const handleDone = () => {
+    onOpenChange(false)
+    setTimeout(resetForm, 300)
   }
 
   const handleCreateProject = async () => {
@@ -145,7 +158,7 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue, defaultProjec
           description: null,
           status: "planned",
           owner_user_id: null,
-          initiative_id: null,
+          business_unit_id: null,
           progress: null,
           planned_start_at: null,
           planned_end_at: null,
@@ -180,7 +193,7 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue, defaultProjec
         throw new Error("No organization selected")
       }
 
-      const issueData = await createIssueApi({
+      const created = await createIssueApi({
         title: title.trim(),
         description: description.trim() || undefined,
         priority: selectedPriority ?? undefined,
@@ -189,15 +202,19 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue, defaultProjec
         assignee_id: selectedAssigneeId ?? undefined,
       })
 
-      if (issueData) {
+      if (created) {
         await refreshData()
         onCreateIssue?.()
+        
+        // Store created initiative info
+        setCreatedInitiativeName(title.trim())
+        setCreatedInitiativeId(null)
 
         if (createMore) {
           resetForm()
         } else {
-          onOpenChange(false)
-          setTimeout(resetForm, 300)
+          // Show success state instead of closing
+          setShowSuccess(true)
         }
       }
     } catch (error) {
@@ -223,7 +240,7 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue, defaultProjec
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AnimatePresence>
         {open && (
-          <DialogContent className="overflow-hidden p-0 sm:max-w-3xl max-h-[70vh] gap-0 data-[state=open]:animate-none data-[state=closed]:animate-none flex flex-col">
+          <DialogContent className="overflow-hidden p-0 sm:max-w-3xl max-h-[85vh] gap-0 data-[state=open]:animate-none data-[state=closed]:animate-none flex flex-col">
             <motion.div
               initial={{ opacity: 0, scale: 0.97, y: 4 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -233,12 +250,14 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue, defaultProjec
                 ease: [0.16, 1, 0.3, 1],
                 opacity: { duration: 0.2 }
               }}
-              className="flex flex-col max-h-[70vh] overflow-hidden"
+              className="flex flex-col max-h-[85vh] overflow-hidden"
             >
               <DialogHeader className="border-b px-6 py-3 mb-0 shrink-0">
-                <DialogTitle className="text-base">New Initiative</DialogTitle>
+                <DialogTitle className="text-base">
+                  {showSuccess ? "Initiative created" : "New Initiative"}
+                </DialogTitle>
                 <p className="text-xs text-muted-foreground">
-                  Track work, assign owners, and connect initiatives to projects.
+                  {showSuccess ? "What would you like to do next?" : "Track work, assign owners, and connect initiatives to projects."}
                 </p>
               </DialogHeader>
 
@@ -247,6 +266,56 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue, defaultProjec
                 <span className="sr-only">Close</span>
               </DialogClose>
 
+              <AnimatePresence mode="wait">
+                {showSuccess ? (
+                  <motion.div
+                    key="success"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                    className="flex flex-col items-center justify-center p-8 space-y-6"
+                  >
+                    <div className="flex items-center justify-center w-16 h-16 rounded-full bg-green-50">
+                      <CheckCircle2 className="w-8 h-8 text-green-600" />
+                    </div>
+                    
+                    <div className="text-center space-y-1">
+                      <h3 className="text-lg font-semibold text-foreground">
+                        {createdInitiativeName}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Initiative created successfully
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={handleDone}
+                      >
+                        Done
+                      </Button>
+                      <Button
+                        className="flex-1 gap-2"
+                        onClick={() => {
+                          resetForm()
+                          // Focus the title input for the next initiative
+                        }}
+                      >
+                        <Circle className="w-4 h-4" />
+                        Create another
+                      </Button>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="form"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
               <form
                 onSubmit={(event) => {
                   event.preventDefault()
@@ -327,12 +396,12 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue, defaultProjec
                             <Label htmlFor="issue-title" className="text-sm font-medium text-foreground">
                               Title & description
                             </Label>
-                            <p className="text-xs text-muted-foreground">Capture the issue goal in a sentence.</p>
+                            <p className="text-xs text-muted-foreground">Capture the initiative goal in a sentence.</p>
                           </div>
                         </div>
                         <Input
                           id="issue-title"
-                          placeholder="Issue title"
+                          placeholder="Initiative title"
                           value={title}
                           onChange={(event) => setTitle(event.target.value)}
                           className="h-10 rounded-lg border border-border bg-background/70 px-4 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-primary/30"
@@ -359,7 +428,7 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue, defaultProjec
                           </div>
                           <div>
                             <Label htmlFor="issue-status" className="text-sm font-medium text-foreground">
-                              Issue status
+                              Initiative status
                             </Label>
                             <p className="text-xs text-muted-foreground">Signal where the work stands today.</p>
                           </div>
@@ -563,12 +632,15 @@ export function NewIssueModal({ open, onOpenChange, onCreateIssue, defaultProjec
                       className="mt-3 flex items-center justify-end pt-2"
                     >
                       <Button type="submit" size="sm" disabled={!title.trim() || isSubmitting}>
-                        {isSubmitting ? "Creating..." : "Create issue"}
+                        {isSubmitting ? "Creating..." : "Create initiative"}
                       </Button>
                     </motion.div>
                   </div>
                 </div>
               </form>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           </DialogContent>
         )}

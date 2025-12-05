@@ -66,3 +66,4 @@ function AvatarStatus({
 
 export { Avatar, AvatarFallback, AvatarImage, AvatarIndicator, AvatarStatus, avatarStatusVariants };
 
+

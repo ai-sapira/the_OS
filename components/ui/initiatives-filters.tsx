@@ -58,9 +58,9 @@ export enum InitiativeFilterType {
   SLUG = "Slug",
   CREATED_DATE = "Created Date",
   UPDATED_DATE = "Updated Date",
-  ISSUE_COUNT = "Issue Count",
-  ACTIVE_ISSUES = "Active Issues",
-  COMPLETED_ISSUES = "Completed Issues",
+  ISSUE_COUNT = "Initiative Count",
+  ACTIVE_ISSUES = "Active Initiatives",
+  COMPLETED_ISSUES = "Completed Initiatives",
 }
 
 export enum InitiativeStatus {
@@ -71,10 +71,10 @@ export enum InitiativeStatus {
 // Removed hardcoded InitiativeManager enum - now loaded dynamically from database
 
 export enum IssueCountRange {
-  NONE = "No issues",
-  LOW = "1-5 issues",
-  MEDIUM = "6-15 issues",
-  HIGH = "16+ issues",
+  NONE = "No initiatives",
+  LOW = "1-5 initiatives",
+  MEDIUM = "6-15 initiatives",
+  HIGH = "16+ initiatives",
 }
 
 // Extended FilterOption type for initiatives
@@ -134,7 +134,7 @@ const initiativeFilterViewOptions: InitiativeFilterOption[][] = [
     {
       name: FilterType.LABELS,
       icon: <TrendingUp className="w-3.5 h-3.5 text-gray-600" />,
-      label: "Issue Count",
+      label: "Initiative Count",
     },
   ],
   [
@@ -170,7 +170,7 @@ function InitiativeFilters({
 
           // Get the display name (use label if available, otherwise use the filter type)
           const displayName = filter.type === FilterType.ASSIGNEE ? "Manager" :
-                             filter.type === FilterType.LABELS ? "Issue Count" :
+                             filter.type === FilterType.LABELS ? "Initiative Count" :
                              filter.type;
 
           return (

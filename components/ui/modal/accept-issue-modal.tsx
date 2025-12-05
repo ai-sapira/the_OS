@@ -127,31 +127,35 @@ export function AcceptIssueModal({
   // Load data when modal opens
   useEffect(() => {
     if (!open || !organizationId) return
-    const hasInitialData = users.length > 0 && projects.length > 0 && initiatives.length > 0
-    const orgChanged = lastLoadedOrgRef.current !== organizationId
-    if (!orgChanged && hasInitialData) return
+    
+    // Only skip if we already loaded for this org
+    if (lastLoadedOrgRef.current === organizationId && users.length > 0) return
     
     const loadData = async () => {
       try {
-        setLoading(!hasInitialData)
+        setLoading(true)
         const [usersData, projectsData, initiativesData] = await Promise.all([
           IssuesAPI.getAvailableUsers(organizationId),
           IssuesAPI.getProjects(organizationId),
           IssuesAPI.getInitiatives(organizationId)
         ])
-        setUsers(usersData)
-        setProjects(projectsData)
-        setInitiatives(initiativesData)
+        setUsers(usersData || [])
+        setProjects(projectsData || [])
+        setInitiatives(initiativesData || [])
         lastLoadedOrgRef.current = organizationId
       } catch (error) {
         console.error('Error loading data:', error)
+        // Set empty arrays on error to avoid infinite loading
+        setUsers([])
+        setProjects([])
+        setInitiatives([])
       } finally {
         setLoading(false)
       }
     }
     
     loadData()
-  }, [open, organizationId, users.length, projects.length, initiatives.length])
+  }, [open, organizationId])
 
   // Reset form when modal opens
   useEffect(() => {
@@ -262,7 +266,7 @@ export function AcceptIssueModal({
                       <div className="space-y-0.5 flex-1 min-w-0">
                         <h3 className="text-sm font-medium text-foreground truncate">{displayTitle}</h3>
                         <p className="text-xs text-muted-foreground">
-                          {issue.key || 'New issue'}
+                          {issue.key || 'New initiative'}
                         </p>
               </div>
             </div>
@@ -302,9 +306,9 @@ export function AcceptIssueModal({
                     {/* Context info */}
                     <h4 className="text-xs font-medium text-foreground">Context</h4>
                     <p className="mt-1 text-xs leading-4 text-muted-foreground">
-                      {action === 'accept' && 'Assign the issue to a business unit and optionally set project, owner and priority.'}
-                      {action === 'decline' && 'Provide a reason for declining this issue. The reporter will be notified.'}
-                      {action === 'snooze' && 'Postpone the review. The issue will reappear tomorrow.'}
+                      {action === 'accept' && 'Assign the initiative to a business unit and optionally set project, owner and priority.'}
+                      {action === 'decline' && 'Provide a reason for declining this initiative. The reporter will be notified.'}
+                      {action === 'snooze' && 'Postpone the review. The initiative will reappear tomorrow.'}
                     </p>
 
                     {/* Selected values preview */}
@@ -357,7 +361,7 @@ export function AcceptIssueModal({
                             {action === 'decline' ? 'Reason (required)' : 'Comment'}
                           </Label>
                           <p className="text-xs text-muted-foreground">
-                            {action === 'decline' ? 'Explain why this issue is being declined.' : 'Add context or notes about this decision.'}
+                            {action === 'decline' ? 'Explain why this initiative is being declined.' : 'Add context or notes about this decision.'}
                           </p>
                         </div>
           </div>
@@ -386,7 +390,7 @@ export function AcceptIssueModal({
                             <Label className="text-sm font-medium text-foreground">
                               Assignment
                             </Label>
-                            <p className="text-xs text-muted-foreground">Select where this issue belongs.</p>
+                            <p className="text-xs text-muted-foreground">Select where this initiative belongs.</p>
                           </div>
                         </div>
 
@@ -517,7 +521,7 @@ export function AcceptIssueModal({
                           'bg-amber-500 hover:bg-amber-600'
                         } text-white`}
             >
-              {action === 'accept' ? 'Accept Issue' : action === 'decline' ? 'Decline Issue' : 'Snooze Issue'}
+              {action === 'accept' ? 'Accept Initiative' : action === 'decline' ? 'Decline Initiative' : 'Snooze Initiative'}
             </Button>
                     </motion.div>
                   </motion.div>

@@ -162,3 +162,4 @@ COMMENT ON FUNCTION sync_missing_users() IS 'Syncs existing auth.users that don'
 
 
 
+

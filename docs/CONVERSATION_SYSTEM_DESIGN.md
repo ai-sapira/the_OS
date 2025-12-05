@@ -528,3 +528,4 @@ useEffect(() => {
 4. **Fase 4**: Conectar real-time y probar flujo completo
 5. **Fase 5**: Pulir UX (marcar leído, estados, filtros)
 
+

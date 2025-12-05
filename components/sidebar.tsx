@@ -18,7 +18,8 @@ import { useRoles, type SidebarItem, type Role } from "@/hooks/use-roles"
 import { useSupabaseData } from "@/hooks/use-supabase-data"
 import { useAuth } from "@/lib/context/auth-context"
 import { useOrgAdmin } from "@/hooks/use-org-admin"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
+import { FDEContactModal } from "@/components/fde-contact-modal"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Inbox,
@@ -50,6 +51,9 @@ import {
   CheckCircle2,
   Server,
   CreditCard,
+  MessageSquare,
+  Calendar,
+  Info,
 } from "lucide-react"
 
 interface SidebarProps {
@@ -100,13 +104,47 @@ export function Sidebar({
   const { currentOrg, user, signOut } = useAuth()
   const { isOrgAdmin } = useOrgAdmin()
   const [expandedSections, setExpandedSections] = useState<string[]>(["projects"])
-  const [userData, setUserData] = useState<{ name?: string | null; first_name?: string | null; last_name?: string | null } | null>(null)
+  const [userData, setUserData] = useState<{ name?: string | null } | null>(null)
   const [fdeData, setFdeData] = useState<{
     name?: string
     email?: string
     avatar_url?: string
     user_id?: string
   } | null>(null)
+  const [fdeExpanded, setFdeExpanded] = useState(false)
+  const [fdeContactOpen, setFdeContactOpen] = useState(false)
+
+  // Get full FDE contact info from organization settings
+  const fdeFullData = useMemo(() => {
+    const organizationSettings = (currentOrg?.organization?.settings as Record<string, any> | undefined) ?? {}
+    const sapiraContact = organizationSettings.sapira_contact as {
+      name?: string
+      email?: string
+      role?: string
+      calendly_url?: string
+      avatar_url?: string
+      user_id?: string
+      bio?: string
+      location?: string
+      phone?: string
+      skills?: string[]
+    } | undefined
+
+    if (!sapiraContact && !fdeData) return null
+
+    return {
+      name: sapiraContact?.name || fdeData?.name || 'Sapira Team',
+      email: sapiraContact?.email || fdeData?.email || 'support@sapira.ai',
+      role: sapiraContact?.role || 'Forward Deploy Engineer',
+      avatar_url: sapiraContact?.avatar_url || fdeData?.avatar_url || null,
+      bio: sapiraContact?.bio || 'Tu FDE asignado, aquí para ayudarte a sacar el máximo partido a Sapira.',
+      location: sapiraContact?.location || 'Madrid, Spain',
+      phone: sapiraContact?.phone || null,
+      skills: sapiraContact?.skills || ['Automatización', 'AI/ML', 'Optimización de Procesos', 'Integración'],
+      calendly_url: sapiraContact?.calendly_url || null,
+      isActive: true, // Could be dynamic based on availability
+    }
+  }, [currentOrg?.organization?.settings, fdeData])
 
   // Load user data from users table
   useEffect(() => {
@@ -120,11 +158,11 @@ export function Sidebar({
         const { supabase } = await import('@/lib/supabase/client')
         const { data } = await supabase
           .from('users')
-          .select('name, first_name, last_name')
+          .select('name')
           .eq('auth_user_id', user.id)
           .maybeSingle()
         
-        setUserData(data)
+        setUserData(data ? { name: data.name } : null)
       } catch (error) {
         console.error('Error loading user data:', error)
         setUserData(null)
@@ -141,30 +179,16 @@ export function Sidebar({
         const { supabase } = await import('@/lib/supabase/client')
         const { data } = await supabase
           .from('users')
-          .select('id, auth_user_id, email, name, first_name, last_name, avatar_url')
+          .select('id, auth_user_id, email, name, avatar_url')
           .eq('email', 'adolfo@sapira.ai')
           .maybeSingle()
         
         if (data) {
-          const userData = data as {
-            id: string
-            auth_user_id?: string | null
-            email?: string | null
-            name?: string | null
-            first_name?: string | null
-            last_name?: string | null
-            avatar_url?: string | null
-          }
-          
-          const fullName = userData.first_name && userData.last_name
-            ? `${userData.first_name} ${userData.last_name}`
-            : userData.name || 'Adolfo'
-          
           setFdeData({
-            name: fullName,
-            email: userData.email || 'adolfo@sapira.ai',
-            avatar_url: userData.avatar_url || undefined,
-            user_id: userData.auth_user_id || userData.id,
+            name: data.name || 'Adolfo',
+            email: data.email || 'adolfo@sapira.ai',
+            avatar_url: data.avatar_url || undefined,
+            user_id: data.auth_user_id || data.id,
           })
         } else {
           setFdeData(null)
@@ -325,11 +349,8 @@ export function Sidebar({
 
     // Special handling for Your Profile - show user name with dropdown menu
     if (item.id === "your-profile") {
-      // Get user name from users table (first_name + last_name or name)
+      // Get user name from users table
       const getUserName = () => {
-        if (userData?.first_name && userData?.last_name) {
-          return `${userData.first_name} ${userData.last_name}`
-        }
         if (userData?.name) {
           return userData.name
         }
@@ -480,73 +501,8 @@ export function Sidebar({
         </div>
       )}
       
-      {/* Header - Más compacto y cohesivo */}
-      <div className="flex h-12 items-center justify-between px-3 py-2">
-        {!isCollapsed ? (
-          <div className="flex items-center flex-1 ml-1">
-            <Select value={activeRole} onValueChange={handleRoleChange} disabled={true}>
-              <SelectTrigger className="border-none bg-transparent p-0 h-8 focus:ring-0 font-semibold text-sidebar-foreground hover:bg-gray-100 rounded-md px-2 flex items-center gap-2 justify-start transition-all duration-200 hover:shadow-sm active:scale-[0.98]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="start">
-                {allRoles.map((role) => {
-                  const Icon = iconMap[role === "SAP" ? "Shield" : role === "CEO" ? "Crown" : role === "BU" ? "Building2" : "User"]
-                  return (
-                    <SelectItem key={role} value={role} className="transition-colors duration-150">
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4 transition-transform duration-200" />
-                        <span>{getRoleLabel(role)}</span>
-                      </div>
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center w-full">
-            {(() => {
-              const Icon = iconMap[activeRole === "SAP" ? "Shield" : activeRole === "CEO" ? "Crown" : activeRole === "BU" ? "Building2" : "User"]
-              return <Icon className="h-4 w-4 transition-transform duration-200" />
-            })()}
-          </div>
-        )}
-        
-        {/* Botones compactos al lado del rol */}
-        {!isCollapsed && (
-          <div className="flex items-center gap-1">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-7 w-7 p-0 transition-all duration-200 hover:scale-110 hover:bg-sidebar-accent active:scale-95"
-              onClick={onOpenCommandPalette}
-              title="Buscar (⌘K)"
-            >
-              <Search className="h-3.5 w-3.5 transition-transform duration-200" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-7 w-7 p-0 transition-all duration-200 hover:scale-110 hover:bg-sidebar-accent active:scale-95"
-              onClick={onToggleCollapse}
-              title="Configuración"
-            >
-              <Settings className="h-3.5 w-3.5 transition-transform duration-200" />
-            </Button>
-          </div>
-        )}
-        
-        {isCollapsed && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-7 w-7 p-0 transition-all duration-200 hover:scale-110 hover:bg-sidebar-accent active:scale-95"
-            onClick={onToggleCollapse}
-          >
-            <ChevronRight className="h-3.5 w-3.5 transition-transform duration-200" />
-          </Button>
-        )}
-      </div>
+      {/* Spacer after logo */}
+      <div className="h-2" />
 
       <div className="flex-1 overflow-auto pt-2">
         {/* Current filter indicator */}
@@ -600,45 +556,116 @@ export function Sidebar({
 
       {/* Footer */}
       <div className="px-4 py-3 space-y-2 border-t border-border">
-        {/* My Sapira Card - Separated from profile */}
-        {mySapiraItem && !isCollapsed && fdeData && (
-          <Link href={mySapiraItem.href || "#"} className="mb-3 block">
+        {/* FDE Section - Expandable with same sidebar aesthetic */}
+        {!isCollapsed && fdeFullData && (
+          <div className="space-y-1">
+            {/* FDE Header - Main clickable row */}
             <Button
               variant="ghost"
+              onClick={() => setFdeExpanded(!fdeExpanded)}
               className={cn(
-                "w-full h-auto p-2.5 rounded-lg border border-border bg-transparent hover:bg-sidebar-accent/50 transition-colors",
-                "flex items-center gap-2.5 justify-start",
-                pathname === mySapiraItem.href && "bg-sidebar-accent/50"
+                "w-full justify-start h-8 px-2 relative group",
+                "transition-all duration-200 ease-out",
+                "hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground",
+                "text-sidebar-foreground",
+                "border-l-2 border-transparent",
+                "hover:border-l-2 hover:border-primary/50",
+                fdeExpanded && "bg-sidebar-accent/50"
               )}
             >
-              <Avatar className="h-8 w-8 shrink-0">
-                {fdeData.avatar_url ? (
-                  <AvatarImage src={fdeData.avatar_url} alt={fdeData.name || "Adolfo Güell"} />
-                ) : null}
-                <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground text-xs font-medium">
-                  {(fdeData.name || "Adolfo Güell")
-                    .split(" ")
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .map((n) => n[0]?.toUpperCase())
-                    .join("") || "AG"}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
-                <div className="text-left">
-                  <div className="text-xs font-medium text-sidebar-foreground">
-                    {fdeData.name || "Adolfo Güell"}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">
-                    FDE
-                  </div>
+              {/* FDE Badge */}
+              <span className="shrink-0 mr-2 px-1.5 py-0.5 text-[10px] font-semibold bg-primary/10 text-primary rounded">
+                FDE
+              </span>
+              
+              {/* Name with status indicator */}
+              <span className="flex-1 text-left text-sm truncate flex items-center gap-1.5">
+                {fdeFullData.name}
+                <span 
+                  className={cn(
+                    "inline-block h-1.5 w-1.5 rounded-full shrink-0",
+                    fdeFullData.isActive ? "bg-emerald-500" : "bg-gray-400"
+                  )}
+                />
+              </span>
+              
+              <div className="flex items-center gap-0.5">
+                {/* Info button - opens contact modal */}
+                <div
+                  role="button"
+                  className="h-5 w-5 flex items-center justify-center rounded hover:bg-sidebar-accent"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setFdeContactOpen(true)
+                  }}
+                >
+                  <Info className="h-3 w-3 text-muted-foreground" />
                 </div>
-                <div className="text-[10px] font-medium text-sidebar-foreground shrink-0">
-                  Contactar
-                </div>
+                
+                {/* Chevron indicator */}
+                <ChevronDown 
+                  className={cn(
+                    "h-3 w-3 text-muted-foreground transition-transform duration-200",
+                    fdeExpanded && "rotate-180"
+                  )}
+                />
               </div>
             </Button>
-          </Link>
+            
+            {/* Expanded dropdown content - Child items */}
+            {fdeExpanded && (
+              <div className="space-y-0.5">
+                {/* Chat link */}
+                <Link href="/fde/chat">
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start h-7 px-2 ml-6 text-sm",
+                      "transition-all duration-200 ease-out",
+                      "hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground",
+                      "text-sidebar-foreground",
+                      pathname === "/fde/chat" && "bg-sidebar-accent text-sidebar-accent-foreground font-medium border-l-2 border-primary"
+                    )}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Chat
+                  </Button>
+                </Link>
+                
+                {/* Meetings link */}
+                <Link href="/meetings">
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start h-7 px-2 ml-6 text-sm",
+                      "transition-all duration-200 ease-out",
+                      "hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground",
+                      "text-sidebar-foreground",
+                      pathname === "/meetings" && "bg-sidebar-accent text-sidebar-accent-foreground font-medium border-l-2 border-primary"
+                    )}
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Meetings
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* FDE Contact Modal */}
+        {fdeFullData && (
+          <FDEContactModal
+            open={fdeContactOpen}
+            onOpenChange={setFdeContactOpen}
+            fdeData={fdeFullData}
+            onOpenChat={() => router.push('/fde/chat')}
+            onOpenCalendly={() => {
+              if (fdeFullData.calendly_url) {
+                window.open(fdeFullData.calendly_url, '_blank')
+              }
+            }}
+          />
         )}
         
         {/* Your Profile - Separated from My Sapira */}

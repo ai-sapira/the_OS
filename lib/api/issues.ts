@@ -18,6 +18,7 @@ export interface CreateInitiativeData {
   priority?: InitiativePriority
   business_unit_id?: string // Business Unit
   project_id?: string // Project
+  assignee_id?: string // Allow assigning on create
   reporter_id?: string
   origin?: InitiativeOrigin
   labels?: string[]

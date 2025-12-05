@@ -315,7 +315,7 @@ export function NewProjectModal({ open, onOpenChange, onCreateProject, defaultIn
                           onClick={handleCreateIssue}
                         >
                           <Circle className="w-4 h-4" />
-                          Create Issue
+                          Create Initiative
                           <ArrowRight className="w-4 h-4" />
                         </Button>
                       </div>

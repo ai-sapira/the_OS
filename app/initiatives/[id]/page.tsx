@@ -54,6 +54,7 @@ import { TeamsConversation } from "@/components/teams-conversation"
 import { InitiativesAPI } from "@/lib/api/initiatives"
 import { IssueActivityTimeline } from "@/components/issue-activity-timeline"
 import { useAuth } from "@/lib/context/auth-context"
+import { FDEChatCTA } from "@/components/fde-chat-cta"
 
 // Timeline Calendar Component
 interface TimelineCalendarProps {
@@ -639,16 +640,24 @@ export default function IssueDetailPage() {
               </div>
               
               {/* Actions */}
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
+              <div className="flex items-center gap-2">
+                <FDEChatCTA 
+                  variant="button" 
+                  size="sm" 
+                  label="Open thread" 
+                  context={`Initiative: ${localIssue.key} - ${localIssue.title}`}
+                />
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </PageHeader>

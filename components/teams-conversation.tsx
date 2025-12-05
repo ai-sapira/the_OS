@@ -13,11 +13,17 @@ interface Message {
 interface TeamsConversationProps {
   messages: Message[]
   conversationUrl?: string
+  summary?: string | null
+  keyPoints?: string[] | null
+  suggestedAssignee?: string | null
 }
 
 export function TeamsConversation({ 
   messages, 
-  conversationUrl
+  conversationUrl,
+  summary,
+  keyPoints,
+  suggestedAssignee,
 }: TeamsConversationProps) {
   if (!messages || messages.length === 0) {
     return null
@@ -100,8 +106,47 @@ export function TeamsConversation({
           })}
         </div>
       </div>
+
+      {(summary || (keyPoints && keyPoints.length > 0) || suggestedAssignee) && (
+        <div className="border border-gray-200 rounded-lg bg-white p-4 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+            <Bot className="h-4 w-4 text-blue-600" />
+            <span>AI analysis</span>
+          </div>
+
+          {summary && (
+            <p className="text-sm text-gray-700 leading-relaxed">
+              {summary}
+            </p>
+          )}
+
+          {(keyPoints && keyPoints.length > 0) && (
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Key points</p>
+              <ul className="space-y-1.5">
+                {keyPoints.map((point, idx) => (
+                  <li
+                    key={idx}
+                    className="text-sm text-gray-700 flex items-start gap-2"
+                  >
+                    <span className="mt-1 inline-flex h-1.5 w-1.5 rounded-full bg-gray-400" />
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {suggestedAssignee && (
+            <div className="flex items-center gap-2 text-sm">
+              <Badge variant="outline" className="text-xs">
+                Suggested assignee
+              </Badge>
+              <span className="text-gray-900 font-medium">{suggestedAssignee}</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
-
-

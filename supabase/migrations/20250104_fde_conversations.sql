@@ -285,3 +285,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Enable realtime for conversations table
 ALTER PUBLICATION supabase_realtime ADD TABLE fde_conversations;
 
+

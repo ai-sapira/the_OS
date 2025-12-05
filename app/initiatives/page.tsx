@@ -26,6 +26,7 @@ import {
 } from "@/components/layout"
 import { ViewSwitcher } from "@/components/view-switcher"
 import { Spinner } from "@/components/ui/spinner"
+import { FDEChatCTA } from "@/components/fde-chat-cta"
 import { EditableIssueStateDropdown } from "@/components/ui/editable-issue-state-dropdown"
 import { EditableIssuePriorityDropdown } from "@/components/ui/editable-issue-priority-dropdown"
 import { EditableIssueAssigneeDropdown } from "@/components/ui/editable-issue-assignee-dropdown"
@@ -754,7 +755,8 @@ export default function IssuesPage() {
           </div>
 
               {/* Actions */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
+                <FDEChatCTA variant="button" size="sm" label="Open thread" />
                 <Button 
                   variant="ghost" 
                   size="sm" 

@@ -51,6 +51,7 @@ import { EditableProjectStatusDropdown } from "@/components/ui/editable-project-
 import { EditableProjectBUDropdown } from "@/components/ui/editable-project-bu-dropdown";
 import { EditableProjectOwnerDropdown } from "@/components/ui/editable-project-owner-dropdown";
 import { NewProjectModal } from "@/components/new-project-modal";
+import { FDEChatCTA } from "@/components/fde-chat-cta";
 
 // Projects Filters Bar Component
 function ProjectsFiltersBar({
@@ -587,7 +588,8 @@ export default function ProjectsPage() {
               </div>
               
               {/* Actions */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
+                <FDEChatCTA variant="button" size="sm" label="Open thread" />
                 <Button 
                   variant="ghost" 
                   size="sm" 

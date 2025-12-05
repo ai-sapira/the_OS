@@ -34,7 +34,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/context/auth-context";
 import { supabase } from "@/lib/supabase/client";
 import { ConversationList, Conversation } from "@/components/fde-chat/conversation-list";
@@ -67,9 +67,14 @@ const statusConfig = {
 
 export default function FDEChatPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { currentOrg, user, loading: authLoading } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // URL params for creating new conversation
+  const shouldCreateNew = searchParams.get('new') === 'true';
+  const contextMessage = searchParams.get('context');
   
   // State
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -80,6 +85,7 @@ export default function FDEChatPage() {
   const [sending, setSending] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [hasCreatedNewFromUrl, setHasCreatedNewFromUrl] = useState(false);
 
   // FDE Contact info
   const organizationSettings = (currentOrg?.organization?.settings as Record<string, any> | undefined) ?? {};
@@ -131,6 +137,52 @@ export default function FDEChatPage() {
 
     loadConversations();
   }, [currentOrg?.organization?.id, authLoading, user?.id]);
+
+  // Handle URL params for creating new conversation
+  useEffect(() => {
+    if (shouldCreateNew && !loading && !hasCreatedNewFromUrl && currentOrg?.organization?.id) {
+      setHasCreatedNewFromUrl(true);
+      
+      // Create a new temp conversation
+      const tempConversation: Conversation = {
+        id: `temp-${Date.now()}`,
+        organization_id: currentOrg.organization.id,
+        slack_thread_ts: null,
+        slack_channel_id: null,
+        title: 'New conversation',
+        topic: null,
+        status: 'active',
+        created_by: user?.id || null,
+        participant_ids: [],
+        last_message: null,
+        last_message_at: null,
+        last_message_sender: null,
+        unread_count: 0,
+        message_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      setConversations(prev => {
+        // Remove any existing temp conversations
+        const filtered = prev.filter(c => !c.id.startsWith('temp-'));
+        return [tempConversation, ...filtered];
+      });
+      setSelectedConversation(tempConversation);
+      setMessages([]);
+      
+      // Pre-fill message with context if provided
+      if (contextMessage) {
+        setNewMessage(`Re: ${contextMessage}\n\n`);
+      }
+      
+      // Focus textarea
+      setTimeout(() => textareaRef.current?.focus(), 100);
+      
+      // Clean up URL params
+      router.replace('/fde/chat', { scroll: false });
+    }
+  }, [shouldCreateNew, loading, hasCreatedNewFromUrl, currentOrg?.organization?.id, user?.id, contextMessage, router]);
 
   // Load messages when conversation is selected
   useEffect(() => {
